@@ -1,0 +1,220 @@
+.sidebar {
+
+  width: 280px;
+
+  height: 100vh;
+
+  background: #020617;
+
+  border-right: 1px solid #334155;
+
+  color: white;
+
+  padding: 20px;
+
+  position: fixed;
+
+  transition: width 0.3s ease;
+
+  overflow-x: hidden;
+
+  box-sizing: border-box;
+}
+
+.sidebar.collapsed {
+
+  width: 80px;
+}
+
+.sidebar-header {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  margin-bottom: 40px;
+}
+
+.toggle-btn {
+
+  background: #1e293b;
+
+  color: white;
+
+  border: none;
+
+  padding: 12px;
+
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  font-size: 18px;
+
+  min-width: 44px;
+}
+
+.toggle-btn:hover {
+
+  background: #334155;
+}
+
+.sidebar h2 {
+
+  margin: 0;
+
+  font-size: 24px;
+
+  white-space: nowrap;
+}
+
+.sidebar a {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  color: #94a3b8;
+
+  text-decoration: none;
+
+  padding: 14px;
+
+  margin-bottom: 8px;
+
+  border-radius: 12px;
+
+  transition: 0.2s;
+
+  white-space: nowrap;
+}
+
+.sidebar a:hover {
+
+  background: #1e293b;
+
+  color: white;
+}
+
+.sidebar.collapsed a {
+
+  justify-content: center;
+}
+
+.sidebar.collapsed .sidebar-header {
+
+  justify-content: center;
+}
+.logout-btn {
+
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
+
+  background: transparent;
+
+  border: none;
+
+  color: #ef4444;
+
+  padding: 14px;
+
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  font-size: 16px;
+
+  margin-top: 20px;
+}
+
+.logout-btn:hover {
+
+  background: rgba(
+    239,
+    68,
+    68,
+    0.1
+  );
+}
+.modal-overlay {
+
+  position: fixed;
+
+  inset: 0;
+
+  background:
+    rgba(0,0,0,0.6);
+
+  display: flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  z-index: 1000;
+}
+.logout-modal {
+
+  background: #1e293b;
+
+  padding: 30px;
+
+  border-radius: 20px;
+
+  border: 1px solid #334155;
+
+  width: 90%;
+
+  max-width: 400px;
+
+  color: #f8fafc;
+
+  text-align: center;
+}
+.modal-actions {
+
+  display: flex;
+
+  gap: 12px;
+
+  justify-content: center;
+
+  margin-top: 25px;
+}
+.cancel-btn {
+
+  padding: 12px 24px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  background: #475569;
+
+  color: white;
+}
+.confirm-btn {
+
+  padding: 12px 24px;
+
+  border: none;
+
+  border-radius: 12px;
+
+  cursor: pointer;
+
+  background: #dc2626;
+
+  color: white;
+}
