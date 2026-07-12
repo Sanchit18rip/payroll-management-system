@@ -17,7 +17,7 @@ import * as faceapi from 'face-api.js'
 
 import ChatbotWidget from '../components/ChatbotWidget'
 
-const API_BASE = 'http://https://payroll-management-system-owo2.onrender.com'
+const API_BASE = 'https://payroll-management-system-owo2.onrender.com'
 
 function EmployeeDashboard() {
 

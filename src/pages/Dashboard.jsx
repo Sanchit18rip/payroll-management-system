@@ -35,35 +35,35 @@ const [todayDate, setTodayDate] =
 const loadDashboardData = () => {
 
   fetch(
-    "http://https://payroll-management-system-owo2.onrender.com/api/employees"
+    "https://payroll-management-system-owo2.onrender.com/api/employees"
   )
     .then(res => res.json())
     .then(data => setEmployees(data))
 
   fetch(
-    "http://https://payroll-management-system-owo2.onrender.com/api/payroll"
+    "https://payroll-management-system-owo2.onrender.com/api/payroll"
   )
     .then(res => res.json())
     .then(data => setPayroll(data))
 
   fetch(
-    "http://https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
+    "https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
   )
     .then(res => res.json())
     .then(data => setMonthlySummary(data))
 
   fetch(
-    `http://https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
+    `https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))
   fetch(
-  "http://https://payroll-management-system-owo2.onrender.com/api/leave-balance"
+  "https://payroll-management-system-owo2.onrender.com/api/leave-balance"
 )
   .then(res => res.json())
   .then(data => setLeaveBalances(data))
   fetch(
-  "http://https://payroll-management-system-owo2.onrender.com/api/recent-activities"
+  "https://payroll-management-system-owo2.onrender.com/api/recent-activities"
 )
   .then(res => res.json())
   .then(data =>
@@ -116,7 +116,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    `http://https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
+    `https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))

@@ -20,12 +20,12 @@ const [
 ] = useState([]);
   useEffect(() => {
 
-    fetch("http://https://payroll-management-system-owo2.onrender.com/api/payroll")
+    fetch("https://payroll-management-system-owo2.onrender.com/api/payroll")
       .then(res => res.json())
       .then(data => setPayroll(data))
       .catch(err => console.log(err))
     fetch(
-  "http://https://payroll-management-system-owo2.onrender.com/api/increment-history"
+  "https://payroll-management-system-owo2.onrender.com/api/increment-history"
 )
   .then(res => res.json())
   .then(data =>
@@ -47,7 +47,7 @@ const [
 const savePayrollChanges = () => {
 
   fetch(
-    `http://https://payroll-management-system-owo2.onrender.com/api/payroll/${editingEmployee.id}`,
+    `https://payroll-management-system-owo2.onrender.com/api/payroll/${editingEmployee.id}`,
     {
       method: "PUT",
       headers: {
@@ -62,7 +62,7 @@ const savePayrollChanges = () => {
   )
     .then(() =>
       fetch(
-        "http://https://payroll-management-system-owo2.onrender.com/api/payroll"
+        "https://payroll-management-system-owo2.onrender.com/api/payroll"
       )
     )
     .then(res => res.json())
