@@ -62,7 +62,7 @@ useEffect(() => {
     return;
 
   fetch(
-    "http://localhost:5000/api/hr-documents"
+    "http://https://payroll-management-system-owo2.onrender.com/api/hr-documents"
   )
     .then(res => res.json())
     .then(data => {
@@ -87,7 +87,7 @@ useEffect(() => {
     return;
 
   fetch(
-    "http://localhost:5000/api/increment-history"
+    "http://https://payroll-management-system-owo2.onrender.com/api/increment-history"
   )
     .then(res => res.json())
     .then(data => {
@@ -111,7 +111,7 @@ useEffect(() => {
 }, [selectedEmployee]);
 useEffect(() => {
    fetch(
-    "http://localhost:5000/api/employees"
+    "http://https://payroll-management-system-owo2.onrender.com/api/employees"
   )
     .then(res => res.json())
     .then(data =>
@@ -128,7 +128,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `http://localhost:5000/api/employees/${selectedEmployee}`
+    `http://https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -143,7 +143,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `http://localhost:5000/api/leave-balance/${selectedEmployee}`
+    `http://https://payroll-management-system-owo2.onrender.com/api/leave-balance/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -160,7 +160,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `http://localhost:5000/api/performance-reviews`
+    `http://https://payroll-management-system-owo2.onrender.com/api/performance-reviews`
   )
     .then(res => res.json())
     .then(data => {
@@ -185,7 +185,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `http://localhost:5000/api/employees/${selectedEmployee}`
+    `http://https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data => {
@@ -206,7 +206,7 @@ useEffect(() => {
 const confirmEmployee = () => {
 
   fetch(
-    `http://localhost:5000/api/confirm-employee/${selectedEmployee}`,
+    `http://https://payroll-management-system-owo2.onrender.com/api/confirm-employee/${selectedEmployee}`,
     {
       method: "PUT"
     }
@@ -217,7 +217,7 @@ const confirmEmployee = () => {
       alert(data.message);
 
       return fetch(
-        `http://localhost:5000/api/employees/${selectedEmployee}`
+        `http://https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
       );
 
     })
@@ -227,7 +227,7 @@ const confirmEmployee = () => {
       setEmployeeData(data);
 
       return fetch(
-        `http://localhost:5000/api/leave-balance/${selectedEmployee}`
+        `http://https://payroll-management-system-owo2.onrender.com/api/leave-balance/${selectedEmployee}`
       );
 
     })

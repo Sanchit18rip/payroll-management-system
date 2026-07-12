@@ -17,7 +17,7 @@ function Attendance() {
   useEffect(() => {
 
   fetch(
-    `http://localhost:5000/api/attendance/${selectedDate}`
+    `http://https://payroll-management-system-owo2.onrender.com/api/attendance/${selectedDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))
@@ -27,7 +27,7 @@ function Attendance() {
   
 useEffect(() => {
 
-  fetch('http://localhost:5000/api/leave-balance')
+  fetch('http://https://payroll-management-system-owo2.onrender.com/api/leave-balance')
     .then(res => res.json())
     .then(data => setLeaveBalance(data))
     .catch(err => console.log(err))
@@ -36,7 +36,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    "http://localhost:5000/api/monthly-attendance-summary"
+    "http://https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
   )
     .then(res => res.json())
     .then(data => setMonthlySummary(data))
@@ -46,7 +46,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    "http://localhost:5000/api/process-monthly-leaves",
+    "http://https://payroll-management-system-owo2.onrender.com/api/process-monthly-leaves",
     {
       method: "POST"
     }
@@ -122,7 +122,7 @@ if (
     return
   }
 
-  fetch(`http://localhost:5000/api/attendance/${id}`, {
+  fetch(`http://https://payroll-management-system-owo2.onrender.com/api/attendance/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -136,7 +136,7 @@ if (
     if (status === "Paid Leave") {
 
       return fetch(
-        `http://localhost:5000/api/leave-balance/${employeeId}`,
+        `http://https://payroll-management-system-owo2.onrender.com/api/leave-balance/${employeeId}`,
         {
           method: "PUT",
           headers: {
@@ -155,15 +155,15 @@ if (
   .then(() =>
   Promise.all([
     fetch(
-      `http://localhost:5000/api/attendance/${selectedDate}`
+      `http://https://payroll-management-system-owo2.onrender.com/api/attendance/${selectedDate}`
     ).then(res => res.json()),
 
     fetch(
-      "http://localhost:5000/api/leave-balance"
+      "http://https://payroll-management-system-owo2.onrender.com/api/leave-balance"
     ).then(res => res.json()),
 
     fetch(
-      "http://localhost:5000/api/monthly-attendance-summary"
+      "http://https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
     ).then(res => res.json())
   ])
 )
@@ -185,7 +185,7 @@ if (
 const generateTodayAttendance = () => {
 
   fetch(
-    "http://localhost:5000/api/attendance/generate-today",
+    "http://https://payroll-management-system-owo2.onrender.com/api/attendance/generate-today",
     {
       method: "POST"
     }
@@ -205,7 +205,7 @@ const generateTodayAttendance = () => {
       setSelectedDate(currentDate)
 
       return fetch(
-        `http://localhost:5000/api/attendance/${currentDate}`
+        `http://https://payroll-management-system-owo2.onrender.com/api/attendance/${currentDate}`
       )
 
     })

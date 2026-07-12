@@ -22,7 +22,7 @@ function Clients() {
   const fetchClients = () => {
 
     fetch(
-      "http://localhost:5000/api/clients"
+      "http://https://payroll-management-system-owo2.onrender.com/api/clients"
     )
       .then(res => res.json())
       .then(data => setClients(data))
@@ -54,7 +54,7 @@ function Clients() {
   }
 
   fetch(
-    "http://localhost:5000/api/clients",
+    "http://https://payroll-management-system-owo2.onrender.com/api/clients",
     {
       method: "POST",
 
