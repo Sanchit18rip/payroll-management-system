@@ -80,7 +80,7 @@ const t6 = setTimeout(() => {
 
 const t7 = setTimeout(() => {
 
-    navigate("/");
+    navigate("/dashboard");
 
 }, 14000);
 
