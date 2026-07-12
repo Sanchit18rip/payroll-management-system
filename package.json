@@ -2,6 +2,7 @@
   "name": "payroll-management-system",
   "private": true,
   "version": "0.0.0",
+  "homepage": "https://sanchit18rip.github.io/payroll-management-system",
   "type": "module",
   "scripts": {
     "dev": "vite",
