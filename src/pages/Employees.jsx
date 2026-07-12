@@ -148,7 +148,7 @@ const importCSV = (event) => {
 
       fetch(
 
-        'http://localhost:5000/api/employees/import',
+        'http://https://payroll-management-system-owo2.onrender.com/api/employees/import',
 
         {
 
@@ -217,7 +217,7 @@ alert(
 
     const response = await fetch(
 
-      "http://localhost:5000/api/employees"
+      "http://https://payroll-management-system-owo2.onrender.com/api/employees"
 
     );
 
@@ -254,7 +254,7 @@ alert(
 
     }
 
-    fetch("http://localhost:5000/api/employees", {
+    fetch("http://https://payroll-management-system-owo2.onrender.com/api/employees", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -328,7 +328,7 @@ setPreviousExperience('')
 setDepartment('')
 setSalary('')
 
-    return fetch("http://localhost:5000/api/employees")
+    return fetch("http://https://payroll-management-system-owo2.onrender.com/api/employees")
 
   })
   .then(res => res.json())
@@ -340,7 +340,7 @@ setSalary('')
   const deleteEmployee = () => {
 
   fetch(
-    `http://localhost:5000/api/employees/${employeeToDelete}`,
+    `http://https://payroll-management-system-owo2.onrender.com/api/employees/${employeeToDelete}`,
     {
       method: "DELETE"
     }
@@ -443,7 +443,7 @@ setPreviousExperience(
 };
 const updateEmployee = () => {
 
-  fetch(`http://localhost:5000/api/employees/${editingId}`, {
+  fetch(`http://https://payroll-management-system-owo2.onrender.com/api/employees/${editingId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"

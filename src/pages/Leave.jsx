@@ -29,7 +29,7 @@ return;
 
 }
   fetch(
-    "http://localhost:5000/api/leaves"
+    "http://https://payroll-management-system-owo2.onrender.com/api/leaves"
   )
     .then(res => res.json())
     .then(data => setLeaves(data))
@@ -49,7 +49,7 @@ return;
     }
 
     fetch(
-        "http://localhost:5000/api/leave-balance"
+        "http://https://payroll-management-system-owo2.onrender.com/api/leave-balance"
     )
 
         .then(res => res.json())
@@ -75,7 +75,7 @@ return;
                     employee.available_leaves
                 )
                 fetch(
-  `http://localhost:5000/api/employees/${id}`
+  `http://https://payroll-management-system-owo2.onrender.com/api/employees/${id}`
 )
   .then(res => res.json())
   .then(data =>
@@ -142,7 +142,7 @@ return;
     }
 
     fetch(
-        "http://localhost:5000/api/leaves",
+        "http://https://payroll-management-system-owo2.onrender.com/api/leaves",
         {
             method: "POST",
 
@@ -202,7 +202,7 @@ reason
 ) => {
 
     fetch(
-        `http://localhost:5000/api/leaves/${id}`,
+        `http://https://payroll-management-system-owo2.onrender.com/api/leaves/${id}`,
         {
 
             method: "PUT",
@@ -251,7 +251,7 @@ useEffect(() => {
     fetchLeaves()
 
     fetch(
-        "http://localhost:5000/api/employees"
+        "http://https://payroll-management-system-owo2.onrender.com/api/employees"
     )
         .then(res => res.json())
         .then(data => setEmployees(data))

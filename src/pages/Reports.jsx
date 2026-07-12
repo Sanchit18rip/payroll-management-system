@@ -19,19 +19,19 @@ function Reports() {
     ] = await Promise.all([
 
       fetch(
-        'http://localhost:5000/api/employees'
+        'http://https://payroll-management-system-owo2.onrender.com/api/employees'
       ),
 
       fetch(
-        'http://localhost:5000/api/attendance'
+        'http://https://payroll-management-system-owo2.onrender.com/api/attendance'
       ),
 
       fetch(
-        'http://localhost:5000/api/payroll'
+        'http://https://payroll-management-system-owo2.onrender.com/api/payroll'
       ),
 
       fetch(
-        'http://localhost:5000/api/leaves'
+        'http://https://payroll-management-system-owo2.onrender.com/api/leaves'
       )
 
     ])

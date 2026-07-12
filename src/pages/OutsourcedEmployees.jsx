@@ -29,7 +29,7 @@ function OutsourcedEmployees() {
    const fetchEmployees = () => {
 
   fetch(
-    "http://localhost:5000/api/outsourced-employees"
+    "http://https://payroll-management-system-owo2.onrender.com/api/outsourced-employees"
   )
 
     .then(res => res.json())
@@ -47,7 +47,7 @@ function OutsourcedEmployees() {
 const fetchClients = () => {
 
   fetch(
-    "http://localhost:5000/api/clients"
+    "http://https://payroll-management-system-owo2.onrender.com/api/clients"
   )
 
     .then(res => res.json())
@@ -85,7 +85,7 @@ const addEmployee = () => {
 
   fetch(
 
-    "http://localhost:5000/api/outsourced-employees",
+    "http://https://payroll-management-system-owo2.onrender.com/api/outsourced-employees",
 
     {
 
@@ -147,7 +147,7 @@ const deleteEmployee = () => {
 
   fetch(
 
-    `http://localhost:5000/api/outsourced-employees/${employeeToDelete}`,
+    `http://https://payroll-management-system-owo2.onrender.com/api/outsourced-employees/${employeeToDelete}`,
 
     {
 
