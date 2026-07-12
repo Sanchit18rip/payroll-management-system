@@ -2,7 +2,7 @@ function Sky({ type }) {
   return (
     <>
       <img
-        src={`/images/${type}.png`}
+        src={`${import.meta.env.BASE_URL}images/${type}.png`}
         alt={type}
         className="sky-image"
       />
