@@ -78,7 +78,7 @@ await faceapi.nets.faceLandmark68Net.loadFromUri(
   `${import.meta.env.BASE_URL}models`
 );
 
-await faceapi.nets.ssdMobilenetv1.loadFromUri(
+await faceapi.nets.tinyFaceDetector.loadFromUri(
   `${import.meta.env.BASE_URL}models`
 );
 
