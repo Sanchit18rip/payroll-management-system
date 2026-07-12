@@ -70,10 +70,17 @@ const [showTerms, setShowTerms] = useState(false);
     const loadModels = async () => {
 
       try {
+await faceapi.nets.faceRecognitionNet.loadFromUri(
+  `${import.meta.env.BASE_URL}models`
+);
 
-        await faceapi.nets.tinyFaceDetector.loadFromUri('/models')
-        await faceapi.nets.faceLandmark68Net.loadFromUri('/models')
-        await faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+await faceapi.nets.faceLandmark68Net.loadFromUri(
+  `${import.meta.env.BASE_URL}models`
+);
+
+await faceapi.nets.ssdMobilenetv1.loadFromUri(
+  `${import.meta.env.BASE_URL}models`
+);
 
         setModelsLoaded(true)
 
