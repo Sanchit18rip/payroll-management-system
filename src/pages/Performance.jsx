@@ -41,7 +41,7 @@ useState(null)
     const response =
       await fetch(
 
-        "http://https://payroll-management-system-owo2.onrender.com/api/performance-reviews"
+        "https://payroll-management-system-owo2.onrender.com/api/performance-reviews"
 
       )
 
@@ -64,7 +64,7 @@ useState(null)
     loadPerformances()
 
 fetch(
-  "http://https://payroll-management-system-owo2.onrender.com/api/employees"
+  "https://payroll-management-system-owo2.onrender.com/api/employees"
 )
 .then(res => res.json())
 .then(data =>
@@ -100,7 +100,7 @@ async () => {
     const response =
       await fetch(
 
-        "http://https://payroll-management-system-owo2.onrender.com/api/performance-reviews",
+        "https://payroll-management-system-owo2.onrender.com/api/performance-reviews",
 
         {
 
@@ -226,7 +226,7 @@ try {
 
 await fetch(
 
-`http://https://payroll-management-system-owo2.onrender.com/api/performance-reviews/${selectedReview.id}`,
+`https://payroll-management-system-owo2.onrender.com/api/performance-reviews/${selectedReview.id}`,
 
 {
 
@@ -276,7 +276,7 @@ async () => {
 
     await fetch(
 
-      `http://https://payroll-management-system-owo2.onrender.com/api/performance-reviews/${reviewToDelete}`,
+      `https://payroll-management-system-owo2.onrender.com/api/performance-reviews/${reviewToDelete}`,
 
       {
         method: "DELETE"
@@ -322,7 +322,7 @@ async (reviewId) => {
     const response =
       await fetch(
 
-        `http://https://payroll-management-system-owo2.onrender.com/api/apply-increment/${reviewId}`,
+        `https://payroll-management-system-owo2.onrender.com/api/apply-increment/${reviewId}`,
 
         {
           method: "PUT"
