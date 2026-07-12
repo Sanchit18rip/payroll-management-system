@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1e293b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 10px;
+}
+.attendance-calendar {
+  width: 100%;
+  background: transparent !important;
+  border: none !important;
+  color: #f8fafc !important;
+}
+
+.attendance-calendar .react-calendar__navigation button {
+  color: #f8fafc;
+  font-size: 18px;
+  background: transparent;
+}
+
+.attendance-calendar .react-calendar__month-view__weekdays {
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.attendance-calendar .react-calendar__tile {
+  color: #f8fafc;
+  background: transparent;
+  border-radius: 12px;
+  height: 50px;
+}
+
+.attendance-calendar .react-calendar__tile:hover {
+  background: #334155 !important;
+}
+
+.attendance-calendar .react-calendar__tile--active {
+  background: #2563eb !important;
+  color: white !important;
+}
+
+.attendance-calendar .react-calendar__tile--now {
+  background: #16a34a !important;
+  color: white !important;
+}
+
+.attendance-calendar .react-calendar__month-view__days__day--weekend {
+  color: #ef4444;
+}
+
+.attendance-calendar .react-calendar__navigation button:hover {
+  background: #334155 !important;
+}
+.date-picker-wrapper{
+    width:100%;
+}
+
+.custom-datepicker{
+    width:100%;
+    padding:14px;
+    border-radius:12px;
+    border:1px solid #475569;
+    background:#0f172a;
+    color:#f8fafc;
+    font-size:15px;
+    outline:none;
+    box-sizing:border-box;
+}
+
+.custom-datepicker::placeholder{
+    color:#94a3b8;
+}
+
+.react-datepicker{
+    background:#1e293b;
+    border:1px solid #334155;
+}
+
+.react-datepicker__header{
+    background:#0f172a;
+    border-bottom:1px solid #334155;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header,
+.react-datepicker-year-header{
+    color:white;
+}
+
+.react-datepicker__day-name,
+.react-datepicker__day{
+    color:white;
+}
+
+.react-datepicker__day:hover{
+    background:#2563eb;
+}
+
+.react-datepicker__day--selected{
+    background:#2563eb;
+}
+
+.react-datepicker__navigation-icon::before{
+    border-color:white;
+}
