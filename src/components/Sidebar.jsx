@@ -78,7 +78,7 @@ const handleLogout = async () => {
 
 </div>
 
-      <Link to="/">
+      <Link to="/dashboard">
 
   📊
 

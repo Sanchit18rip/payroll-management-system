@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-  BrowserRouter,
+  HashRouter,
   Routes,
   Route,
   useLocation,
@@ -30,12 +30,13 @@ function AppContent() {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
-  const hideSidebar =
-    location.pathname === "/login" ||
-    location.pathname === "/signup" ||
-    location.pathname === "/login-animation" ||
-    location.pathname === "/employee-dashboard";
-
+ const hideSidebar = [
+  "/",
+  "/login",
+  "/signup",
+  "/login-animation",
+  "/employee-dashboard",
+].includes(location.pathname);
   return (
     <>
       {!hideSidebar && (
@@ -62,7 +63,9 @@ function AppContent() {
         }}
       >
         <Routes>
-          <Route path="/" element={<Dashboard />} />
+          <Route path="/" element={<Login />} />
+
+          <Route path="/dashboard" element={<Dashboard />} />
 
           <Route
             path="/employees"
@@ -147,9 +150,9 @@ function AppContent() {
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AppContent />
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 
