@@ -7,11 +7,31 @@ function Payroll() {
   const [editingEmployee, setEditingEmployee] =
   useState(null)
 
-const [editBonus, setEditBonus] =
-  useState("")
+const [editPayroll, setEditPayroll] = useState({
 
-const [editDeduction, setEditDeduction] =
-  useState("")
+  hra_enabled: true,
+  conveyance_enabled: true,
+  medical_enabled: true,
+  other_expenses_enabled: true,
+
+  epf_employee_enabled: true,
+  epf_employer_enabled: true,
+
+  professional_tax_enabled: true,
+  tds_enabled: false,
+
+  gratuity_enabled: true,
+  incentive_enabled: false,
+
+  basic_da: "",
+  advance: "",
+  revenue_generated: "",
+  incentive_percentage: "",
+
+  bonus: "",
+  deduction: ""
+
+});
 const [searchTerm, setSearchTerm] =
   useState("")
 const [
@@ -37,13 +57,35 @@ const [
   }, [])
   const openEditModal = (employee) => {
 
-  setEditingEmployee(employee)
+  setEditingEmployee(employee);
 
-  setEditBonus(employee.bonus)
+  setEditPayroll({
 
-  setEditDeduction(employee.deduction)
+    hra_enabled: employee.hra_enabled,
+    conveyance_enabled: employee.conveyance_enabled,
+    medical_enabled: employee.medical_enabled,
+    other_expenses_enabled: employee.other_expenses_enabled,
 
-}
+    epf_employee_enabled: employee.epf_employee_enabled,
+    epf_employer_enabled: employee.epf_employer_enabled,
+
+    professional_tax_enabled: employee.professional_tax_enabled,
+    tds_enabled: employee.tds_enabled,
+
+    gratuity_enabled: employee.gratuity_enabled,
+    incentive_enabled: employee.incentive_enabled,
+
+    basic_da: employee.basic_da ?? "",
+    advance: employee.advance ?? "",
+    revenue_generated: employee.revenue_generated ?? "",
+    incentive_percentage: employee.incentive_percentage ?? "",
+
+    bonus: employee.bonus ?? "",
+    deduction: employee.deduction ?? ""
+
+  });
+
+};
 const savePayrollChanges = () => {
 
   fetch(
@@ -54,10 +96,7 @@ const savePayrollChanges = () => {
         "Content-Type":
           "application/json"
       },
-      body: JSON.stringify({
-        bonus: editBonus,
-        deduction: editDeduction
-      })
+     body: JSON.stringify(editPayroll)
     }
   )
     .then(() =>
@@ -105,6 +144,7 @@ const filteredPayroll =
         searchTerm.toLowerCase()
       )
   )
+  console.log(payroll);
 const employeeCount =
   payroll.length
 
@@ -585,21 +625,31 @@ const employeeCount =
 <th style={headerStyle}>
   Basic
 </th>
+<th style={headerStyle}>Basic + DA</th>
 <th style={headerStyle}>HRA</th>
-<th style={headerStyle}>TA</th>
-<th style={headerStyle}>MA</th>
+<th style={headerStyle}>Conveyance</th>
+<th style={headerStyle}>Medical</th>
+<th style={headerStyle}>Other</th>
 <th style={headerStyle}>Gross</th>
-<th style={headerStyle}>PF</th>
+<th style={headerStyle}>Earned Gross</th>
+<th style={headerStyle}>PF Wages</th>
+<th style={headerStyle}>Employee PF</th>
+<th style={headerStyle}>Employer PF</th>
+<th style={headerStyle}>ESIC</th>
+<th style={headerStyle}>PT</th>
+<th style={headerStyle}>TDS</th>
+<th style={headerStyle}>Gratuity</th>
+<th style={headerStyle}>Incentive</th>
 <th style={headerStyle}>Bonus</th>
 <th style={headerStyle}>Deduction</th>
+<th style={headerStyle}>Total Deduction</th>
+<th style={headerStyle}>Net Pay</th>
+<th style={headerStyle}>CTC</th>
 <th style={headerStyle}>Present</th>
 <th style={headerStyle}>Absent</th>
 <th style={headerStyle}>Paid Leave</th>
-<th style={headerStyle}>Payable Salary</th>
 <th style={headerStyle}>Payslip</th>
-<th style={headerStyle}>
-  Action
-</th>
+<th style={headerStyle}>Action</th>
           </tr>
 
         </thead>
@@ -622,20 +672,80 @@ const employeeCount =
   {employee.name}
 </td>
 
-              <td style={{padding:"16px"}}>
-  ₹{Number(employee.salary).toLocaleString()}
+              <td>
+  ₹{Number(employee.salary ?? 0).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
+<td>
+  ₹{Number(employee.basic).toLocaleString()}
+</td>
+
+<td>
   ₹{Number(employee.hra).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.ta).toLocaleString()}
+<td>
+  ₹{Number(employee.conveyance).toLocaleString()}
 </td>
 
 <td style={{padding:"16px"}}>
-  ₹{Number(employee.ma).toLocaleString()}
+  ₹{Number(employee.medical).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.other).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.gross).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.earnedGross).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.pfWages).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.employeePF).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.employerPF).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.esic).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.pt).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.tds).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.gratuity).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.incentive).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.bonus).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.deduction).toLocaleString()}
+</td>
+
+<td style={{padding:"16px"}}>
+  ₹{Number(employee.totalDeduction).toLocaleString()}
 </td>
 
 <td
@@ -645,26 +755,17 @@ const employeeCount =
     fontWeight:"700"
   }}
 >
-  ₹{Number(employee.gross_salary).toLocaleString()}
+  ₹{Number(employee.netPay).toLocaleString()}
 </td>
 
 <td
   style={{
     padding:"16px",
-    color:"#ef4444",
+    color:"#38bdf8",
     fontWeight:"700"
   }}
 >
-  ₹{Number(employee.pf).toLocaleString()}
-</td>
-
-<td
-  style={{
-    padding:"16px",
-    color:"#22c55e"
-  }}
->
-  ₹{Number(employee.bonus).toLocaleString()}
+  ₹{Number(employee.ctc).toLocaleString()}
 </td>
 
 <td
@@ -858,75 +959,168 @@ const employeeCount =
 </div>
           {editingEmployee && (
 
-  <div style={modalOverlay}>
+<div style={modalOverlay}>
 
-    <div style={modalBox}>
+  <div
+    style={{
+      ...modalBox,
+      width: "700px",
+      maxHeight: "85vh",
+      overflowY: "auto"
+    }}
+  >
 
-      <h2
-  style={{
-    marginBottom: '25px',
-    color: '#f8fafc',
-    fontSize: '28px'
-  }}
->
-  Edit Payroll
-</h2>
+    <h2
+      style={{
+        color:"#f8fafc",
+        marginBottom:"25px"
+      }}
+    >
+      Payroll Settings
+    </h2>
 
-      <label>
-        Bonus
-      </label>
+    {
+      [
 
-      <input
-        type="number"
-        value={editBonus}
-        onChange={(e) =>
-          setEditBonus(e.target.value)
-        }
-        style={modalInput}
-      />
+        ["HRA","hra_enabled"],
+        ["Conveyance","conveyance_enabled"],
+        ["Medical","medical_enabled"],
+        ["Other Expenses","other_expenses_enabled"],
 
-      <label>
-        Deduction
-      </label>
+        ["Employee PF","epf_employee_enabled"],
+        ["Employer PF","epf_employer_enabled"],
 
-      <input
-        type="number"
-        value={editDeduction}
-        onChange={(e) =>
-          setEditDeduction(e.target.value)
-        }
-        style={modalInput}
-      />
+        ["Professional Tax","professional_tax_enabled"],
+        ["TDS","tds_enabled"],
 
-      <div
-        style={{
-          display: 'flex',
-          gap: '10px',
-          marginTop: '20px'
-        }}
+        ["Gratuity","gratuity_enabled"],
+        ["Incentive","incentive_enabled"]
+
+      ].map(([label,key])=>(
+
+        <div
+          key={key}
+          style={{
+            display:"flex",
+            justifyContent:"space-between",
+            alignItems:"center",
+            marginBottom:"15px"
+          }}
+        >
+
+          <span>{label}</span>
+
+          <input
+            type="checkbox"
+            checked={editPayroll[key]}
+            onChange={(e)=>
+
+              setEditPayroll({
+                ...editPayroll,
+                [key]:e.target.checked
+              })
+
+            }
+          />
+
+        </div>
+
+      ))
+    }
+
+    <hr
+      style={{
+        borderColor:"#334155",
+        margin:"25px 0"
+      }}
+    />
+
+    {
+      [
+
+        ["Basic + DA","basic_da"],
+
+        ["Advance","advance"],
+
+        ["Revenue Generated","revenue_generated"],
+
+        ["Incentive %","incentive_percentage"],
+
+        ["Bonus","bonus"],
+
+        ["Deduction","deduction"]
+
+      ].map(([label,key])=>(
+
+        <div
+          key={key}
+          style={{
+            marginBottom:"18px"
+          }}
+        >
+
+          <label>
+
+            {label}
+
+          </label>
+
+          <input
+
+            type="number"
+
+            value={editPayroll[key]}
+
+            onChange={(e)=>
+
+              setEditPayroll({
+
+                ...editPayroll,
+
+                [key]:e.target.value
+
+              })
+
+            }
+
+            style={modalInput}
+
+          />
+
+        </div>
+
+      ))
+    }
+
+    <div
+      style={{
+        display:"flex",
+        gap:"12px",
+        marginTop:"25px"
+      }}
+    >
+
+      <button
+        style={saveButton}
+        onClick={savePayrollChanges}
       >
+        Save
+      </button>
 
-        <button
-          onClick={savePayrollChanges}
-          style={saveButton}
-        >
-          Save
-        </button>
-
-        <button
-          onClick={() =>
-            setEditingEmployee(null)
-          }
-          style={cancelButton}
-        >
-          Cancel
-        </button>
-
-      </div>
+      <button
+        style={cancelButton}
+        onClick={()=>
+          setEditingEmployee(null)
+        }
+      >
+        Cancel
+      </button>
 
     </div>
 
   </div>
+
+</div>
 
 )}
     </div>
