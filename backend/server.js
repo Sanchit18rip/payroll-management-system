@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import db from "./db.js";
 import cron from "node-cron";
+import { calculatePayroll } from "./payrollCalculator.js";
 
 const app = express();
 // Office Location
@@ -396,32 +397,43 @@ app.post("/api/employees", async (req, res) => {
 
   try {
     console.log(req.body)
-    const {
+   const {
   employee_code,
   name,
-
   email,
   phone,
-
   designation,
-
-employee_type,
-employment_status,
-
-internship_duration,
-
-joining_date,
-confirmation_date,
-
+  employee_type,
+  employment_status,
+  internship_duration,
+  joining_date,
+  confirmation_date,
   last_job_details,
   previous_experience,
-
   department,
-
   salary,
 
-  bonus,
-  deduction
+  hra_enabled = true,
+  conveyance_enabled = true,
+  medical_enabled = true,
+  other_expenses_enabled = true,
+
+  epf_employee_enabled = true,
+  epf_employer_enabled = true,
+
+  professional_tax_enabled = true,
+  tds_enabled = false,
+
+  gratuity_enabled = true,
+  incentive_enabled = false,
+
+  basic_da = null,
+  advance = 0,
+  revenue_generated = 0,
+  incentive_percentage = 0,
+
+  bonus = 0,
+  deduction = 0
 } = req.body;
 const finalEmploymentStatus =
   employment_status;
@@ -1858,90 +1870,67 @@ currentYear
 
 });
 app.get("/api/payroll", async (req, res) => {
-
   try {
-
-    const result = await db.query(
-      `
+    const result = await db.query(`
       SELECT
- employees.id,
- employees.name,
- employees.salary,
-
- employees.hra,
-
- employees.ta,
-
- employees.ma,
-
- employees.gross_salary,
-
- employees.pf,
-
- employees.bonus,
-
- employees.deduction,
+        employees.*,
 
         SUM(
           CASE
-            WHEN attendance.status = 'Present'
-            THEN 1
+            WHEN attendance.status = 'Present' THEN 1
             ELSE 0
           END
         ) AS present_days,
 
         SUM(
           CASE
-            WHEN attendance.status = 'Absent'
-            THEN 1
+            WHEN attendance.status = 'Absent' THEN 1
             ELSE 0
           END
         ) AS absent_days,
 
         SUM(
           CASE
-            WHEN attendance.status = 'Paid Leave'
-            THEN 1
+            WHEN attendance.status = 'Paid Leave' THEN 1
             ELSE 0
           END
         ) AS paid_leave_days,
 
-        COUNT(*) AS total_days,
-
-        (
- employees.gross_salary
- + employees.bonus
- - employees.deduction
- - employees.pf
-)
-AS payable_salary
+        COUNT(*) AS total_days
 
       FROM attendance
 
       JOIN employees
-      ON attendance.employee_id = employees.id
+        ON attendance.employee_id = employees.id
 
-      GROUP BY
-  employees.id,
-  employees.name,
-  employees.salary,
-  employees.hra,
-  employees.ta,
-  employees.ma,
-  employees.gross_salary,
-  employees.pf,
-  employees.bonus,
-  employees.deduction
+      GROUP BY employees.id
 
       ORDER BY employees.id
-      `
-    );
+    `);
 
-    res.json(result.rows);
+    const payrollData = result.rows.map((employee) => {
 
-  }
+      const payroll = calculatePayroll(employee);
 
-  catch (err) {
+      return {
+    id: employee.id,
+    name: employee.name,
+
+    salary: Number(employee.salary),
+
+    present_days: Number(employee.present_days),
+    absent_days: Number(employee.absent_days),
+    paid_leave_days: Number(employee.paid_leave_days),
+    total_days: Number(employee.total_days),
+
+    ...payroll
+}
+
+    });
+
+    res.json(payrollData);
+
+  } catch (err) {
 
     console.log(err);
 
@@ -1950,7 +1939,6 @@ AS payable_salary
     });
 
   }
-
 });
 app.put("/api/payroll/:id", async (req, res) => {
 
@@ -1959,32 +1947,103 @@ app.put("/api/payroll/:id", async (req, res) => {
     const id = req.params.id;
 
     const {
+
+      hra_enabled,
+      conveyance_enabled,
+      medical_enabled,
+      other_expenses_enabled,
+
+      epf_employee_enabled,
+      epf_employer_enabled,
+
+      professional_tax_enabled,
+      tds_enabled,
+
+      gratuity_enabled,
+      incentive_enabled,
+
+      basic_da,
+      advance,
+      revenue_generated,
+      incentive_percentage,
+
       bonus,
       deduction
+
     } = req.body;
 
     await db.query(
       `
       UPDATE employees
       SET
-        bonus = $1,
-        deduction = $2
-      WHERE id = $3
+
+        hra_enabled = $1,
+        conveyance_enabled = $2,
+        medical_enabled = $3,
+        other_expenses_enabled = $4,
+
+        epf_employee_enabled = $5,
+        epf_employer_enabled = $6,
+
+        professional_tax_enabled = $7,
+        tds_enabled = $8,
+
+        gratuity_enabled = $9,
+        incentive_enabled = $10,
+
+        basic_da = $11,
+        advance = $12,
+        revenue_generated = $13,
+        incentive_percentage = $14,
+
+        bonus = $15,
+        deduction = $16
+
+      WHERE id = $17
       `,
       [
+
+        hra_enabled,
+        conveyance_enabled,
+        medical_enabled,
+        other_expenses_enabled,
+
+        epf_employee_enabled,
+        epf_employer_enabled,
+
+        professional_tax_enabled,
+        tds_enabled,
+
+        gratuity_enabled,
+        incentive_enabled,
+
+        basic_da,
+        advance,
+        revenue_generated,
+        incentive_percentage,
+
         bonus,
         deduction,
+
         id
+
       ]
     );
 
+    // Fetch updated employee
+    const result = await db.query(
+      `SELECT * FROM employees WHERE id = $1`,
+      [id]
+    );
+
+    const payroll = calculatePayroll(result.rows[0]);
+
     res.json({
-      message: "Payroll Updated"
+      message: "Payroll Updated",
+      payroll
     });
 
-  }
-
-  catch (err) {
+  } catch (err) {
 
     console.log(err);
 
