@@ -17,7 +17,7 @@ import * as faceapi from 'face-api.js'
 
 import ChatbotWidget from '../components/ChatbotWidget'
 
-const API_BASE = 'https://payroll-management-system-three.vercel.app'
+const API_BASE = 'https://payroll-management-system-owo2.onrender.com'
 
 function EmployeeDashboard() {
 
@@ -56,8 +56,13 @@ const [showTerms, setShowTerms] = useState(false);
   const [cameraMode, setCameraMode] = useState(null) 
   const [cameraBusy, setCameraBusy] = useState(false)
   const [cameraMessage, setCameraMessage] = useState('')
+  const [showFaceWarning, setShowFaceWarning] = useState(false)
+  const [liveMatchFound, setLiveMatchFound] = useState(false)
+  const [liveDetectedName, setLiveDetectedName] = useState('')
+  const [liveDetectedCode, setLiveDetectedCode] = useState('')
   const videoRef = useRef(null)
   const streamRef = useRef(null)
+  const detectionIntervalRef = useRef(null)
   const handleLogout = async () => {
 
   await supabase.auth.signOut();
@@ -105,6 +110,9 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     setCameraMode(null)
     setCameraMessage('')
+    setLiveMatchFound(false)
+    setLiveDetectedName('')
+    setLiveDetectedCode('')
 
   }
 
@@ -155,6 +163,54 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
     return detection.descriptor
 
   }
+
+  useEffect(() => {
+
+    if (cameraMode === 'mark' && modelsLoaded && employee?.face_descriptor) {
+
+      detectionIntervalRef.current = setInterval(async () => {
+
+        if (!videoRef.current) return
+
+        const detection = await faceapi
+          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions())
+          .withFaceLandmarks()
+          .withFaceDescriptor()
+
+        if (!detection) {
+          setLiveMatchFound(false)
+          setLiveDetectedName('')
+          setLiveDetectedCode('')
+          return
+        }
+
+        const storedDescriptor = new Float32Array(JSON.parse(employee.face_descriptor))
+        const distance = faceapi.euclideanDistance(storedDescriptor, detection.descriptor)
+
+        if (distance < 0.6) {
+          setLiveMatchFound(true)
+          setLiveDetectedName(employee.name)
+          setLiveDetectedCode(employee.employee_code || `EMP${String(employee.id).padStart(4, '0')}`)
+        }
+
+        else {
+          setLiveMatchFound(false)
+          setLiveDetectedName('')
+          setLiveDetectedCode('')
+        }
+
+      }, 1500)
+
+    }
+
+    return () => {
+      if (detectionIntervalRef.current) {
+        clearInterval(detectionIntervalRef.current)
+        detectionIntervalRef.current = null
+      }
+    }
+
+  }, [cameraMode, modelsLoaded, employee])
 
   const captureSnapshotDataUrl = () => {
 
@@ -209,8 +265,12 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 })
       })
 
+      const result = await res.json()
+
       if (!res.ok) {
-        throw new Error('Enrollment failed')
+        setCameraMessage(result.message || 'This face could not be enrolled. Please try again.')
+        setCameraBusy(false)
+        return
       }
 
       setFaceEnrolled(true)
@@ -788,6 +848,42 @@ console.log(increments);
         </div>
       )}
 
+      {showFaceWarning && (
+        <div style={termsOverlay}>
+          <div style={termsBox}>
+            <h2 style={{ color: '#f8fafc', marginTop: 0, marginBottom: '14px' }}>
+              Face Enrollment
+            </h2>
+            <div style={termsTextBox}>
+              <p>
+                <strong>{employee.name}</strong>, to mark attendance, your face needs to be detected first.
+              </p>
+              <p>
+                Any photo will not work — your real, live face must be in front of the camera.
+              </p>
+              <p>
+                The face you detect right now will be used to mark your daily attendance. So make sure it is your own face — {employee.name}'s — because this same face must match for daily attendance going forward.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setShowFaceWarning(false)
+                openCamera('enroll')
+              }}
+              style={primaryButton}
+            >
+              I Understand, Detect My Face
+            </button>
+            <button
+              onClick={() => setShowFaceWarning(false)}
+              style={{ ...secondaryButton, width: '100%', marginTop: '10px' }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
 
       <div style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -906,7 +1002,7 @@ top: "-15px",
                 </p>
 
                 {cameraMode !== 'enroll' ? (
-                  <button onClick={() => openCamera('enroll')} style={primaryButton}>
+                  <button onClick={() => setShowFaceWarning(true)} style={primaryButton}>
                     Open Camera to Enroll
                   </button>
                 ) : (
@@ -937,17 +1033,32 @@ top: "-15px",
             ) : (
               <div>
                 <video ref={videoRef} autoPlay muted style={cameraPreview} />
+
+                <div style={liveMatchBadge}>
+                  {liveMatchFound ? (
+                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
+                      ✅ {liveDetectedName}, {liveDetectedCode}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#fbbf24', fontSize: '13px' }}>
+                      🔍 Detecting your face...
+                    </span>
+                  )}
+                </div>
+
                 {cameraMessage && (
                   <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{cameraMessage}</p>
                 )}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
-                  <button
-                    onClick={submitAttendanceMark}
-                    disabled={cameraBusy}
-                    style={{ ...primaryButton, opacity: cameraBusy ? 0.6 : 1 }}
-                  >
-                    {cameraBusy ? 'Verifying...' : 'Capture & Mark Present'}
-                  </button>
+                  {liveMatchFound && (
+                    <button
+                      onClick={submitAttendanceMark}
+                      disabled={cameraBusy}
+                      style={{ ...primaryButton, opacity: cameraBusy ? 0.6 : 1 }}
+                    >
+                      {cameraBusy ? 'Verifying...' : 'Capture & Mark Present'}
+                    </button>
+                  )}
                   <button onClick={stopCamera} style={secondaryButton}>
                     Cancel
                   </button>
@@ -1355,6 +1466,15 @@ const termsCheckboxRow = {
   gap: '10px',
   marginBottom: '20px',
   cursor: 'pointer'
+}
+
+const liveMatchBadge = {
+  marginTop: '10px',
+  padding: '10px 14px',
+  background: '#0f172a',
+  border: '1px solid #334155',
+  borderRadius: '10px',
+  textAlign: 'center'
 }
 
 const summaryGrid = {

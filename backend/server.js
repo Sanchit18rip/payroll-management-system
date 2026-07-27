@@ -3819,6 +3819,40 @@ app.put("/api/employees/:id/face-enroll", async (req, res) => {
     const { id } = req.params;
     const { face_descriptor } = req.body;
 
+    const existing = await db.query(
+      `
+      SELECT id, name, employee_code, face_descriptor
+      FROM employees
+      WHERE face_descriptor IS NOT NULL
+      AND id != $1
+      `,
+      [id]
+    );
+
+    function euclideanDistance(a, b) {
+      let sum = 0;
+      for (let i = 0; i < a.length; i++) {
+        sum += (a[i] - b[i]) ** 2;
+      }
+      return Math.sqrt(sum);
+    }
+
+    for (const row of existing.rows) {
+
+      const storedDescriptor = JSON.parse(row.face_descriptor);
+      const distance = euclideanDistance(storedDescriptor, face_descriptor);
+
+      if (distance < 0.6) {
+
+        return res.status(409).json({
+          success: false,
+          message: `This face is already enrolled under ${row.name} (${row.employee_code || 'EMP' + row.id}). Each employee must enroll with their own face.`
+        });
+
+      }
+
+    }
+
     await db.query(
       `
       UPDATE employees
