@@ -5,6 +5,19 @@ import {
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import './Sidebar.css'
+import {
+  LayoutDashboard,
+  Users,
+  CalendarDays,
+  Wallet,
+  Plane,
+  BarChart3,
+  ClipboardList,
+  Building2,
+  UserCircle,
+  LogOut,
+  Menu,
+} from "lucide-react";
 
 function Sidebar({
   onToggle
@@ -20,7 +33,58 @@ function Sidebar({
 
 ] = useState(false)
   const navigate = useNavigate()
-  
+const menuItems = [
+  {
+    title: "Dashboard",
+    icon: LayoutDashboard,
+    path: "/dashboard",
+  },
+  {
+    title: "Employees",
+    icon: Users,
+    path: "/employees",
+  },
+  {
+    title: "Attendance",
+    icon: CalendarDays,
+    path: "/attendance",
+  },
+  {
+    title: "Payroll",
+    icon: Wallet,
+    path: "/payroll",
+  },
+  {
+    title: "Leave",
+    icon: Plane,
+    path: "/leave",
+  },
+  {
+    title: "Performance",
+    icon: BarChart3,
+    path: "/performance",
+  },
+  {
+    title: "Reports",
+    icon: ClipboardList,
+    path: "/reports",
+  },
+  {
+    title: "HR Documents",
+    icon: ClipboardList,
+    path: "/hr-documents",
+  },
+  {
+    title: "Employee Profile",
+    icon: UserCircle,
+    path: "/employee-profile",
+  },
+  {
+    title: "Clients",
+    icon: Building2,
+    path: "/clients",
+  },
+];
 
 const handleLogout = async () => {
 
@@ -69,7 +133,7 @@ const handleLogout = async () => {
 
 }}
   >
-    ☰
+    <Menu size={20} />
   </button>
 
   {!collapsed && (
@@ -78,61 +142,23 @@ const handleLogout = async () => {
 
 </div>
 
-      <Link to="/dashboard">
+      {menuItems.map((item) => {
+  const Icon = item.icon;
 
-  📊
+  return (
+    <Link
+      key={item.path}
+      to={item.path}
+      className="sidebar-link"
+    >
+      <Icon size={20} />
 
-  {!collapsed && ' Dashboard'}
-
-</Link>
-
-      <Link to="/employees">
-  👥 {!collapsed && 'Employees'}
-</Link>
-
-<Link to="/attendance">
-  🕒 {!collapsed && 'Attendance'}
-</Link>
-
-<Link to="/payroll">
-  💰 {!collapsed && 'Payroll'}
-</Link>
-
-<Link to="/leave">
-  📅 {!collapsed && 'Leave'}
-</Link>
-
-<Link to="/performance">
-  ⭐ {!collapsed && 'Performance'}
-</Link>
-
-<Link to="/reports">
-  📈 {!collapsed && 'Reports'}
-</Link>
-
-<Link to="/hr-documents">
-  📋{!collapsed && 'HR Documents'}
-</Link>
-
-<Link
-  to="/employee-profile"    
->
-  👤 {!collapsed && 'Employee Profile'}
-</Link>
-
-<Link to="/clients">
-  🏢 {!collapsed && 'Clients'}
-</Link>
-
-<Link to="/outsourced-employees">
-  🤝 {!collapsed &&
-    'Outsourced Employees'}
-</Link>
-
-<Link to="/third-party-payroll">
-  💳 {!collapsed &&
-    'Third Party Payroll'}
-</Link>
+      {!collapsed && (
+        <span>{item.title}</span>
+      )}
+    </Link>
+  );
+})}
 <button
   onClick={() =>
   setShowLogoutModal(true)
@@ -140,7 +166,7 @@ const handleLogout = async () => {
   className="logout-btn"
 >
 
-  🚪
+  
 
   {!collapsed &&
     ' Logout'}

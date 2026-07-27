@@ -84,7 +84,7 @@ function Reports() {
 
       total +
       Number(
-        employee.payable_salary
+        employee.salary
       ),
 
     0

@@ -1,37 +1,38 @@
 import { useState, useEffect } from 'react'
 import { jsPDF } from 'jspdf'
+import PayrollDrawer from "../components/PayrollDrawer";
+// Single source of truth for the backend URL. Change this in one place
+// instead of hardcoding the host in every fetch call.
+const API_BASE = "http://localhost:5000"
 
 function Payroll() {
 
   const [payroll, setPayroll] = useState([])
   const [editingEmployee, setEditingEmployee] =
   useState(null)
+const [showPayrollDrawer, setShowPayrollDrawer] = useState(false); 
 
-const [editPayroll, setEditPayroll] = useState({
+const [editBonus, setEditBonus] =
+  useState("")
+const [payrollSettings, setPayrollSettings] = useState({
+  hra: true,
+  conveyance: true,
+  medical: true,
+  employeePF: true,
+  employerPF: true,
+  professionalTax: true,
+  tds: true,
+  gratuity: true,
+  incentive: true,
+  otherExpense: true,
+});  
 
-  hra_enabled: true,
-  conveyance_enabled: true,
-  medical_enabled: true,
-  other_expenses_enabled: true,
+const [employeePayrollSettings, setEmployeePayrollSettings] = useState({});
+const [showPayrollModal, setShowPayrollModal] = useState(false);
+const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  epf_employee_enabled: true,
-  epf_employer_enabled: true,
-
-  professional_tax_enabled: true,
-  tds_enabled: false,
-
-  gratuity_enabled: true,
-  incentive_enabled: false,
-
-  basic_da: "",
-  advance: "",
-  revenue_generated: "",
-  incentive_percentage: "",
-
-  bonus: "",
-  deduction: ""
-
-});
+const [editDeduction, setEditDeduction] =
+  useState("")
 const [searchTerm, setSearchTerm] =
   useState("")
 const [
@@ -40,12 +41,12 @@ const [
 ] = useState([]);
   useEffect(() => {
 
-    fetch("https://payroll-management-system-owo2.onrender.com/api/payroll")
+    fetch(`${API_BASE}/api/payroll`)
       .then(res => res.json())
       .then(data => setPayroll(data))
       .catch(err => console.log(err))
     fetch(
-  "https://payroll-management-system-owo2.onrender.com/api/increment-history"
+  `${API_BASE}/api/increment-history`
 )
   .then(res => res.json())
   .then(data =>
@@ -57,51 +58,32 @@ const [
   }, [])
   const openEditModal = (employee) => {
 
-  setEditingEmployee(employee);
+  setEditingEmployee(employee)
 
-  setEditPayroll({
+  setEditBonus(employee.bonus)
 
-    hra_enabled: employee.hra_enabled,
-    conveyance_enabled: employee.conveyance_enabled,
-    medical_enabled: employee.medical_enabled,
-    other_expenses_enabled: employee.other_expenses_enabled,
+  setEditDeduction(employee.deduction)
 
-    epf_employee_enabled: employee.epf_employee_enabled,
-    epf_employer_enabled: employee.epf_employer_enabled,
-
-    professional_tax_enabled: employee.professional_tax_enabled,
-    tds_enabled: employee.tds_enabled,
-
-    gratuity_enabled: employee.gratuity_enabled,
-    incentive_enabled: employee.incentive_enabled,
-
-    basic_da: employee.basic_da ?? "",
-    advance: employee.advance ?? "",
-    revenue_generated: employee.revenue_generated ?? "",
-    incentive_percentage: employee.incentive_percentage ?? "",
-
-    bonus: employee.bonus ?? "",
-    deduction: employee.deduction ?? ""
-
-  });
-
-};
+}
 const savePayrollChanges = () => {
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/payroll/${editingEmployee.id}`,
+    `${API_BASE}/api/payroll/${editingEmployee.id}`,
     {
       method: "PUT",
       headers: {
         "Content-Type":
           "application/json"
       },
-     body: JSON.stringify(editPayroll)
+      body: JSON.stringify({
+        bonus: editBonus,
+        deduction: editDeduction
+      })
     }
   )
     .then(() =>
       fetch(
-        "https://payroll-management-system-owo2.onrender.com/api/payroll"
+        `${API_BASE}/api/payroll`
       )
     )
     .then(res => res.json())
@@ -136,15 +118,14 @@ const averagePayroll =
         totalPayroll / payroll.length
       ).toFixed(2)
     : 0
-const filteredPayroll =
-  payroll.filter((employee) =>
-    employee.name
-      .toLowerCase()
-      .includes(
-        searchTerm.toLowerCase()
-      )
-  )
-  console.log(payroll);
+console.log(payroll);
+const filteredPayroll = Array.isArray(payroll)
+  ? payroll.filter((employee) =>
+      (employee?.name ?? "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+    )
+  : [];
 const employeeCount =
   payroll.length
 
@@ -221,14 +202,6 @@ const employeeCount =
     employee.payable_salary
 
   ]);
-  const filteredPayroll =
-  payroll.filter(employee =>
-    employee.name
-      .toLowerCase()
-      .includes(
-        searchTerm.toLowerCase()
-      )
-  )
 
   const csvContent = [
 
@@ -263,6 +236,47 @@ const employeeCount =
   URL.revokeObjectURL(url);
 
 };
+const handleEdit = async (employee) => {
+  setSelectedEmployee(employee);
+
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/employees/${employee.id}`
+    );
+
+    const data = await response.json();
+
+    setPayrollSettings({
+      hra: data.hra_enabled,
+      conveyance: data.conveyance_enabled,
+      medical: data.medical_enabled,
+      employeePF: data.employee_pf_enabled,
+      employerPF: data.employer_pf_enabled,
+      professionalTax: data.professional_tax_enabled,
+      tds: data.tds_enabled,
+      gratuity: data.gratuity_enabled,
+      incentive: data.incentive_enabled,
+      otherExpense: data.other_expense_enabled,
+    });
+
+    setShowPayrollModal(true);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load payroll settings.");
+  }
+};
+const payrollOptions = [
+  { label: "HRA", key: "hra" },
+  { label: "Conveyance Allowance", key: "conveyance" },
+  { label: "Medical Allowance", key: "medical" },
+  { label: "Employee PF", key: "employeePF" },
+  { label: "Employer PF", key: "employerPF" },
+  { label: "Professional Tax", key: "professionalTax" },
+  { label: "TDS", key: "tds" },
+  { label: "Gratuity", key: "gratuity" },
+  { label: "Incentive", key: "incentive" },
+  { label: "Other Expense", key: "otherExpense" },
+];
   return (
 
     <div
@@ -618,38 +632,43 @@ const employeeCount =
         <thead>
 
           <tr>
-            <th style={headerStyle}>
-  Employee
-</th>
+           <th>Employee</th>
 
-<th style={headerStyle}>
-  Basic
-</th>
-<th style={headerStyle}>Basic + DA</th>
-<th style={headerStyle}>HRA</th>
-<th style={headerStyle}>Conveyance</th>
-<th style={headerStyle}>Medical</th>
-<th style={headerStyle}>Other</th>
-<th style={headerStyle}>Gross</th>
-<th style={headerStyle}>Earned Gross</th>
-<th style={headerStyle}>PF Wages</th>
-<th style={headerStyle}>Employee PF</th>
-<th style={headerStyle}>Employer PF</th>
-<th style={headerStyle}>ESIC</th>
-<th style={headerStyle}>PT</th>
-<th style={headerStyle}>TDS</th>
-<th style={headerStyle}>Gratuity</th>
-<th style={headerStyle}>Incentive</th>
-<th style={headerStyle}>Bonus</th>
-<th style={headerStyle}>Deduction</th>
-<th style={headerStyle}>Total Deduction</th>
-<th style={headerStyle}>Net Pay</th>
-<th style={headerStyle}>CTC</th>
-<th style={headerStyle}>Present</th>
-<th style={headerStyle}>Absent</th>
-<th style={headerStyle}>Paid Leave</th>
-<th style={headerStyle}>Payslip</th>
-<th style={headerStyle}>Action</th>
+<th>Gross Salary</th>
+
+<th>Basic + DA</th>
+
+<th>HRA</th>
+
+<th>Conveyance</th>
+
+<th>Medical</th>
+
+<th>Other Allowance</th>
+
+<th>PF</th>
+
+<th>Present</th>
+
+<th>Absent</th>
+
+<th>Paid Leave</th>
+
+<th>Total Days</th>
+
+<th>Bonus</th>
+
+<th>Total Deduction</th>
+
+<th>Payable Salary</th>
+
+
+
+
+
+<th>Settings</th>
+
+<th>Payslip</th>
           </tr>
 
         </thead>
@@ -663,142 +682,122 @@ const employeeCount =
   style={rowStyle}
 >
 
-              <td
-  style={{
-    whiteSpace: "nowrap",
-    padding: "16px"
-  }}
->
-  {employee.name}
-</td>
-
               <td>
-  ₹{Number(employee.salary ?? 0).toLocaleString()}
+  <button
+    onClick={async () => {
+  try {
+    const response = await fetch(
+      `${API_BASE}/api/payroll/${employee.id}`
+    );
+
+    const data = await response.json();
+
+    setSelectedEmployee(data);
+
+    setShowPayrollDrawer(true);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load employee payroll.");
+  }
+}}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "#8b5cf6",
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "15px",
+    }}
+  >
+    {employee.name}
+  </button>
 </td>
 
-<td>
-  ₹{Number(employee.basic).toLocaleString()}
+              <td style={{ padding: "16px" }}>
+  ₹{Number(employee.salary).toLocaleString()}
 </td>
 
-<td>
+<td style={{ padding: "16px" }}>
+  ₹{Number(employee.basic_da).toLocaleString()}
+</td>
+
+<td style={{ padding: "16px" }}>
   ₹{Number(employee.hra).toLocaleString()}
 </td>
 
-<td>
-  ₹{Number(employee.conveyance).toLocaleString()}
+<td style={{ padding: "16px" }}>
+  ₹{Number(employee.conveyance_allowance).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.medical).toLocaleString()}
+<td style={{ padding: "16px" }}>
+  ₹{Number(employee.medical_allowance).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.other).toLocaleString()}
+<td style={{ padding: "16px" }}>
+  ₹{Number(employee.other_allowance).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.gross).toLocaleString()}
+<td style={{ padding: "16px" }}>
+  ₹{Number(employee.pf).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.earnedGross).toLocaleString()}
-</td>
+<td>{employee.present_days}</td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.pfWages).toLocaleString()}
-</td>
+<td>{employee.absent_days}</td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.employeePF).toLocaleString()}
-</td>
+<td>{employee.paid_leave_days}</td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.employerPF).toLocaleString()}
-</td>
+<td>{employee.total_days}</td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.esic).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.pt).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.tds).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.gratuity).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.incentive).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
+<td
+  style={{
+    padding: "16px",
+    color: "#22c55e"
+  }}
+>
   ₹{Number(employee.bonus).toLocaleString()}
 </td>
 
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.deduction).toLocaleString()}
-</td>
-
-<td style={{padding:"16px"}}>
-  ₹{Number(employee.totalDeduction).toLocaleString()}
-</td>
-
 <td
   style={{
-    padding:"16px",
-    color:"#22c55e",
-    fontWeight:"700"
+    padding: "16px",
+    color: "#ef4444"
   }}
 >
-  ₹{Number(employee.netPay).toLocaleString()}
-</td>
+₹{Number(employee.total_deduction).toLocaleString()}</td>
 
-<td
+
+
+             <td
   style={{
-    padding:"16px",
-    color:"#38bdf8",
-    fontWeight:"700"
+    color: "#2563eb",
+    fontWeight: "700",
+    padding: "16px"
   }}
 >
-  ₹{Number(employee.ctc).toLocaleString()}
-</td>
-
-<td
-  style={{
-    padding:"16px",
-    color:"#ef4444"
-  }}
->
-  ₹{Number(employee.deduction).toLocaleString()}
-</td>
-
-<td>
-  {employee.present_days}
+  ₹{Number(employee.payable_salary).toLocaleString(undefined,{
+    maximumFractionDigits:2
+  })}
 </td>
               <td>
-                {employee.absent_days}
-              </td>
-
-              <td>
-                {employee.paid_leave_days}
-              </td>
-
-              <td
-  style={{
-    color: '#2563eb',
-    fontWeight: '700',
-    fontSize: '16px',
-    padding: '16px',
-    whiteSpace: "nowrap"
-  }}
->
-                ₹{parseInt(employee.payable_salary)}
-              </td>
+  <button
+    onClick={() => handleEdit(employee)}
+    style={{
+      background: "#2563eb",
+      color: "#fff",
+      border: "none",
+      borderRadius: "8px",
+      padding: "8px 16px",
+      cursor: "pointer",
+      fontWeight: "600",
+      transition: "0.2s"
+    }}
+    onMouseOver={(e) => (e.target.style.background = "#1d4ed8")}
+    onMouseOut={(e) => (e.target.style.background = "#2563eb")}
+  >
+    Edit
+  </button>
+</td>
 
               <td>
 
@@ -814,14 +813,7 @@ const employeeCount =
               </td>
               <td>
 
-  <button
-    onClick={() =>
-      openEditModal(employee)
-    }
-    style={editButton}
-  >
-    Edit
-  </button>
+  
 
 </td>
 
@@ -959,173 +951,241 @@ const employeeCount =
 </div>
           {editingEmployee && (
 
-<div style={modalOverlay}>
+  <div style={modalOverlay}>
 
-  <div
-    style={{
-      ...modalBox,
-      width: "700px",
-      maxHeight: "85vh",
-      overflowY: "auto"
-    }}
-  >
+    <div style={modalBox}>
 
-    <h2
-      style={{
-        color:"#f8fafc",
-        marginBottom:"25px"
-      }}
-    >
-      Payroll Settings
-    </h2>
+      <h2
+  style={{
+    marginBottom: '25px',
+    color: '#f8fafc',
+    fontSize: '28px'
+  }}
+>
+  Edit Payroll
+</h2>
 
-    {
-      [
+      <label>
+        Bonus
+      </label>
 
-        ["HRA","hra_enabled"],
-        ["Conveyance","conveyance_enabled"],
-        ["Medical","medical_enabled"],
-        ["Other Expenses","other_expenses_enabled"],
-
-        ["Employee PF","epf_employee_enabled"],
-        ["Employer PF","epf_employer_enabled"],
-
-        ["Professional Tax","professional_tax_enabled"],
-        ["TDS","tds_enabled"],
-
-        ["Gratuity","gratuity_enabled"],
-        ["Incentive","incentive_enabled"]
-
-      ].map(([label,key])=>(
-
-        <div
-          key={key}
-          style={{
-            display:"flex",
-            justifyContent:"space-between",
-            alignItems:"center",
-            marginBottom:"15px"
-          }}
-        >
-
-          <span>{label}</span>
-
-          <input
-            type="checkbox"
-            checked={editPayroll[key]}
-            onChange={(e)=>
-
-              setEditPayroll({
-                ...editPayroll,
-                [key]:e.target.checked
-              })
-
-            }
-          />
-
-        </div>
-
-      ))
-    }
-
-    <hr
-      style={{
-        borderColor:"#334155",
-        margin:"25px 0"
-      }}
-    />
-
-    {
-      [
-
-        ["Basic + DA","basic_da"],
-
-        ["Advance","advance"],
-
-        ["Revenue Generated","revenue_generated"],
-
-        ["Incentive %","incentive_percentage"],
-
-        ["Bonus","bonus"],
-
-        ["Deduction","deduction"]
-
-      ].map(([label,key])=>(
-
-        <div
-          key={key}
-          style={{
-            marginBottom:"18px"
-          }}
-        >
-
-          <label>
-
-            {label}
-
-          </label>
-
-          <input
-
-            type="number"
-
-            value={editPayroll[key]}
-
-            onChange={(e)=>
-
-              setEditPayroll({
-
-                ...editPayroll,
-
-                [key]:e.target.value
-
-              })
-
-            }
-
-            style={modalInput}
-
-          />
-
-        </div>
-
-      ))
-    }
-
-    <div
-      style={{
-        display:"flex",
-        gap:"12px",
-        marginTop:"25px"
-      }}
-    >
-
-      <button
-        style={saveButton}
-        onClick={savePayrollChanges}
-      >
-        Save
-      </button>
-
-      <button
-        style={cancelButton}
-        onClick={()=>
-          setEditingEmployee(null)
+      <input
+        type="number"
+        value={editBonus}
+        onChange={(e) =>
+          setEditBonus(e.target.value)
         }
+        style={modalInput}
+      />
+
+      <label>
+        Deduction
+      </label>
+
+      <input
+        type="number"
+        value={editDeduction}
+        onChange={(e) =>
+          setEditDeduction(e.target.value)
+        }
+        style={modalInput}
+      />
+
+      <div
+        style={{
+          display: 'flex',
+          gap: '10px',
+          marginTop: '20px'
+        }}
       >
-        Cancel
-      </button>
+
+        <button
+          onClick={savePayrollChanges}
+          style={saveButton}
+        >
+          Save
+        </button>
+
+        <button
+          onClick={() =>
+            setEditingEmployee(null)
+          }
+          style={cancelButton}
+        >
+          Cancel
+        </button>
+
+      </div>
 
     </div>
 
   </div>
 
-</div>
+)}
+{showPayrollModal && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      background: "rgba(0,0,0,0.6)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 9999,
+    }}
+  >
+    <div
+      style={{
+        width: "500px",
+        background: "#1f2937",
+        color: "#fff",
+        borderRadius: "12px",
+        padding: "25px",
+        boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+      }}
+    >
+      <h2 style={{ marginTop: 0 }}>Payroll Settings</h2>
 
+      <p>
+        Employee: <strong>{selectedEmployee?.name}</strong>
+      </p>
+
+      <div style={{ marginTop: "20px" }}>
+  {payrollOptions.map((option) => (
+  <div
+    key={option.key}
+    style={{
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "16px",
+      paddingBottom: "10px",
+      borderBottom: "1px solid #374151",
+    }}
+  >
+    <span style={{ fontWeight: "500" }}>{option.label}</span>
+
+    <div style={{ display: "flex", gap: "20px" }}>
+      <label>
+        <input
+          type="radio"
+          name={option.key}
+          checked={payrollSettings[option.key]}
+          onChange={() =>
+            setPayrollSettings({
+              ...payrollSettings,
+              [option.key]: true,
+            })
+          }
+        />
+        {" "}Yes
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name={option.key}
+          checked={!payrollSettings[option.key]}
+          onChange={() =>
+            setPayrollSettings({
+              ...payrollSettings,
+              [option.key]: false,
+            })
+          }
+        />
+        {" "}No
+      </label>
+    </div>
+  </div>
+))}
+</div>
+<div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+    marginTop: "25px"
+  }}
+>
+  <button
+    onClick={() => setShowPayrollModal(false)}
+    style={{
+      padding: "10px 18px",
+      borderRadius: "8px",
+      border: "none",
+      cursor: "pointer"
+    }}
+  >
+    Cancel
+  </button>
+
+<button
+  onClick={async () => {
+  try {
+    const response = await fetch(
+  `${API_BASE}/api/employees/${selectedEmployee.id}/payroll-settings`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payrollSettings),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to save settings");
+    }
+
+    // Refresh payroll data
+    const payrollResponse = await fetch(
+      `${API_BASE}/api/payroll`
+    );
+
+    const payrollData = await payrollResponse.json();
+
+    setPayroll(payrollData);
+
+    setShowPayrollModal(false);
+
+    alert("Payroll settings saved successfully!");
+  } catch (err) {
+    console.error(err);
+    alert("Failed to save payroll settings.");
+  }
+}}
+  style={{
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 20px",
+    cursor: "pointer"
+  }}
+>
+  Save
+</button>
+</div>
+    </div>
+  </div>
+)}
+{showPayrollDrawer && selectedEmployee && (
+  <PayrollDrawer
+    employee={selectedEmployee}
+    generatePayslip={generatePayslip}
+    onClose={() => {
+      setShowPayrollDrawer(false);
+      setSelectedEmployee(null);
+    }}
+  />
 )}
     </div>
 
-  )
+  
+)
 
 }
 

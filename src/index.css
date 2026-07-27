@@ -1,125 +1,256 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+*{
 
-body {
-  margin: 0;
-  font-family: Inter, sans-serif;
-  background: #0f172a;
-  color: #f8fafc;
-}
+margin:0;
 
-* {
-  box-sizing: border-box;
+padding:0;
+
+box-sizing:border-box;
+
 }
 
-::-webkit-scrollbar {
-  width: 8px;
+body{
+    margin:0;
+    font-family:"Inter",sans-serif;
+    color:#F8FAFC;
+    overflow-x:hidden;
+
+    background:
+        radial-gradient(circle at top left,#1A1233 0%,transparent 38%),
+        radial-gradient(circle at top right,#003B4A 0%,transparent 35%),
+        radial-gradient(circle at bottom left,#432000 0%,transparent 42%),
+        radial-gradient(circle at bottom right,#1B0033 0%,transparent 38%),
+        linear-gradient(
+            135deg,
+            #05070B,
+            #090B12,
+            #0C1018,
+            #06070A
+        );
+
+    min-height:100vh;
 }
 
-::-webkit-scrollbar-track {
-  background: #1e293b;
+button{
+
+font-family:inherit;
+
 }
 
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 10px;
-}
-.attendance-calendar {
-  width: 100%;
-  background: transparent !important;
-  border: none !important;
-  color: #f8fafc !important;
+input{
+
+font-family:inherit;
+
 }
 
-.attendance-calendar .react-calendar__navigation button {
-  color: #f8fafc;
-  font-size: 18px;
-  background: transparent;
-}
-
-.attendance-calendar .react-calendar__month-view__weekdays {
-  color: #94a3b8;
-  text-transform: uppercase;
-}
-
-.attendance-calendar .react-calendar__tile {
-  color: #f8fafc;
-  background: transparent;
-  border-radius: 12px;
-  height: 50px;
-}
-
-.attendance-calendar .react-calendar__tile:hover {
-  background: #334155 !important;
-}
-
-.attendance-calendar .react-calendar__tile--active {
-  background: #2563eb !important;
-  color: white !important;
-}
-
-.attendance-calendar .react-calendar__tile--now {
-  background: #16a34a !important;
-  color: white !important;
-}
-
-.attendance-calendar .react-calendar__month-view__days__day--weekend {
-  color: #ef4444;
-}
-
-.attendance-calendar .react-calendar__navigation button:hover {
-  background: #334155 !important;
-}
-.date-picker-wrapper{
-    width:100%;
-}
-
-.custom-datepicker{
-    width:100%;
-    padding:14px;
-    border-radius:12px;
-    border:1px solid #475569;
-    background:#0f172a;
-    color:#f8fafc;
-    font-size:15px;
-    outline:none;
-    box-sizing:border-box;
-}
-
-.custom-datepicker::placeholder{
-    color:#94a3b8;
-}
-
-.react-datepicker{
-    background:#1e293b;
-    border:1px solid #334155;
-}
-
-.react-datepicker__header{
-    background:#0f172a;
-    border-bottom:1px solid #334155;
-}
-
-.react-datepicker__current-month,
-.react-datepicker-time__header,
-.react-datepicker-year-header{
+body::selection{
+    background:#3b82f6;
     color:white;
 }
 
-.react-datepicker__day-name,
-.react-datepicker__day{
-    color:white;
-}
 
-.react-datepicker__day:hover{
+
+#root::after{
+    content:"";
+    position:fixed;
+
+    width:420px;
+    height:420px;
+
+    top:-120px;
+    left:-120px;
+
+    border-radius:50%;
+
     background:#2563eb;
+
+    opacity:.35;
+
+    filter:blur(110px);
+
+    pointer-events:none;
+
+    z-index:-1;
+
+    animation:blobOne 18s ease-in-out infinite alternate;
+}
+@keyframes blobOne{
+
+    0%{
+        transform:translate(0px,0px) scale(1);
+    }
+
+    25%{
+        transform:translate(180px,80px) scale(1.15);
+    }
+
+    50%{
+        transform:translate(40px,220px) scale(.9);
+    }
+
+    75%{
+        transform:translate(260px,120px) scale(1.08);
+    }
+
+    100%{
+        transform:translate(120px,40px) scale(1);
+    }
+
+}
+#root::before{
+
+    content:"";
+
+    position:fixed;
+
+    inset:0;
+
+    pointer-events:none;
+
+    background-image:
+
+    linear-gradient(
+        rgba(255,255,255,.025) 1px,
+        transparent 1px
+    ),
+
+    linear-gradient(
+        90deg,
+        rgba(255,255,255,.025) 1px,
+        transparent 1px
+    );
+
+    background-size:60px 60px;
+
+    opacity:.12;
+
+    mask-image:radial-gradient(circle,#fff,transparent 85%);
+
+    z-index:-1;
+
 }
 
-.react-datepicker__day--selected{
-    background:#2563eb;
+body::before{
+
+    content:"";
+
+    position:fixed;
+
+    inset:0;
+
+    pointer-events:none;
+
+    background-image:url("https://grainy-gradients.vercel.app/noise.svg");
+
+    opacity:.035;
+
+    mix-blend-mode:soft-light;
+
+    z-index:-2;
+
+}
+body::after{
+    content:"";
+    position:fixed;
+    inset:-30%;
+
+    pointer-events:none;
+
+    z-index:-2;
+
+    opacity:.55;
+
+    filter:blur(90px);
+
+    background:
+        radial-gradient(circle,#37FFD7 0%,transparent 25%),
+        radial-gradient(circle,#FF6B6B 0%,transparent 22%),
+        radial-gradient(circle,#FFD166 0%,transparent 22%),
+        radial-gradient(circle,#8B5CF6 0%,transparent 24%);
+
+    background-size:
+        700px 700px,
+        600px 600px,
+        800px 800px,
+        650px 650px;
+
+    background-position:
+        5% 15%,
+        90% 25%,
+        30% 90%,
+        85% 80%;
+
+    animation:aurora 35s ease-in-out infinite alternate;
+}
+@keyframes aurora{
+
+    0%{
+
+        transform:
+            rotate(0deg)
+            scale(1);
+
+    }
+
+    25%{
+
+        transform:
+            rotate(3deg)
+            scale(1.08);
+
+    }
+
+    50%{
+
+        transform:
+            rotate(-2deg)
+            scale(.96);
+
+    }
+
+    75%{
+
+        transform:
+            rotate(2deg)
+            scale(1.04);
+
+    }
+
+    100%{
+
+        transform:
+            rotate(-1deg)
+            scale(1);
+
+    }
+
+}
+#root{
+    position:relative;
+    min-height:100vh;
 }
 
-.react-datepicker__navigation-icon::before{
-    border-color:white;
+#root .top-glow{
+    position:fixed;
+
+    top:-220px;
+    left:50%;
+
+    transform:translateX(-50%);
+
+    width:900px;
+    height:420px;
+
+    border-radius:50%;
+
+    background:
+        radial-gradient(circle,
+        rgba(255,255,255,.08),
+        rgba(55,255,215,.08),
+        transparent 70%);
+
+    filter:blur(90px);
+
+    pointer-events:none;
+
+    z-index:-1;
 }
