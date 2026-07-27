@@ -366,9 +366,13 @@ app.delete(
 
   }
 );
-app.listen(5000, () => {
-  console.log("Server Running on Port 5000");
-});
+if (process.env.NODE_ENV !== "production") {
+  app.listen(5000, () => {
+    console.log("Server Running on Port 5000");
+  });
+}
+
+export default app;
 
 app.get("/api/employees", async (req, res) => {
   try {
