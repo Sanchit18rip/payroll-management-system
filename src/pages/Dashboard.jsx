@@ -39,35 +39,35 @@ const [todayDate, setTodayDate] =
 const loadDashboardData = () => {
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/employees"
+    "https://payroll-management-system-three.vercel.app/api/employees"
   )
     .then(res => res.json())
     .then(data => setEmployees(data))
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/payroll"
+    "https://payroll-management-system-three.vercel.app/api/payroll"
   )
     .then(res => res.json())
     .then(data => setPayroll(data))
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
+    "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
   )
     .then(res => res.json())
     .then(data => setMonthlySummary(data))
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
+    `https://payroll-management-system-three.vercel.app/api/attendance/${todayDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))
   fetch(
-  "https://payroll-management-system-owo2.onrender.com/api/leave-balance"
+  "https://payroll-management-system-three.vercel.app/api/leave-balance"
 )
   .then(res => res.json())
   .then(data => setLeaveBalances(data))
   fetch(
-  "https://payroll-management-system-owo2.onrender.com/api/recent-activities"
+  "https://payroll-management-system-three.vercel.app/api/recent-activities"
 )
   .then(res => res.json())
   .then(data =>
@@ -120,7 +120,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/attendance/${todayDate}`
+    `https://payroll-management-system-three.vercel.app/api/attendance/${todayDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))

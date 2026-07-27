@@ -22,7 +22,7 @@ function Clients() {
   const fetchClients = () => {
 
     fetch(
-      "https://payroll-management-system-owo2.onrender.com/api/clients"
+      "https://payroll-management-system-three.vercel.app/api/clients"
     )
       .then(res => res.json())
       .then(data => setClients(data))
@@ -54,7 +54,7 @@ function Clients() {
   }
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/clients",
+    "https://payroll-management-system-three.vercel.app/api/clients",
     {
       method: "POST",
 

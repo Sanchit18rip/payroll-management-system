@@ -3,7 +3,7 @@ import { jsPDF } from 'jspdf'
 import PayrollDrawer from "../components/PayrollDrawer";
 // Single source of truth for the backend URL. Change this in one place
 // instead of hardcoding the host in every fetch call.
-const API_BASE = "http://localhost:5000"
+const API_BASE = "https://payroll-management-system-three.vercel.app"
 
 function Payroll() {
 

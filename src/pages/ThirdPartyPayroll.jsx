@@ -14,7 +14,7 @@ const [searchTerm, setSearchTerm] =
 useEffect(() => {
 
   fetch(
-    'https://payroll-management-system-owo2.onrender.com/api/clients'
+    'https://payroll-management-system-three.vercel.app/api/clients'
   )
     .then(res => res.json())
     .then(data =>
@@ -25,7 +25,7 @@ useEffect(() => {
     )
 
   fetch(
-    'https://payroll-management-system-owo2.onrender.com/api/outsourced-employees'
+    'https://payroll-management-system-three.vercel.app/api/outsourced-employees'
   )
     .then(res => res.json())
     .then(data =>

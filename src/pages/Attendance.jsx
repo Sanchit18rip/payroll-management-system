@@ -17,7 +17,7 @@ function Attendance() {
   useEffect(() => {
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/attendance/${selectedDate}`
+    `https://payroll-management-system-three.vercel.app/api/attendance/${selectedDate}`
   )
     .then(res => res.json())
     .then(data => setAttendance(data))
@@ -27,7 +27,7 @@ function Attendance() {
   
 useEffect(() => {
 
-  fetch('https://payroll-management-system-owo2.onrender.com/api/leave-balance')
+  fetch('https://payroll-management-system-three.vercel.app/api/leave-balance')
     .then(res => res.json())
     .then(data => setLeaveBalance(data))
     .catch(err => console.log(err))
@@ -36,7 +36,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
+    "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
   )
     .then(res => res.json())
     .then(data => setMonthlySummary(data))
@@ -46,7 +46,7 @@ useEffect(() => {
 useEffect(() => {
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/process-monthly-leaves",
+    "https://payroll-management-system-three.vercel.app/api/process-monthly-leaves",
     {
       method: "POST"
     }
@@ -122,7 +122,7 @@ if (
     return
   }
 
-  fetch(`https://payroll-management-system-owo2.onrender.com/api/attendance/${id}`, {
+  fetch(`https://payroll-management-system-three.vercel.app/api/attendance/${id}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -136,7 +136,7 @@ if (
     if (status === "Paid Leave") {
 
       return fetch(
-        `https://payroll-management-system-owo2.onrender.com/api/leave-balance/${employeeId}`,
+        `https://payroll-management-system-three.vercel.app/api/leave-balance/${employeeId}`,
         {
           method: "PUT",
           headers: {
@@ -155,15 +155,15 @@ if (
   .then(() =>
   Promise.all([
     fetch(
-      `https://payroll-management-system-owo2.onrender.com/api/attendance/${selectedDate}`
+      `https://payroll-management-system-three.vercel.app/api/attendance/${selectedDate}`
     ).then(res => res.json()),
 
     fetch(
-      "https://payroll-management-system-owo2.onrender.com/api/leave-balance"
+      "https://payroll-management-system-three.vercel.app/api/leave-balance"
     ).then(res => res.json()),
 
     fetch(
-      "https://payroll-management-system-owo2.onrender.com/api/monthly-attendance-summary"
+      "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
     ).then(res => res.json())
   ])
 )
@@ -185,7 +185,7 @@ if (
 const generateTodayAttendance = () => {
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/attendance/generate-today",
+    "https://payroll-management-system-three.vercel.app/api/attendance/generate-today",
     {
       method: "POST"
     }
@@ -205,7 +205,7 @@ const generateTodayAttendance = () => {
       setSelectedDate(currentDate)
 
       return fetch(
-        `https://payroll-management-system-owo2.onrender.com/api/attendance/${currentDate}`
+        `https://payroll-management-system-three.vercel.app/api/attendance/${currentDate}`
       )
 
     })

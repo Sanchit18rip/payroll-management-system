@@ -22,7 +22,7 @@ useState("All");
   useEffect(() => {
 
     fetch(
-      "https://payroll-management-system-owo2.onrender.com/api/employees"
+      "https://payroll-management-system-three.vercel.app/api/employees"
     )
       .then(res => res.json())
       .then(data =>
@@ -56,7 +56,7 @@ useState("All");
 
       const response =
         await fetch(
-          "https://payroll-management-system-owo2.onrender.com/api/hr-documents"
+          "https://payroll-management-system-three.vercel.app/api/hr-documents"
         );
 
       const data =
@@ -85,7 +85,7 @@ async () => {
 
     const response =await fetch(
 
-      "https://payroll-management-system-owo2.onrender.com/api/hr-documents",
+      "https://payroll-management-system-three.vercel.app/api/hr-documents",
 
       {
 
@@ -149,7 +149,7 @@ async (id) => {
 
     await fetch(
 
-      `https://payroll-management-system-owo2.onrender.com/api/hr-documents/${id}`,
+      `https://payroll-management-system-three.vercel.app/api/hr-documents/${id}`,
 
       {
         method:"DELETE"
@@ -226,7 +226,7 @@ async (
 
     await fetch(
 
-      `https://payroll-management-system-owo2.onrender.com/api/hr-documents/${id}`,
+      `https://payroll-management-system-three.vercel.app/api/hr-documents/${id}`,
 
       {
 

@@ -62,7 +62,7 @@ useEffect(() => {
     return;
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/hr-documents"
+    "https://payroll-management-system-three.vercel.app/api/hr-documents"
   )
     .then(res => res.json())
     .then(data => {
@@ -87,7 +87,7 @@ useEffect(() => {
     return;
 
   fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/increment-history"
+    "https://payroll-management-system-three.vercel.app/api/increment-history"
   )
     .then(res => res.json())
     .then(data => {
@@ -111,7 +111,7 @@ useEffect(() => {
 }, [selectedEmployee]);
 useEffect(() => {
    fetch(
-    "https://payroll-management-system-owo2.onrender.com/api/employees"
+    "https://payroll-management-system-three.vercel.app/api/employees"
   )
     .then(res => res.json())
     .then(data =>
@@ -128,7 +128,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
+    `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -143,7 +143,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/leave-balance/${selectedEmployee}`
+    `https://payroll-management-system-three.vercel.app/api/leave-balance/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -160,7 +160,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/performance-reviews`
+    `https://payroll-management-system-three.vercel.app/api/performance-reviews`
   )
     .then(res => res.json())
     .then(data => {
@@ -185,7 +185,7 @@ useEffect(() => {
     return;
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
+    `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data => {
@@ -206,7 +206,7 @@ useEffect(() => {
 const confirmEmployee = () => {
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/confirm-employee/${selectedEmployee}`,
+    `https://payroll-management-system-three.vercel.app/api/confirm-employee/${selectedEmployee}`,
     {
       method: "PUT"
     }
@@ -217,7 +217,7 @@ const confirmEmployee = () => {
       alert(data.message);
 
       return fetch(
-        `https://payroll-management-system-owo2.onrender.com/api/employees/${selectedEmployee}`
+        `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
       );
 
     })
@@ -227,7 +227,7 @@ const confirmEmployee = () => {
       setEmployeeData(data);
 
       return fetch(
-        `https://payroll-management-system-owo2.onrender.com/api/leave-balance/${selectedEmployee}`
+        `https://payroll-management-system-three.vercel.app/api/leave-balance/${selectedEmployee}`
       );
 
     })

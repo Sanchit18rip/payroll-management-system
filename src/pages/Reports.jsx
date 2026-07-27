@@ -19,19 +19,19 @@ function Reports() {
     ] = await Promise.all([
 
       fetch(
-        'https://payroll-management-system-owo2.onrender.com/api/employees'
+        'https://payroll-management-system-three.vercel.app/api/employees'
       ),
 
       fetch(
-        'https://payroll-management-system-owo2.onrender.com/api/attendance'
+        'https://payroll-management-system-three.vercel.app/api/attendance'
       ),
 
       fetch(
-        'https://payroll-management-system-owo2.onrender.com/api/payroll'
+        'https://payroll-management-system-three.vercel.app/api/payroll'
       ),
 
       fetch(
-        'https://payroll-management-system-owo2.onrender.com/api/leaves'
+        'https://payroll-management-system-three.vercel.app/api/leaves'
       )
 
     ])

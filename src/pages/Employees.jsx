@@ -148,7 +148,7 @@ const importCSV = (event) => {
 
       fetch(
 
-        'https://payroll-management-system-owo2.onrender.com/api/employees/import',
+        'https://payroll-management-system-three.vercel.app/api/employees/import',
 
         {
 
@@ -217,7 +217,7 @@ alert(
 
     const response = await fetch(
 
-      "https://payroll-management-system-owo2.onrender.com/api/employees"
+      "https://payroll-management-system-three.vercel.app/api/employees"
 
     );
 
@@ -254,7 +254,7 @@ alert(
 
     }
 
-    fetch("https://payroll-management-system-owo2.onrender.com/api/employees", {
+    fetch("https://payroll-management-system-three.vercel.app/api/employees", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -328,7 +328,7 @@ setPreviousExperience('')
 setDepartment('')
 setSalary('')
 
-    return fetch("https://payroll-management-system-owo2.onrender.com/api/employees")
+    return fetch("https://payroll-management-system-three.vercel.app/api/employees")
 
   })
   .then(res => res.json())
@@ -340,7 +340,7 @@ setSalary('')
   const deleteEmployee = () => {
 
   fetch(
-    `https://payroll-management-system-owo2.onrender.com/api/employees/${employeeToDelete}`,
+    `https://payroll-management-system-three.vercel.app/api/employees/${employeeToDelete}`,
     {
       method: "DELETE"
     }
@@ -443,7 +443,7 @@ setPreviousExperience(
 };
 const updateEmployee = () => {
 
-  fetch(`https://payroll-management-system-owo2.onrender.com/api/employees/${editingId}`, {
+  fetch(`https://payroll-management-system-three.vercel.app/api/employees/${editingId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
