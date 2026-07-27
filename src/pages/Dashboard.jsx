@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import Card from "../components/ui/Card";
 import { motion } from "framer-motion";
+import DashboardHeader from "../components/DashboardHeader";
+import TermsModal from "../components/Dashboard/TermsModal";
+import StatCard from "../components/Dashboard/StatCard";
 import {
   PieChart,
   Pie,
@@ -11,8 +14,9 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend
-} from 'recharts'
+  Legend,
+  ResponsiveContainer
+} from "recharts";
 
 function Dashboard() {
   const [greeting, setGreeting] = useState("");
@@ -130,7 +134,7 @@ const monthlyPayroll =
   payroll.reduce(
     (total, employee) =>
       total +
-      Number(employee.payable_salary),
+      Number(employee.salary),
     0
   )
 
@@ -184,44 +188,39 @@ const leaveUtilization =
 
 const attendanceData = [
   {
-    name: 'Present',
+    name: "Present",
     value: attendance.filter(
-      employee =>
-        employee.status === 'Present'
+      employee => employee.status === "Present"
     ).length
   },
 
   {
-    name: 'Absent',
+    name: "Leave",
     value: attendance.filter(
-      employee =>
-        employee.status === 'Absent'
+      employee => employee.status === "Paid Leave"
     ).length
   },
 
   {
-    name: 'Leave',
+    name: "Absent",
     value: attendance.filter(
-      employee =>
-        employee.status ===
-        'Paid Leave'
+      employee => employee.status === "Absent"
     ).length
   }
-]
+];
 
 const payrollData =
   payroll.map(employee => ({
     employee: employee.name,
-    payroll: Number(
-      employee.payable_salary
-    )
+    payroll: Number(employee.salary)
   }))
 
   const COLORS = [
-  '#22c55e',
-  '#ef4444',
-  '#f59e0b'
-]
+  "#37FFD7",
+  "#FFB84D",
+  "#FF4D8D",
+  "#8B5CF6"
+];
 
 const activityStyles = {
 
@@ -299,127 +298,25 @@ duration:.8
     maxWidth: '1400px',
     margin: '0 auto',
     minHeight: '100vh',
-    background: '#0f172a'
+    background: "transparent"
   }}
 >
-{showTerms && (
-        <div style={termsOverlay}>
-          <div style={termsBox}>
-            <h2 style={{ color: '#f8fafc', marginTop: 0, marginBottom: '14px' }}>
-              Terms &amp; Conditions
-            </h2>
-            <div style={termsTextBox}>
-              <p><strong>Talent Pay Corner - Terms & Conditions</strong></p>
-              <p><small>Last Updated: 08/07/2026</small></p>
-              <br />
-              <p>Welcome to Talent Pay Corner, an HR and Payroll Management Platform. By accessing, registering, or using this platform, you agree to the following Terms and Conditions.</p>
-              <br />
-              
-              <p><strong>1. Use of the Platform</strong></p>
-              <p>Talent Pay Corner provides services including employee management, payroll processing, attendance tracking, leave management, tax records, salary slips, and HR support.</p>
-              <br />
+<TermsModal
 
-              <p><strong>2. User Responsibilities</strong></p>
-              <p>Users agree to:</p>
-              <p>• Provide accurate and updated information.</p>
-              <p>• Maintain the confidentiality of login credentials.</p>
-              <p>• Use the platform only for authorized and lawful purposes.</p>
-              <p>• Report any unauthorized access or security concerns immediately.</p>
-              <br />
+  open={showTerms}
 
-              <p><strong>3. Payroll & Employee Data</strong></p>
-              <p>The platform may store and process employee information such as:</p>
-              <p>• Personal and contact details</p>
-              <p>• Attendance and leave records</p>
-              <p>• Salary and payroll information</p>
-              <p>• Tax and statutory records</p>
-              <p>Users are responsible for ensuring that their information is accurate and up to date.</p>
-              <br />
+  onClose={() => setShowTerms(false)}
 
-              <p><strong>4. Confidentiality</strong></p>
-              <p>All payroll and employee information available on the platform is confidential. Users must not share, copy, distribute, or misuse any data without proper authorization.</p>
-              <br />
+/>
+      <DashboardHeader
 
-              <p><strong>5. Prohibited Activities</strong></p>
-              <p>Users shall not:</p>
-              <p>• Attempt unauthorized access to any account or data.</p>
-              <p>• Upload malicious software or harmful content.</p>
-              <p>• Modify, manipulate, or misuse payroll records.</p>
-              <p>• Disrupt the operation or security of the platform.</p>
-              <br />
+  greeting="Good Morning"
 
-              <p><strong>6. Monitoring</strong></p>
-              <p>Talent Pay Corner may monitor platform activity, maintain audit logs, and review system usage for security, compliance, and operational purposes.</p>
-              <br />
+  date={new Date().toDateString()}
 
-              <p><strong>7. Service Availability</strong></p>
-              <p>While we strive to provide uninterrupted service, we do not guarantee continuous availability. Services may be temporarily unavailable due to maintenance, upgrades, or technical issues.</p>
-              <br />
+  onTerms={() => setShowTerms(true)}
 
-              <p><strong>8. Limitation of Liability</strong></p>
-              <p>Talent Pay Corner shall not be liable for any indirect losses, data loss, service interruptions, or damages arising from unauthorized use of the platform.</p>
-              <br />
-
-              <p><strong>9. Changes to Terms</strong></p>
-              <p>We reserve the right to modify these Terms and Conditions at any time. Continued use of the platform after updates constitutes acceptance of the revised Terms.</p>
-              <br />
-
-              <p><strong>10. Governing Law</strong></p>
-              <p>These Terms and Conditions shall be governed by the laws of India. Any disputes shall be subject to the jurisdiction of the courts of Mumbai, Maharashtra.</p>
-              <br />
-              
-              <hr style={{ borderColor: '#334155', margin: '15px 0' }} />
-              
-              <p><strong>User Consent</strong></p>
-              <p>By clicking "I Agree", you confirm that:</p>
-              <p>✔ You have read and understood these Terms and Conditions.</p>
-              <p>✔ You agree to the collection and processing of your information for HR and payroll administration purposes.</p>
-              <p>✔ You will comply with all applicable company policies and legal requirements.</p>
-            </div>
-
-          
-
-            <button
-  onClick={() => setShowTerms(false)}
-  style={{
-  width: '100%',
-  padding: '14px',
-  background: '#2563eb',
-  color: '#ffffff',
-  border: 'none',
-  borderRadius: '12px',
-  fontWeight: '600',
-  fontSize: '15px',
-  cursor: 'pointer',
-  marginTop: '15px'
-}}
->
-  Close
-</button>
-          </div>
-        </div>
-      )}
-      <>
-  <h1
-  style={{
-    fontSize: '42px',
-    fontWeight: '700',
-    color: '#f8fafc',
-    marginBottom: '8px'
-  }}
->
-  HR Dashboard
-</h1>
-
-  <p
-  style={{
-    color: '#94a3b8',
-    marginBottom: '30px'
-  }}
->
-  Welcome back. Here's today's workforce overview.
-</p>
-</>
+/>
 <button
   onClick={() => setShowTerms(true)}
   style={{
@@ -440,144 +337,38 @@ duration:.8
 
       <div style={cardContainer}>
 
-  <motion.div
-initial={{ opacity:0, y:40 }}
-animate={{ opacity:1, y:0 }}
-transition={{
-  delay:.2,
-  duration:.6
-}}
-style={card}
->
-    <h3
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-        marginBottom: "10px"
-      }}
-    >
-      Total Employees
-    </h3>
+ <StatCard
+  title="Total Employees"
+  value={totalEmployees}
+  color="#3b82f6"
+  delay={0.2}
+  icon="employees"
+/>
 
-    <h1
-      style={{
-        fontSize: "42px",
-        margin: 0,
-        color: "#3b82f6"
-      }}
-    >
-      {totalEmployees}
-    </h1>
-  </motion.div>
+<StatCard
+  title="Monthly Payroll"
+  value={`₹${monthlyPayroll.toLocaleString()}`}
+  color="#22c55e"
+  delay={0.35}
+  icon="payroll"
+/>
 
-  <motion.div
-initial={{ opacity:0, y:40 }}
-animate={{ opacity:1, y:0 }}
-transition={{
-  delay:.35,
-  duration:.6
-}}
-style={card}
->
-    <h3
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-        marginBottom: "10px"
-      }}
-    >
-      Monthly Payroll
-    </h3>
+<StatCard
+  title="Attendance"
+  value={`${attendanceRate}%`}
+  color="#06b6d4"
+  delay={0.5}
+  icon="attendance"
+/>
 
-    <h1
-      style={{
-        fontSize: "42px",
-        margin: 0,
-        color: "#22c55e"
-      }}
-    >
-      ₹{monthlyPayroll.toLocaleString()}
-    </h1>
-  </motion.div>
-
-  <motion.div
-initial={{ opacity:0, y:40 }}
-animate={{ opacity:1, y:0 }}
-transition={{
-  delay:.5,
-  duration:.6
-}}
-style={card}
->
-    <h3
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-        marginBottom: "10px"
-      }}
-    >
-      Attendance
-    </h3>
-
-    <h1
-      style={{
-        fontSize: "42px",
-        margin: 0,
-        color: "#06b6d4"
-      }}
-    >
-      {attendanceRate}%
-    </h1>
-  </motion.div>
-
-  <motion.div
-initial={{ opacity:0, y:40 }}
-animate={{ opacity:1, y:0 }}
-transition={{
-  delay:.65,
-  duration:.6
-}}
-style={card}
->
-    <h3
-      style={{
-        color: "#94a3b8",
-        fontSize: "14px",
-        textTransform: "uppercase",
-        letterSpacing: "1px",
-        marginBottom: "10px"
-      }}
-    >
-      Leave Utilization
-    </h3>
-
-    <h1
-      style={{
-        fontSize: "42px",
-        margin: 0,
-        color: "#a855f7"
-      }}
-    >
-      {leaveUtilization}%
-    </h1>
-
-    <p
-      style={{
-        marginTop: "10px",
-        color: "#94a3b8",
-        fontSize: "14px"
-      }}
-    >
-      {leavesUsed} of {totalLeavesEarned} leaves used
-    </p>
-  </motion.div>
-
+<StatCard
+  title="Leave Utilization"
+  value={`${leaveUtilization}%`}
+  subtitle={`${leavesUsed} of ${totalLeavesEarned} leaves used`}
+  color="#a855f7"
+  delay={0.65}
+  icon="leave"
+/>
 </div>
 
       {/* CHARTS */}
@@ -586,26 +377,125 @@ style={card}
 
         {/* ATTENDANCE PIE CHART */}
 
-        <div style={chartCard}>
-
-          <h2
-  style={{
-    color: '#f8fafc',
-    marginTop: 0
+        <motion.div
+  style={chartCard}
+  initial={{
+    opacity: 0,
+    y: 35,
+    scale: 0.96
+  }}
+  animate={{
+    opacity: 1,
+    y: 0,
+    scale: 1
+  }}
+  transition={{
+    duration: 0.7,
+    ease: "easeOut"
+  }}
+  whileHover={{
+    y: -8,
+    scale: 1.015,
+    transition: {
+      duration: 0.25
+    }
   }}
 >
-  Attendance Overview
-</h2>
 
-          <PieChart
-            width={300}
-            height={250}
-          >
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "22px"
+  }}
+>
+  <div>
+    <h2
+      style={{
+        color: "#f8fafc",
+        margin: 0,
+        fontSize: "28px",
+        fontWeight: 700
+      }}
+    >
+      Attendance Overview
+    </h2>
+
+    <p
+      style={{
+        marginTop: "6px",
+        color: "rgba(255,255,255,.55)",
+        fontSize: "14px"
+      }}
+    >
+      Employee attendance for this month
+    </p>
+  </div>
+
+  <div
+    style={{
+      padding: "8px 16px",
+      borderRadius: "999px",
+
+      background: "rgba(255,255,255,.05)",
+
+      border: "1px solid rgba(255,255,255,.08)",
+
+      color: "#37FFD7",
+
+      fontWeight: 600,
+
+      fontSize: "13px"
+    }}
+  >
+    {
+  new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  })
+}
+  </div>
+</div>
+
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center"
+  }}
+>
+<div
+  style={{
+    position: "absolute",
+    width: "260px",
+    height: "260px",
+    borderRadius: "50%",
+    background:
+      "radial-gradient(circle, rgba(55,255,215,.18), transparent 70%)",
+    filter: "blur(45px)",
+    left: "50%",
+    top: "52%",
+    transform: "translate(-50%, -50%)",
+    pointerEvents: "none",
+    animation: "pulseGlow 6s ease-in-out infinite"
+  }}
+/>
+  <PieChart
+    width={330}
+    height={260}
+  >
+  
+  
 
             <Pie
               data={attendanceData}
               dataKey="value"
-              outerRadius={80}
+              innerRadius={55}
+outerRadius={90}
+paddingAngle={3}
+cornerRadius={8}
             >
 
               {
@@ -625,92 +515,379 @@ style={card}
 
             </Pie>
 
-            <Tooltip />
+            <Tooltip
+  contentStyle={{
+    background: "rgba(20,25,35,.92)",
+    border: "1px solid rgba(255,255,255,.08)",
+    borderRadius: "14px",
+    color: "#fff"
+  }}
+/>
 
           </PieChart>
+          <div
+    style={{
+        display:"grid",
+        gridTemplateColumns:"repeat(2,1fr)",
+        gap:"12px",
+        marginTop:"18px"
+    }}
+>
+
+    {attendanceData.map((item,index)=>(
+
+        <div
+            key={index}
+            style={{
+                display:"flex",
+                justifyContent:"space-between",
+                alignItems:"center",
+
+                padding:"14px",
+
+                borderRadius:"16px",
+
+                background:"rgba(255,255,255,.04)",
+
+                border:"1px solid rgba(255,255,255,.05)"
+            }}
+        >
+
+            <div
+    style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "10px",
+        flex: 1
+    }}
+>
+
+                <div
+                    style={{
+                        width:10,
+                        height:10,
+                        borderRadius:"50%",
+                        background:COLORS[index]
+                    }}
+                />
+
+                <span
+                    style={{
+                        color:"#cbd5e1",
+                        fontSize:"14px"
+                    }}
+                >
+                    {item.name}
+                </span>
+
+            </div>
+
+            <strong
+    style={{
+        color: COLORS[index],
+        minWidth: "40px",
+        textAlign: "right",
+        fontSize: "16px",
+        fontWeight: 700
+    }}
+>
+                {item.value}
+            </strong>
 
         </div>
+
+    ))}
+
+</div>
+          </div>
+
+        </motion.div>
 
         {/* PAYROLL BAR CHART */}
 
-        <div style={chartCard}>
-
-          <h2
-  style={{
-    color: '#f8fafc',
-    marginTop: 0
+        <motion.div
+  className="chart-card"
+  style={chartCard}
+  initial={{
+    opacity: 0,
+    y: 35,
+    scale: .96
+  }}
+  animate={{
+    opacity: 1,
+    y: 0,
+    scale: 1
+  }}
+  transition={{
+    duration: .7,
+    delay: .2
+  }}
+  whileHover={{
+    y: -8,
+    scale: 1.015
   }}
 >
-  Payroll Distribution
-</h2>
-          <BarChart
-            width={450}
-            height={250}
-            data={payrollData}
-          >
+
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "22px"
+  }}
+>
+  <div>
+    <h2
+      style={{
+        color: "#f8fafc",
+        margin: 0,
+        fontSize: "28px",
+        fontWeight: 700
+      }}
+    >
+      Payroll Distribution
+    </h2>
+
+    <p
+      style={{
+        marginTop: "6px",
+        color: "rgba(255,255,255,.55)",
+        fontSize: "14px"
+      }}
+    >
+      Salary payable this month
+    </p>
+  </div>
+
+  <div
+    style={{
+      padding: "8px 16px",
+      borderRadius: "999px",
+      background: "rgba(255,255,255,.05)",
+      border: "1px solid rgba(255,255,255,.08)",
+      color: "#60A5FA",
+      fontWeight: 600,
+      fontSize: "13px"
+    }}
+  >
+    {new Date().toLocaleDateString("en-US", {
+      month: "short",
+      year: "numeric"
+    })}
+  </div>
+</div>
+          <ResponsiveContainer
+    width="100%"
+    height={320}
+>
+    <BarChart
+        data={payrollData}
+        margin={{
+            top: 20,
+            right: 20,
+            left: 10,
+            bottom: 10
+        }}
+    >
+    <defs>
+  <linearGradient id="payrollGradient" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stopColor="#60A5FA"/>
+    <stop offset="100%" stopColor="#2563EB"/>
+  </linearGradient>
+</defs>
 
             <CartesianGrid
-              strokeDasharray="3 3"
-            />
-
-            <XAxis
-  dataKey="employee"
+    stroke="rgba(255,255,255,.06)"
+    strokeDasharray="5 5"
 />
 
-            <YAxis />
+           <XAxis
+    dataKey="employee"
+    tick={{
+        fill:"rgba(255,255,255,.55)",
+        fontSize:11
+    }}
+    axisLine={false}
+    tickLine={false}
+/>
 
-            <Tooltip />
+              <YAxis
+    tick={{
+        fill: "rgba(255,255,255,.55)",
+        fontSize: 12
+    }}
+    axisLine={false}
+    tickLine={false}
+    tickFormatter={(value) => `₹${value.toLocaleString("en-IN")}`}
+/>
 
-            <Legend />
+            <Tooltip
+    cursor={{
+        fill: "rgba(255,255,255,.03)"
+    }}
+    formatter={(value) => [
+        `₹${Number(value).toLocaleString("en-IN")}`,
+        "Salary"
+    ]}
+    contentStyle={{
+        background: "rgba(15,23,42,.92)",
+        border: "1px solid rgba(255,255,255,.08)",
+        borderRadius: "16px",
+        color: "#fff"
+    }}
+/>
 
-            <Bar
-              dataKey="payroll"
-              fill="#2563eb"
-            />
+            
+
+           <Bar
+    dataKey="payroll"
+    fill="url(#payrollGradient)"
+    radius={[12,12,0,0]}
+/>
 
           </BarChart>
+          </ResponsiveContainer>
+          <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginTop: "22px"
+  }}
+>
+  <div
+    style={{
+      flex: 1,
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.06)"
+    }}
+  >
+    <div
+      style={{
+        color: "rgba(255,255,255,.55)",
+        fontSize: "12px"
+      }}
+    >
+      Total Payroll
+    </div>
 
-        </div>
+    <div
+      style={{
+        marginTop: "6px",
+        fontSize: "22px",
+        fontWeight: 700,
+        color: "#60A5FA"
+      }}
+    >
+      ₹{monthlyPayroll.toLocaleString()}
+    </div>
+  </div>
+
+  <div
+    style={{
+      flex: 1,
+      padding: "14px",
+      borderRadius: "16px",
+      background: "rgba(255,255,255,.04)",
+      border: "1px solid rgba(255,255,255,.06)"
+    }}
+  >
+    <div
+      style={{
+        color: "rgba(255,255,255,.55)",
+        fontSize: "12px"
+      }}
+    >
+      Employees
+    </div>
+
+    <div
+      style={{
+        marginTop: "6px",
+        fontSize: "22px",
+        fontWeight: 700,
+        color: "#37FFD7"
+      }}
+    >
+      {totalEmployees}
+    </div>
+  </div>
+</div>
+
+        </motion.div>
 
       </div>
 
       {/* RECENT ACTIVITIES */}
 
-      <div style={activityCard}>
-
-        <div
-  style={{
-    display: 'flex',
-    justifyContent:
-      'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-  }}
+      <motion.div
+    className="chart-card"
+    style={activityCard}
+    initial={{
+        opacity:0,
+        y:35
+    }}
+    animate={{
+        opacity:1,
+        y:0
+    }}
+    transition={{
+        duration:.8,
+        delay:.35
+    }}
+    whileHover={{
+        y:-5
+    }}
+>
+<div
+style={{
+display:"flex",
+justifyContent:"space-between",
+alignItems:"center",
+marginBottom:"24px"
+}}
 >
 
-  <div>
+<div>
 
-    <h2
-  style={{
-    margin: 0,
-    fontSize: '30px',
-    fontWeight: '700',
-    color: '#f8fafc'
-  }}
+<h2
+style={{
+fontSize:"30px",
+fontWeight:700,
+margin:0,
+color:"#f8fafc"
+}}
 >
-  Recent Activities
+Recent Activities
 </h2>
-    <p
-      style={{
-        margin: '6px 0 0',
-        color: '#94a3b8',
-        fontSize: '14px'
-      }}
-    >
-      Latest workforce updates
-    </p>
 
-  </div>
+<p
+style={{
+marginTop:"6px",
+color:"rgba(255,255,255,.55)",
+fontSize:"14px"
+}}
+>
+Latest workforce updates
+</p>
+
+</div>
+
+<div
+style={{
+padding:"8px 16px",
+borderRadius:"999px",
+background:"rgba(255,255,255,.05)",
+border:"1px solid rgba(255,255,255,.08)",
+color:"#37FFD7",
+fontWeight:600,
+fontSize:"13px"
+}}
+>
+Live Feed
+</div>
 
 </div>
 
@@ -735,92 +912,31 @@ style={card}
         boxShadow:
           '0 2px 8px rgba(0,0,0,0.05)',
 
-        background:
-          employee.activity_type ===
-          'attendance'
-            ? '#f0fdf4'
+        background: "rgba(255,255,255,.04)",
 
-          : employee.activity_type ===
-            'employee'
-            ? '#eff6ff'
+border: "1px solid rgba(255,255,255,.06)",
 
-          : employee.activity_type ===
-            'payroll'
-            ? '#fffbeb'
+backdropFilter: "blur(18px)",
 
-          : employee.activity_type ===
-            'deletion'
-            ? '#fef2f2'
-
-          : '#ffffff'
+WebkitBackdropFilter: "blur(18px)",
       }}
 
-      onMouseEnter={(e) => {
+      onMouseEnter={(e)=>{
 
-  e.currentTarget.style.transform =
-    'translateY(-3px)'
+    e.currentTarget.style.transform =
+        "translateY(-4px)";
 
-  e.currentTarget.style.boxShadow =
-    '0 12px 24px rgba(0,0,0,0.08)'
-
-  e.currentTarget.style.background =
-
-    employee.activity_type ===
-    'attendance'
-
-      ? '#dcfce7'
-
-    : employee.activity_type ===
-      'employee'
-
-      ? '#dbeafe'
-
-    : employee.activity_type ===
-      'payroll'
-
-      ? '#fef3c7'
-
-    : employee.activity_type ===
-      'deletion'
-
-      ? '#fee2e2'
-
-    : '#f9fafb'
-
+    e.currentTarget.style.boxShadow =
+        "0 12px 28px rgba(0,0,0,.35)";
 }}
 
-      onMouseLeave={(e) => {
+onMouseLeave={(e)=>{
 
-  e.currentTarget.style.transform =
-    'translateY(0)'
+    e.currentTarget.style.transform =
+        "translateY(0)";
 
-  e.currentTarget.style.boxShadow =
-    '0 2px 8px rgba(0,0,0,0.05)'
-
-  e.currentTarget.style.background =
-
-    employee.activity_type ===
-    'attendance'
-
-      ? '#f0fdf4'
-
-    : employee.activity_type ===
-      'employee'
-
-      ? '#eff6ff'
-
-    : employee.activity_type ===
-      'payroll'
-
-      ? '#fffbeb'
-
-    : employee.activity_type ===
-      'deletion'
-
-      ? '#fef2f2'
-
-    : '#ffffff'
-
+    e.currentTarget.style.boxShadow =
+        "none";
 }}
     >
 
@@ -834,46 +950,28 @@ style={card}
 
         <div
           style={{
-            width: '45px',
-            height: '45px',
-            borderRadius: '50%',
+    width: "48px",
+    height: "48px",
+    borderRadius: "16px",
 
-            background:
-              employee.activity_type ===
-              'employee'
-                ? '#dbeafe'
+    background: "rgba(255,255,255,.08)",
 
-              : employee.activity_type ===
-                'attendance'
-                ? '#dcfce7'
+    border: "1px solid rgba(255,255,255,.08)",
 
-              : employee.activity_type ===
-                'payroll'
-                ? '#fef3c7'
+    boxShadow: "0 0 20px rgba(55,255,215,.18)",
 
-              : '#fee2e2',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
 
-            color:
-              employee.activity_type ===
-              'employee'
-                ? '#2563eb'
+    color: "#37FFD7",
 
-              : employee.activity_type ===
-                'attendance'
-                ? '#16a34a'
+    fontWeight: 700,
 
-              : employee.activity_type ===
-                'payroll'
-                ? '#ca8a04'
+    fontSize: "18px",
 
-              : '#dc2626',
-
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: '700',
-            fontSize: '18px'
-          }}
+    flexShrink: 0
+}}
         >
 
           {employee.employee_name
@@ -887,9 +985,11 @@ style={card}
 
           <div
             style={{
-              fontWeight: '700',
-              fontSize: '16px'
-            }}
+    fontWeight: 700,
+    fontSize: "16px",
+    color: "#f8fafc",
+    letterSpacing: ".3px"
+}}
           >
             {employee.employee_name ||
               'System'}
@@ -897,9 +997,10 @@ style={card}
 
           <div
             style={{
-              fontSize: '13px',
-              color: '#6b7280'
-            }}
+    fontSize: "13px",
+    color: "rgba(255,255,255,.65)",
+    lineHeight: "1.6"
+}}
           >
 
             <strong>
@@ -916,10 +1017,11 @@ style={card}
 
           <div
             style={{
-              fontSize: '12px',
-              color: '#cbd5e1',
-              marginTop: '4px'
-            }}
+    fontSize: "12px",
+    color: "rgba(255,255,255,.40)",
+    marginTop: "6px",
+    letterSpacing: ".4px"
+}}
           >
 
             {new Date(
@@ -946,43 +1048,28 @@ style={card}
 
       <span
         style={{
-          padding: '6px 12px',
-          borderRadius: '999px',
+    padding: "7px 14px",
 
-          background:
-            employee.activity_type ===
-            'employee'
-              ? '#dbeafe'
+    borderRadius: "999px",
 
-            : employee.activity_type ===
-              'attendance'
-              ? '#dcfce7'
+    background: "rgba(255,255,255,.06)",
 
-            : employee.activity_type ===
-              'payroll'
-              ? '#fef3c7'
+    border: "1px solid rgba(255,255,255,.08)",
 
-            : '#fee2e2',
+    color: "#37FFD7",
 
-          color:
-            employee.activity_type ===
-            'employee'
-              ? '#2563eb'
+    fontSize: "12px",
 
-            : employee.activity_type ===
-              'attendance'
-              ? '#16a34a'
+    fontWeight: 600,
 
-            : employee.activity_type ===
-              'payroll'
-              ? '#ca8a04'
+    textTransform: "capitalize",
 
-            : '#dc2626',
+    letterSpacing: ".5px",
 
-          fontSize: '12px',
-          fontWeight: '600',
-          textTransform: 'capitalize'
-        }}
+    minWidth: "90px",
+
+    textAlign: "center"
+}}
       >
 
         {employee.activity_type}
@@ -1035,7 +1122,7 @@ style={card}
 
 </div>
 
-      </div>
+      </motion.div>
 
     </motion.div>
     
@@ -1050,9 +1137,9 @@ const cardContainer = {
   gridTemplateColumns:
     'repeat(auto-fit, minmax(280px, 1fr))',
   gap: '24px',
-  marginBottom: '35px'
+  marginBottom: '35px',
+  alignItems: 'stretch'
 }
-
 const card = {
   background: '#1e293b',
   borderRadius: '20px',
@@ -1070,57 +1157,45 @@ const chartContainer = {
   marginBottom: '35px'
 }
 const chartCard = {
-  background: '#1e293b',
-  borderRadius: '20px',
-  padding: '24px',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)',
-  color: '#f8fafc'
-}
+  position: "relative",
+  overflow: "hidden",
 
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  backdropFilter: "blur(28px)",
+  WebkitBackdropFilter: "blur(28px)",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  borderRadius: "24px",
+
+  padding: "26px",
+
+  color: "#fff",
+
+  boxShadow:
+    "0 20px 45px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)"
+}
 const activityCard = {
-  background: '#1e293b',
-  borderRadius: '20px',
-  padding: '24px',
-  border: '1px solid #334155',
+  position: "relative",
+  overflow: "hidden",
+
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  backdropFilter: "blur(28px)",
+  WebkitBackdropFilter: "blur(28px)",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  borderRadius: "24px",
+
+  padding: "28px",
+
+  color: "#fff",
+
   boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)'
-}
-const termsOverlay = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  background: 'rgba(0,0,0,0.75)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  zIndex: 2000,
-  padding: '20px'
-}
-
-const termsBox = {
-  background: '#1e293b',
-  border: '1px solid #334155',
-  borderRadius: '20px',
-  padding: '32px',
-  maxWidth: '560px',
-  width: '100%',
-  boxShadow: '0 8px 40px rgba(0,0,0,0.5)'
-}
-
-const termsTextBox = {
-  background: '#0f172a',
-  border: '1px solid #334155',
-  borderRadius: '12px',
-  padding: '16px 18px',
-  maxHeight: '220px',
-  overflowY: 'auto',
-  color: '#94a3b8',
-  fontSize: '13px',
-  lineHeight: '1.7',
-  marginBottom: '18px'
+    "0 20px 45px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)"
 }
 export default Dashboard

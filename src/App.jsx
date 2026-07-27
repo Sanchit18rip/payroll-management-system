@@ -5,7 +5,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
-
+import BackgroundParticles from "./components/BackgroundParticles";
 import Sidebar from "./components/Sidebar";
 import AIAssistant from "./components/AIAssistant";
 import Dashboard from "./pages/Dashboard";
@@ -55,9 +55,7 @@ function AppContent() {
 
           minHeight: "100vh",
 
-          background: hideSidebar
-            ? "transparent"
-            : "#0f172a",
+          background: "transparent",
 
           transition: "margin-left .3s ease",
         }}

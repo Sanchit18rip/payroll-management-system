@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import db from "./db.js";
 import cron from "node-cron";
-import { calculatePayroll } from "./payrollCalculator.js";
+import PayrollFormula from "./utils/PayrollFormula.js";
 
 const app = express();
 // Office Location
@@ -397,43 +397,32 @@ app.post("/api/employees", async (req, res) => {
 
   try {
     console.log(req.body)
-   const {
+    const {
   employee_code,
   name,
+
   email,
   phone,
+
   designation,
-  employee_type,
-  employment_status,
-  internship_duration,
-  joining_date,
-  confirmation_date,
+
+employee_type,
+employment_status,
+
+internship_duration,
+
+joining_date,
+confirmation_date,
+
   last_job_details,
   previous_experience,
+
   department,
+
   salary,
 
-  hra_enabled = true,
-  conveyance_enabled = true,
-  medical_enabled = true,
-  other_expenses_enabled = true,
-
-  epf_employee_enabled = true,
-  epf_employer_enabled = true,
-
-  professional_tax_enabled = true,
-  tds_enabled = false,
-
-  gratuity_enabled = true,
-  incentive_enabled = false,
-
-  basic_da = null,
-  advance = 0,
-  revenue_generated = 0,
-  incentive_percentage = 0,
-
-  bonus = 0,
-  deduction = 0
+  bonus,
+  deduction
 } = req.body;
 const finalEmploymentStatus =
   employment_status;
@@ -480,26 +469,23 @@ if (employment_status === "Intern") {
   }
 
 }
-const basicSalary =
-  Number(salary)
+const grossSalary = PayrollFormula.grossSalary(salary);
 
-const hra =
-  basicSalary * 0.40
+const basicDA = PayrollFormula.basicDA(salary);
 
-const ta =
-  basicSalary * 0.10
+const hra = PayrollFormula.hra(salary);
 
-const ma =
-  basicSalary * 0.05
+const conveyanceAllowance =
+  PayrollFormula.conveyance();
 
-const grossSalary =
-  basicSalary +
-  hra +
-  ta +
-  ma
+const medicalAllowance =
+  PayrollFormula.medical();
+
+const otherAllowance =
+  PayrollFormula.otherAllowance(salary);
 
 const pf =
-  basicSalary * 0.12
+  PayrollFormula.pf(salary);
     const result = await db.query(
       `
       INSERT INTO employees
@@ -758,26 +744,23 @@ app.post(
         deduction
 
       } = req.body;
-      const basicSalary =
-  Number(salary)
+      const grossSalary = PayrollFormula.grossSalary(salary);
 
-const hra =
-  basicSalary * 0.40
+const basicDA = PayrollFormula.basicDA(salary);
 
-const ta =
-  basicSalary * 0.10
+const hra = PayrollFormula.hra(salary);
 
-const ma =
-  basicSalary * 0.05
+const conveyanceAllowance =
+  PayrollFormula.conveyance();
 
-const grossSalary =
-  basicSalary +
-  hra +
-  ta +
-  ma
+const medicalAllowance =
+  PayrollFormula.medical();
+
+const otherAllowance =
+  PayrollFormula.otherAllowance(salary);
 
 const pf =
-  basicSalary * 0.12
+  PayrollFormula.pf(salary);
       const existingEmployee =
         await db.query(
 
@@ -1048,26 +1031,23 @@ if (employment_status === "Probation") {
       currentEmployee.rows[0].probation_end_date;
   }
 }
-    const basicSalary =
-  Number(salary)
+    const grossSalary = PayrollFormula.grossSalary(salary);
 
-const hra =
-  basicSalary * 0.40
+const basicDA = PayrollFormula.basicDA(salary);
 
-const ta =
-  basicSalary * 0.10
+const hra = PayrollFormula.hra(salary);
 
-const ma =
-  basicSalary * 0.05
+const conveyanceAllowance =
+  PayrollFormula.conveyance();
 
-const grossSalary =
-  basicSalary +
-  hra +
-  ta +
-  ma
+const medicalAllowance =
+  PayrollFormula.medical();
+
+const otherAllowance =
+  PayrollFormula.otherAllowance(salary);
 
 const pf =
-  basicSalary * 0.12
+  PayrollFormula.pf(salary);
 
   console.log("Received Data:", req.body);
 
@@ -1873,71 +1853,132 @@ app.get("/api/payroll", async (req, res) => {
   try {
     const result = await db.query(`
       SELECT
-        employees.*,
+        employees.id,
+        employees.name,
 
-        SUM(
-          CASE
-            WHEN attendance.status = 'Present' THEN 1
-            ELSE 0
-          END
+        COALESCE(employees.salary, 0) AS salary,
+        COALESCE(employees.gross_salary, employees.salary) AS gross_salary,
+
+        COALESCE(employees.bonus, 0) AS bonus,
+        COALESCE(employees.deduction, 0) AS deduction,
+        employees.hra_enabled,
+employees.conveyance_enabled,
+employees.medical_enabled,
+employees.employee_pf_enabled,
+employees.employer_pf_enabled,
+employees.professional_tax_enabled,
+employees.tds_enabled,
+employees.gratuity_enabled,
+employees.incentive_enabled,
+employees.other_expense_enabled,
+
+        COALESCE(
+          SUM(
+            CASE
+              WHEN attendance.status = 'Present' THEN 1
+              ELSE 0
+            END
+          ),
+          0
         ) AS present_days,
 
-        SUM(
-          CASE
-            WHEN attendance.status = 'Absent' THEN 1
-            ELSE 0
-          END
+        COALESCE(
+          SUM(
+            CASE
+              WHEN attendance.status = 'Absent' THEN 1
+              ELSE 0
+            END
+          ),
+          0
         ) AS absent_days,
 
-        SUM(
-          CASE
-            WHEN attendance.status = 'Paid Leave' THEN 1
-            ELSE 0
-          END
+        COALESCE(
+          SUM(
+            CASE
+              WHEN attendance.status = 'Paid Leave' THEN 1
+              ELSE 0
+            END
+          ),
+          0
         ) AS paid_leave_days,
 
-        COUNT(*) AS total_days
+        COUNT(attendance.id) AS total_days
 
-      FROM attendance
+      FROM employees
 
-      JOIN employees
+      LEFT JOIN attendance
         ON attendance.employee_id = employees.id
 
-      GROUP BY employees.id
+      GROUP BY
+        employees.id,
+        employees.name,
+        employees.salary,
+        employees.gross_salary,
+        employees.bonus,
+        employees.deduction
 
-      ORDER BY employees.id
+      ORDER BY employees.id ASC
     `);
 
-    const payrollData = result.rows.map((employee) => {
+    const payroll = result.rows.map((employee) => {
+     const calculation = PayrollFormula.calculate({
+  salary: employee.salary,
+  bonus: employee.bonus,
 
-      const payroll = calculatePayroll(employee);
+  advance: 0,
+
+  tds: employee.tds_enabled
+    ? (employee.tds || 0)
+    : 0,
+
+  esic: employee.esic_enabled
+    ? (employee.esic || 0)
+    : 0,
+
+  professionalTax: employee.professional_tax_enabled
+    ? (Number(employee.deduction) || 0)
+    : 0,
+
+  lwf: employee.lwf_enabled
+    ? (employee.lwf || 0)
+    : 0,
+
+  hraEnabled: employee.hra_enabled,
+  conveyanceEnabled: employee.conveyance_enabled,
+  medicalEnabled: employee.medical_enabled,
+  employeePFEnabled: employee.employee_pf_enabled,
+  employerPFEnabled: employee.employer_pf_enabled,
+  gratuityEnabled: employee.gratuity_enabled,
+  incentiveEnabled: employee.incentive_enabled,
+  otherExpenseEnabled: employee.other_expense_enabled,
+});
 
       return {
-    id: employee.id,
-    name: employee.name,
+        ...employee,
 
-    salary: Number(employee.salary),
+        basic_da: calculation.basicDA,
+        hra: calculation.hra,
+        conveyance_allowance: calculation.conveyance,
+        medical_allowance: calculation.medical,
+        other_allowance: calculation.otherAllowance,
 
-    present_days: Number(employee.present_days),
-    absent_days: Number(employee.absent_days),
-    paid_leave_days: Number(employee.paid_leave_days),
-    total_days: Number(employee.total_days),
+        pf: calculation.pf,
 
-    ...payroll
-}
+        total_deduction: calculation.totalDeduction,
 
+        payable_salary: calculation.payableSalary,
+
+net_pay: calculation.netPay,
+      };
     });
 
-    res.json(payrollData);
-
+    res.json(payroll);
   } catch (err) {
-
-    console.log(err);
+    console.error(err);
 
     res.status(500).json({
-      message: err.message
+      message: err.message,
     });
-
   }
 });
 app.put("/api/payroll/:id", async (req, res) => {
@@ -1947,103 +1988,32 @@ app.put("/api/payroll/:id", async (req, res) => {
     const id = req.params.id;
 
     const {
-
-      hra_enabled,
-      conveyance_enabled,
-      medical_enabled,
-      other_expenses_enabled,
-
-      epf_employee_enabled,
-      epf_employer_enabled,
-
-      professional_tax_enabled,
-      tds_enabled,
-
-      gratuity_enabled,
-      incentive_enabled,
-
-      basic_da,
-      advance,
-      revenue_generated,
-      incentive_percentage,
-
       bonus,
       deduction
-
     } = req.body;
 
     await db.query(
       `
       UPDATE employees
       SET
-
-        hra_enabled = $1,
-        conveyance_enabled = $2,
-        medical_enabled = $3,
-        other_expenses_enabled = $4,
-
-        epf_employee_enabled = $5,
-        epf_employer_enabled = $6,
-
-        professional_tax_enabled = $7,
-        tds_enabled = $8,
-
-        gratuity_enabled = $9,
-        incentive_enabled = $10,
-
-        basic_da = $11,
-        advance = $12,
-        revenue_generated = $13,
-        incentive_percentage = $14,
-
-        bonus = $15,
-        deduction = $16
-
-      WHERE id = $17
+        bonus = $1,
+        deduction = $2
+      WHERE id = $3
       `,
       [
-
-        hra_enabled,
-        conveyance_enabled,
-        medical_enabled,
-        other_expenses_enabled,
-
-        epf_employee_enabled,
-        epf_employer_enabled,
-
-        professional_tax_enabled,
-        tds_enabled,
-
-        gratuity_enabled,
-        incentive_enabled,
-
-        basic_da,
-        advance,
-        revenue_generated,
-        incentive_percentage,
-
         bonus,
         deduction,
-
         id
-
       ]
     );
 
-    // Fetch updated employee
-    const result = await db.query(
-      `SELECT * FROM employees WHERE id = $1`,
-      [id]
-    );
-
-    const payroll = calculatePayroll(result.rows[0]);
-
     res.json({
-      message: "Payroll Updated",
-      payroll
+      message: "Payroll Updated"
     });
 
-  } catch (err) {
+  }
+
+  catch (err) {
 
     console.log(err);
 
@@ -2053,6 +2023,166 @@ app.put("/api/payroll/:id", async (req, res) => {
 
   }
 
+});
+app.get("/api/payroll/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await db.query(
+      `
+      SELECT *
+      FROM employees
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Employee not found",
+      });
+    }
+
+    const employee = result.rows[0];
+
+    const attendanceSummary = await db.query(
+  `
+  SELECT
+    COUNT(*) FILTER (WHERE status = 'Present') AS present_days,
+    COUNT(*) FILTER (WHERE status = 'Absent') AS absent_days,
+    COUNT(*) FILTER (WHERE status = 'Paid Leave') AS paid_leave_days,
+    COUNT(*) AS total_days
+  FROM attendance
+  WHERE employee_id = $1
+  `,
+  [id]
+);
+
+const attendance = attendanceSummary.rows[0];
+
+    const calculation = PayrollFormula.calculate({
+  salary: employee.salary,
+
+  bonus: employee.bonus,
+  advance: employee.advance || 0,
+  tds: employee.tds || 0,
+  esic: employee.esic || 0,
+  professionalTax: employee.professional_tax || 0,
+  lwf: employee.lwf || 0,
+
+  hraEnabled: employee.hra_enabled,
+  conveyanceEnabled: employee.conveyance_enabled,
+  medicalEnabled: employee.medical_enabled,
+  employeePFEnabled: employee.employee_pf_enabled,
+  employerPFEnabled: employee.employer_pf_enabled,
+  gratuityEnabled: employee.gratuity_enabled,
+  incentiveEnabled: employee.incentive_enabled,
+  otherExpenseEnabled: employee.other_expense_enabled,
+});
+
+    res.json({
+
+  ...employee,
+
+  // Salary Breakdown
+  gross_salary: calculation.grossSalary,
+  basic_da: calculation.basicDA,
+  hra: calculation.hra,
+  conveyance_allowance: calculation.conveyance,
+  medical_allowance: calculation.medical,
+  other_allowance: calculation.otherAllowance,
+
+  // Employee Deductions
+  pf: calculation.pf,
+  esic: calculation.esic,
+  professional_tax: calculation.professionalTax,
+  lwf: calculation.lwf,
+  tds: calculation.tds,
+  advance: calculation.advance,
+  total_deduction: calculation.totalDeduction,
+
+  // Employer Contributions
+  employer_pf: calculation.employerPF,
+  employer_esic: calculation.employerESIC,
+  employer_lwf: calculation.employerLWF,
+  gratuity: calculation.gratuityEmployer,
+
+  // CTC
+  monthly_ctc: calculation.monthlyCTC,
+  annual_ctc: calculation.annualCTC,
+
+  // Final Salary
+  bonus: calculation.bonus,
+  net_pay: calculation.netPay,
+  payable_salary: calculation.payableSalary,
+
+  present_days: Number(attendance.present_days),
+absent_days: Number(attendance.absent_days),
+paid_leave_days: Number(attendance.paid_leave_days),
+total_days: Number(attendance.total_days),
+
+});
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+});
+app.put("/api/employees/:id/payroll-settings", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      hra,
+      conveyance,
+      medical,
+      employeePF,
+      employerPF,
+      professionalTax,
+      tds,
+      gratuity,
+      incentive,
+      otherExpense,
+    } = req.body;
+
+    const result = await db.query(
+      `UPDATE employees
+       SET
+         hra_enabled = $1,
+         conveyance_enabled = $2,
+         medical_enabled = $3,
+         employee_pf_enabled = $4,
+         employer_pf_enabled = $5,
+         professional_tax_enabled = $6,
+         tds_enabled = $7,
+         gratuity_enabled = $8,
+         incentive_enabled = $9,
+         other_expense_enabled = $10
+       WHERE id = $11
+       RETURNING *`,
+      [
+        hra,
+        conveyance,
+        medical,
+        employeePF,
+        employerPF,
+        professionalTax,
+        tds,
+        gratuity,
+        incentive,
+        otherExpense,
+        id,
+      ]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({
+      error: "Failed to update payroll settings",
+    });
+  }
 });
 app.get(
   "/api/recent-activities",
@@ -3016,40 +3146,23 @@ FROM performance_reviews
 
       }
 
-      const employeeId =
-        review.rows[0].employee_id;
+      const grossSalary = PayrollFormula.grossSalary(salary);
 
-      const currentSalary =
-        Number(
-          review.rows[0].salary
-        );
+const basicDA = PayrollFormula.basicDA(salary);
 
-      const incrementAmount =
-        Number(
-          review.rows[0]
-          .increment_amount
-        );
+const hra = PayrollFormula.hra(salary);
 
-      const newSalary =
-        currentSalary +
-        incrementAmount;
-      const hra =
-newSalary * 0.40
+const conveyanceAllowance =
+  PayrollFormula.conveyance();
 
-const ta =
-newSalary * 0.10
+const medicalAllowance =
+  PayrollFormula.medical();
 
-const ma =
-newSalary * 0.05
-
-const grossSalary =
-newSalary +
-hra +
-ta +
-ma
+const otherAllowance =
+  PayrollFormula.otherAllowance(salary);
 
 const pf =
-grossSalary * 0.12
+  PayrollFormula.pf(salary);
 
       await db.query(
         `
@@ -3852,6 +3965,7 @@ ORDER BY effective_date DESC
   }
 
 });
+
 app.get("/api/employees/by-email/:email", async (req, res) => {
 
   try {
