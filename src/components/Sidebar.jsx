@@ -5,6 +5,7 @@ import {
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import './Sidebar.css'
+import LogoutModal from "./LogoutModal";
 import {
   LayoutDashboard,
   Users,
@@ -172,54 +173,14 @@ const handleLogout = async () => {
     ' Logout'}
 
 </button>
-{showLogoutModal && (
-
-  <div className="modal-overlay">
-
-    <div className="logout-modal">
-
-      <h3>
-        Confirm Logout
-      </h3>
-
-      <p>
-        Are you sure you want
-        to logout?
-      </p>
-
-      <div className="modal-actions">
-
-        <button
-          className="cancel-btn"
-          onClick={() =>
-            setShowLogoutModal(
-              false
-            )
-          }
-        >
-          Cancel
-        </button>
-
-        <button
-  className="confirm-btn"
-  onClick={async () => {
-
-    setShowLogoutModal(false)
-
-    await handleLogout()
-
+<LogoutModal
+  open={showLogoutModal}
+  onCancel={() => setShowLogoutModal(false)}
+  onConfirm={async () => {
+    setShowLogoutModal(false);
+    await handleLogout();
   }}
->
-  Logout
-</button>
-
-      </div>
-
-    </div>
-
-  </div>
-
-)}
+/>
 
     </div>
 
