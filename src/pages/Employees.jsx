@@ -1,19 +1,27 @@
 import { useState, useEffect } from 'react'
+import StatCard from "../components/Dashboard/StatCard";
 import Papa from 'papaparse'
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { FaCalendarAlt } from "react-icons/fa";
+import CustomDropdown from "../components/CustomDropdown";
+import toast from "react-hot-toast";
+import GlassScrollArea from "../components/GlassScrollArea";
 function Employees() {
 
  const [employees, setEmployees] = useState([])
  const [showDeleteModal, setShowDeleteModal] =
   useState(false);
+ const [currentPage, setCurrentPage] = useState(1);
+ const [isSubmitting, setIsSubmitting] = useState(false);
+const employeesPerPage = 10;
  const [joiningDate, setJoiningDate] = useState(null);
 const [showCalendar, setShowCalendar] = useState(false);
-
+const [searchTerm, setSearchTerm] = useState("");
 const [employeeToDelete, setEmployeeToDelete] =
   useState(null);
-
+const [showEmployeeModal, setShowEmployeeModal] =
+  useState(false);
   const [name, setName] = useState('')
   const [department, setDepartment] = useState('')
   const [salary, setSalary] = useState('')
@@ -21,7 +29,7 @@ const [employeeToDelete, setEmployeeToDelete] =
   useState('')
   const [email, setEmail] =
 useState('')
-
+const [statusFilter, setStatusFilter] = useState("All Status");
 const [phone, setPhone] =
 useState('')
 
@@ -38,6 +46,7 @@ const [
   setInternshipDuration
 ] = useState("3 Months");
 
+const [departmentFilter, setDepartmentFilter] = useState("All Departments");
 
 const [confirmationDate, setConfirmationDate] =
 useState('')
@@ -65,6 +74,7 @@ useState('')
   "deduction"
 
 ];
+
 
   const rows = employees.map(
 
@@ -189,9 +199,7 @@ deduction: 0
 
         await fetchEmployees();
 
-alert(
-  'Employees imported successfully'
-);
+toast.success("Employees imported successfully!");
       }
 
       catch (err) {
@@ -210,6 +218,9 @@ alert(
   fetchEmployees();
 
 }, []);
+useEffect(() => {
+  setCurrentPage(1);
+}, [searchTerm, departmentFilter, statusFilter]);
 
   const fetchEmployees = async () => {
 
@@ -236,7 +247,7 @@ alert(
 
 };
   const addEmployee = () => {
-
+  
     if (
 
   !employeeCode ||
@@ -249,7 +260,7 @@ alert(
 
 ) {
 
-      alert('Please fill all fields')
+      toast.error("Please fill all required fields.");
       return
 
     }
@@ -306,7 +317,7 @@ confirmation_date:
   })
   .then(res => res.json())
   .then(() => {
-
+  toast.success("Employee added successfully!");
     setEmployeeCode('')
 setName('')
 
@@ -327,13 +338,16 @@ setPreviousExperience('')
 
 setDepartment('')
 setSalary('')
-
+setShowEmployeeModal(false);
     return fetch("https://payroll-management-system-three.vercel.app/api/employees")
 
   })
   .then(res => res.json())
   .then(data => setEmployees(data))
-  .catch(err => console.log(err))
+  .catch((err) => {
+  console.error(err);
+  toast.error("Something went wrong. Please try again.");
+});
 
 }
 
@@ -347,7 +361,7 @@ setSalary('')
   )
     .then(res => res.json())
     .then(() => {
-
+      toast.success("Employee deleted successfully!");
       setShowDeleteModal(false);
 
       setEmployeeToDelete(null);
@@ -355,7 +369,10 @@ setSalary('')
       fetchEmployees();
 
     })
-    .catch(err => console.log(err));
+    .catch((err) => {
+  console.error(err);
+  toast.error("Something went wrong. Please try again.");
+});;
 
 };
 const editEmployee = (
@@ -435,10 +452,10 @@ setPreviousExperience(
   );
 
   setSalary(
+  employee.salary
+);
 
-    employee.salary
-
-  );
+setShowEmployeeModal(true);
 
 };
 const updateEmployee = () => {
@@ -472,7 +489,7 @@ const updateEmployee = () => {
   })
   .then(res => res.json())
   .then(() => {
-
+    toast.success("Employee updated successfully!");
     fetchEmployees();
 
     setEditingId(null);
@@ -491,84 +508,262 @@ const updateEmployee = () => {
     setPreviousExperience("");
     setDepartment("");
     setSalary("");
-
+    setShowEmployeeModal(false);
   })
-  .catch(err => console.log(err));
+  .catch((err) => {
+  console.error(err);
+  toast.error("Something went wrong. Please try again.");
+});;
 
 };
+const totalEmployees = employees.length;
+
+const directEmployees = employees.filter(
+  (employee) => employee.employee_type === "Direct"
+).length;
+
+const thirdPartyEmployees = employees.filter(
+  (employee) => employee.employee_type === "Third Party"
+).length;
+
+const internEmployees = employees.filter(
+  (employee) => employee.employment_status === "Intern"
+).length;
+const filteredEmployees = employees.filter((employee) => {
+  const search = searchTerm.toLowerCase();
+
+  const matchesSearch =
+    (employee.name || "").toLowerCase().includes(search) ||
+    (employee.employee_code || "").toLowerCase().includes(search) ||
+    (employee.department || "").toLowerCase().includes(search) ||
+    (employee.designation || "").toLowerCase().includes(search);
+
+  const matchesDepartment =
+    departmentFilter === "All Departments" ||
+    employee.department === departmentFilter;
+
+  const matchesStatus =
+    statusFilter === "All Status" ||
+    employee.employment_status === statusFilter;
 
   return (
+    matchesSearch &&
+    matchesDepartment &&
+    matchesStatus
+  );
+});
+const indexOfLastEmployee = currentPage * employeesPerPage;
 
+const indexOfFirstEmployee =
+  indexOfLastEmployee - employeesPerPage;
+
+const currentEmployees =
+  filteredEmployees.slice(
+    indexOfFirstEmployee,
+    indexOfLastEmployee
+  );
+
+const totalPages = Math.ceil(
+  filteredEmployees.length / employeesPerPage
+);
+
+  return (
+  
     <div>
 
-      <>
-  <h1
-    style={{
-      fontSize: '42px',
-      fontWeight: '700',
-      color: '#f8fafc',
-      marginBottom: '8px'
-    }}
-  >
-    Employee Management
-  </h1>
-  <div
+      <div
   style={{
-    display: 'flex',
-    gap: '12px',
-    marginBottom: '20px'
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: "35px",
   }}
 >
+  <div>
+    <h1
+      style={{
+        margin: 0,
+        fontSize: "42px",
+        fontWeight: 800,
+        color: "#f8fafc",
+      }}
+    >
+      👥 Employee Management
+    </h1>
 
-  <button
-    onClick={exportCSV}
+    <p
+      style={{
+        marginTop: "10px",
+        color: "rgba(255,255,255,.6)",
+        fontSize: "16px",
+      }}
+    >
+      Manage employee records, payroll & workforce.
+    </p>
+  </div>
+      
+  <div
     style={{
-      padding: '12px 20px',
-      background: '#16a34a',
-      color: '#ffffff',
-      border: 'none',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      fontWeight: '600'
+      display: "flex",
+      gap: "12px",
     }}
   >
-    📥 Export CSV
-  </button>
+    <label style={glassButton}>
+      📤 Import CSV
 
-  <label
-    style={{
-      padding: '12px 20px',
-      background: '#2563eb',
-      color: '#ffffff',
-      borderRadius: '12px',
-      cursor: 'pointer',
-      fontWeight: '600'
-    }}
-  >
-    📤 Import CSV
+      <input
+        type="file"
+        accept=".csv"
+        hidden
+        onChange={importCSV}
+      />
+    </label>
 
-    <input
-      type="file"
-      accept=".csv"
-      hidden
-      onChange={importCSV}
-    />
+    <button
+      onClick={exportCSV}
+      style={glassButton}
+    >
+      📥 Export CSV
+    </button>
+  </div>
+</div>
+<div style={cardContainer}>
 
-  </label>
+  <StatCard
+    title="Employees"
+    value={totalEmployees}
+    color="#3b82f6"
+    delay={0.15}
+    icon="employees"
+  />
+
+  <StatCard
+    title="Direct"
+    value={directEmployees}
+    color="#22c55e"
+    delay={0.3}
+    icon="employees"
+  />
+
+  <StatCard
+    title="Third Party"
+    value={thirdPartyEmployees}
+    color="#06b6d4"
+    delay={0.45}
+    icon="employees"
+  />
+
+  <StatCard
+    title="Interns"
+    value={internEmployees}
+    color="#a855f7"
+    delay={0.6}
+    icon="employees"
+  />
 
 </div>
-
-  <p
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "20px",
+    marginBottom: "25px",
+  }}
+>
+  <div
     style={{
-      color: '#94a3b8',
-      marginBottom: '30px'
+      display: "flex",
+      gap: "12px",
+      flex: 1,
     }}
   >
-    Manage employee records, salaries and personal details
-  </p>
-</>
+    <input
+  placeholder="🔍 Search employees..."
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+  style={searchStyle}
+/>
 
-      <div style={formContainer}>
+    <CustomDropdown
+  value={departmentFilter}
+  onChange={setDepartmentFilter}
+  options={[
+    "All Departments",
+    "IT",
+    "HR",
+    "Finance",
+    "Sales",
+    "Marketing",
+    "Operations",
+  ]}
+/>
+
+    <CustomDropdown
+  value={statusFilter}
+  onChange={setStatusFilter}
+  options={[
+    "All Status",
+    "Intern",
+    "Probation",
+    "Permanent",
+  ]}
+/>
+  </div>
+
+  <button
+    onClick={() => setShowEmployeeModal(true)}
+    style={addEmployeeButton}
+  >
+    + Add Employee
+  </button>
+</div>
+      {showEmployeeModal && (
+
+<div style={modalOverlay}>
+
+<div style={employeeModal}>
+
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "25px",
+  }}
+>
+  <h2
+    style={{
+      margin: 0,
+      color: "#f8fafc",
+      fontSize: "28px",
+    }}
+  >
+    {editingId ? "✏️ Edit Employee" : "👤 Add Employee"}
+  </h2>
+
+  <button
+    onClick={() => {
+      setShowEmployeeModal(false);
+      setEditingId(null);
+    }}
+    style={{
+      background: "transparent",
+      border: "none",
+      color: "#fff",
+      fontSize: "28px",
+      cursor: "pointer",
+    }}
+  >
+    ✕
+  </button>
+</div>
+
+<div style={formContainer}>
+<div style={formGrid}>
+<h3 style={sectionTitle}>
+  👤 Personal Information
+</h3>
       <input
   type="text"
   placeholder="Employee Code"
@@ -606,7 +801,9 @@ const updateEmployee = () => {
   }
   style={inputStyle}
 />
-
+<h3 style={sectionTitle}>
+  💼 Employment Details
+</h3>
 <input
   type="text"
   placeholder="Designation"
@@ -616,23 +813,15 @@ const updateEmployee = () => {
   }
   style={inputStyle}
 />
-<select
+<CustomDropdown
   value={employeeType}
-  onChange={(e)=>
-    setEmployeeType(
-      e.target.value
-    )
-  }
-  style={inputStyle}
->
-  <option value="Direct">
-    Direct Employee
-  </option>
-
-  <option value="Third Party">
-    Third Party Employee
-  </option>
-</select>
+  onChange={setEmployeeType}
+  placeholder="Employee Type"
+  options={[
+    "Direct",
+    "Third Party",
+  ]}
+/>
         <input
   type="text"
   placeholder="Department"
@@ -641,40 +830,27 @@ const updateEmployee = () => {
   style={inputStyle}
 />
 
-<select
+<CustomDropdown
   value={employmentStatus}
-  onChange={(e) =>
-    setEmploymentStatus(e.target.value)
-  }
-  style={inputStyle}
->
-  <option value="Probation">
-    Probation
-  </option>
-
-  <option value="Intern">
-    Intern
-  </option>
-</select>
-
+  onChange={setEmploymentStatus}
+  placeholder="Employment Status"
+  options={[
+    "Probation",
+    "Intern",
+  ]}
+/>
 {
   employmentStatus === "Intern" && (
 
-    <select
-      value={internshipDuration}
-      onChange={(e) =>
-        setInternshipDuration(e.target.value)
-      }
-      style={inputStyle}
-    >
-      <option value="3 Months">
-        Internship - 3 Months
-      </option>
-
-      <option value="6 Months">
-        Internship - 6 Months
-      </option>
-    </select>
+    <CustomDropdown
+  value={internshipDuration}
+  onChange={setInternshipDuration}
+  placeholder="Internship Duration"
+  options={[
+    "3 Months",
+    "6 Months",
+  ]}
+/>
 
   )
 }
@@ -780,6 +956,9 @@ const updateEmployee = () => {
   }
   style={inputStyle}
 />
+<h3 style={sectionTitle}>
+  💰 Salary Details
+</h3>
         <input
           type="number"
           placeholder="Basic Salary"
@@ -787,7 +966,7 @@ const updateEmployee = () => {
           onChange={(e) => setSalary(e.target.value)}
           style={inputStyle}
         />
-
+        </div>
         <button
   onClick={
     editingId
@@ -795,16 +974,29 @@ const updateEmployee = () => {
       : addEmployee
   }
   style={{
-  background: "#2563eb",
-  color: "#ffffff",
+  width: "100%",
+
+  background:
+    "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+
+  color: "#08111d",
+
   border: "none",
-  padding: "14px 24px",
-  borderRadius: "12px",
+
+  padding: "16px",
+
+  borderRadius: "16px",
+
   cursor: "pointer",
-  fontSize: "15px",
-  fontWeight: "600",
+
+  fontSize: "16px",
+
+  fontWeight: "700",
+
   boxShadow:
-    "0 4px 20px rgba(37,99,235,0.3)"
+    "0 12px 30px rgba(55,255,215,.35)",
+
+  transition: "all .25s ease",
 }}
 >
   {
@@ -816,158 +1008,428 @@ const updateEmployee = () => {
 
       </div>
 
-      <div
+</div>
+
+</div>
+
+)}
+<div
   style={{
-    overflowX: "auto"
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: "20px",
+    padding: "0 10px",
+    color: "#cbd5e1",
   }}
+>
+  <span>
+    Showing{" "}
+    {filteredEmployees.length === 0
+      ? 0
+      : indexOfFirstEmployee + 1}
+    {" - "}
+    {Math.min(
+      indexOfLastEmployee,
+      filteredEmployees.length
+    )}
+    {" of "}
+    {filteredEmployees.length}
+    {" employees"}
+  </span>
+
+  <div
+    style={{
+      display: "flex",
+      gap: "10px",
+    }}
+  >
+    <button
+      disabled={currentPage === 1}
+      onClick={() =>
+        setCurrentPage(currentPage - 1)
+      }
+      style={paginationButton}
+    >
+      ◀ Previous
+    </button>
+
+    <span
+      style={{
+  minWidth: "80px",
+
+  display: "flex",
+
+  justifyContent: "center",
+
+  alignItems: "center",
+
+  padding: "10px 18px",
+
+  borderRadius: "12px",
+
+  background:
+    "rgba(55,255,215,.08)",
+
+  border:
+    "1px solid rgba(55,255,215,.20)",
+
+  color: "#37FFD7",
+
+  fontWeight: "700",
+
+  boxShadow:
+    "0 4px 12px rgba(55,255,215,.12)",
+}}
+    >
+      {currentPage} / {totalPages || 1}
+    </span>
+
+    <button
+      disabled={
+        currentPage === totalPages ||
+        totalPages === 0
+      }
+      onClick={() =>
+        setCurrentPage(currentPage + 1)
+      }
+      style={paginationButton}
+    >
+      Next ▶
+    </button>
+  </div>
+</div>
+      <GlassScrollArea
+    style={{
+        marginTop: "24px",
+        maxHeight: "650px",
+        borderRadius: "24px",
+        background:
+            "linear-gradient(180deg,#1e293b,#172033)",
+        border:
+            "1px solid rgba(255,255,255,.08)",
+        boxShadow:
+            "0 18px 40px rgba(0,0,0,.35)",
+    }}
 >
   <table style={tableStyle}>
 
         <thead>
-
-          <tr
-  style={{
-    background: '#0f172a'
-  }}
->
-  <th style={headerStyle}>
+  <tr>
+    <th style={{ ...headerStyle, width: "140px" }}>
   Employee Code
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "260px" }}>
   Name
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "180px" }}>
   Designation
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "140px" }}>
   Department
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "140px" }}>
   Type
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "150px" }}>
   Status
 </th>
-<th style={headerStyle}>
+
+<th style={{ ...headerStyle, width: "150px" }}>
   Joining Date
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "180px" }}>
   Experience
 </th>
-<th style={headerStyle}>
+
+<th style={{ ...headerStyle, width: "260px" }}>
   Email
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "170px" }}>
   Phone
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "150px" }}>
   Salary
 </th>
 
-<th style={headerStyle}>
+<th style={{ ...headerStyle, width: "140px" }}>
   Action
 </th>
-</tr>
-
-        </thead>
+  </tr>
+</thead>
 
         <tbody>
 
-          {employees.map((employee) => (
+          {currentEmployees.map((employee, index) => (
 
-            <tr key={employee.id}>
+            <tr
+  key={employee.id}
+ style={{
+  transition: "all .25s ease",
 
-              <td>
+  background:
+    index % 2 === 0
+      ? "rgba(255,255,255,.015)"
+      : "transparent",
+}}
+  onMouseEnter={(e) => {
+  e.currentTarget.style.background =
+  "rgba(55,255,215,.06)";
+
+  e.currentTarget.style.boxShadow =
+  `
+    inset 4px 0 #37FFD7,
+    0 0 18px rgba(55,255,215,.08)
+  `;
+}}
+  onMouseLeave={(e) => {
+  e.currentTarget.style.background =
+    "transparent";
+
+  e.currentTarget.style.boxShadow =
+    "none";
+}}
+>
+
+              <td style={tdStyle}>
   {employee.employee_code}
 </td>
 
-              <td>{employee.name}</td>
+              <td
+  style={{
+    ...tdStyle,
+    textAlign: "left",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "16px",
+    }}
+  >
+    <div
+      style={{
+        width: "44px",
+        height: "44px",
+        borderRadius: "50%",
+        background:
+  "linear-gradient(135deg,#22D3EE,#2563EB)",
+        color: "#08111d",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        fontWeight: "700",
+        fontSize:"18px",
+        boxShadow:"0 6px 15px rgba(34,211,238,.25)",
+      }}
+    >
+      {employee.name.charAt(0).toUpperCase()}
+    </div>
 
-<td>
-  {employee.designation}
+    <span>{employee.name}</span>
+  </div>
 </td>
 
-<td>
+<td style={tdStyle}>
+  {employee.designation}
+</td>
+<td style={tdStyle}>
   {employee.department}
 </td>
 
-<td>
-  {employee.employee_type}
+<td style={tdStyle}>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <span
+    style={{
+      padding: "8px 14px",
+      borderRadius: "999px",
+      fontSize: "13px",
+      fontWeight: "600",
+      color:
+        employee.employee_type === "Direct"
+          ? "#22c55e"
+          : "#06b6d4",
+      background:
+        employee.employee_type === "Direct"
+          ? "rgba(34,197,94,.15)"
+          : "rgba(6,182,212,.15)",
+      border:
+        employee.employee_type === "Direct"
+          ? "1px solid rgba(34,197,94,.35)"
+          : "1px solid rgba(6,182,212,.35)",
+    }}
+  >
+    {employee.employee_type}
+  </span>
+  </div>
 </td>
 
-<td>
-  {employee.employment_status}
+<td style={tdStyle}>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <span
+    style={{
+      padding: "8px 14px",
+      borderRadius: "999px",
+      fontSize: "13px",
+      fontWeight: "600",
+
+      color:
+        employee.employment_status === "Intern"
+          ? "#a855f7"
+          : "#f59e0b",
+
+      background:
+        employee.employment_status === "Intern"
+          ? "rgba(168,85,247,.15)"
+          : "rgba(245,158,11,.15)",
+
+      border:
+        employee.employment_status === "Intern"
+          ? "1px solid rgba(168,85,247,.35)"
+          : "1px solid rgba(245,158,11,.35)",
+    }}
+  >
+    {employee.employment_status}
+  </span>
+  </div>
 </td>
-<td>
+<td style={tdStyle}>
   {employee.joining_date
     ? employee.joining_date
         .split("T")[0]
     : "-"}
 </td>
 
-<td>
+<td style={tdStyle}>
   {employee.previous_experience || "-"}
 </td>
 
-<td>
+<td style={tdStyle}>
   {employee.email}
 </td>
 
-<td>
+<td style={tdStyle}>
   {employee.phone}
 </td>
 
-<td>
+<td
+  style={{
+    ...tdStyle,
+
+    color: "#37FFD7",
+
+    fontWeight: "700",
+
+    fontSize: "15px",
+
+    letterSpacing: ".5px",
+  }}
+>
   ₹{employee.salary}
 </td>
-              <td>
+              <td style={tdStyle}>
+  <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      gap: "10px",
+    }}
+  >
                 <button
   onClick={() => editEmployee(employee)}
+  title="Edit Employee"
   style={{
-  background: "#f59e0b",
-  color: "#ffffff",
-  border: "none",
-  padding: "10px 16px",
-  borderRadius: "10px",
-  cursor: "pointer",
-  marginRight: "10px",
-  fontWeight: "600"
-}}
+    width: "42px",
+    height: "42px",
+
+    borderRadius: "12px",
+
+    border: "1px solid rgba(255,255,255,.08)",
+
+    background:
+      "linear-gradient(145deg,#f59e0b,#d97706)",
+
+    color: "#fff",
+
+    cursor: "pointer",
+
+    fontSize: "18px",
+
+    transition: ".25s",
+
+    marginRight: "10px",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      "translateY(-2px)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      "translateY(0)";
+  }}
 >
-  Edit
+  ✏️
 </button>
 
 <button
+  title="Delete Employee"
   style={{
-  background: "#CC0000",
-  color: "#ffffff",
-  border: "none",
-  padding: "10px 16px",
-  borderRadius: "10px",
-  cursor: "pointer",
-  fontWeight: "600"
-}}
+    width: "42px",
+    height: "42px",
+
+    borderRadius: "12px",
+
+    border: "1px solid rgba(255,255,255,.08)",
+
+    background:
+      "linear-gradient(145deg,#ef4444,#dc2626)",
+
+    color: "#fff",
+
+    cursor: "pointer",
+
+    fontSize: "18px",
+
+    transition: ".25s",
+  }}
+  onMouseEnter={(e) => {
+    e.currentTarget.style.transform =
+      "translateY(-2px)";
+  }}
+  onMouseLeave={(e) => {
+    e.currentTarget.style.transform =
+      "translateY(0)";
+  }}
   onClick={() => {
-
-    setEmployeeToDelete(
-      employee.id
-    );
-
+    setEmployeeToDelete(employee.id);
     setShowDeleteModal(true);
-
   }}
 >
-  Delete
+  🗑️
 </button>
-
+</div>
               </td>
 
             </tr>
@@ -977,7 +1439,8 @@ const updateEmployee = () => {
         </tbody>
 
       </table>
-    </div>
+      
+    </GlassScrollArea>
     
 
     {
@@ -1102,16 +1565,19 @@ const deleteButton = {
 }
 
 const tableStyle = {
-  width: '100%',
-  background: '#1e293b',
-  borderRadius: '20px',
-  overflow: 'hidden',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)',
-  color: '#f8fafc',
-  borderCollapse: 'collapse'
-}
+  width: "100%",
+  minWidth: "1800px",
+
+  tableLayout: "fixed",
+
+  background: "transparent",
+
+  color: "#f8fafc",
+
+  borderCollapse: "separate",
+
+  borderSpacing: 0,
+};
 const modalOverlay = {
 
   position: "fixed",
@@ -1152,17 +1618,223 @@ const modalBox = {
     "0 8px 32px rgba(0,0,0,0.4)"
 };
 const headerStyle = {
-  padding: '18px',
-  textAlign: 'center',
-  color: '#cbd5e1',
-  borderBottom:
-    '1px solid #334155',
-  fontWeight: '600'
-}
-const tdStyle = {
-  padding: "16px",
+  position: "sticky",
+  top: 0,
+  zIndex: 100,
+
+  background:
+    "linear-gradient(180deg,#111827,#0f172a)",
+
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+
+  color: "#f8fafc",
+
+  fontWeight: "700",
+
+  fontSize: "14px",
+
+  textTransform: "uppercase",
+
+  letterSpacing: "1px",
+
+  padding: "18px",
+
   textAlign: "center",
+
   borderBottom:
-    "1px solid #334155"
-}
+    "1px solid rgba(255,255,255,.08)",
+  boxShadow:
+  "0 6px 15px rgba(0,0,0,.18)",
+};
+const tdStyle = {
+  padding: "18px 16px",
+
+  textAlign: "center",
+
+  verticalAlign: "middle",
+
+  borderBottom:
+    "1px solid rgba(255,255,255,.06)",
+};
+const glassButton = {
+  padding: "12px 22px",
+
+  borderRadius: "16px",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  backdropFilter: "blur(18px)",
+
+  WebkitBackdropFilter: "blur(18px)",
+
+  color: "#f8fafc",
+
+  fontWeight: 600,
+
+  cursor: "pointer",
+
+  transition: "all .25s ease",
+
+  display: "flex",
+
+  alignItems: "center",
+
+  justifyContent: "center",
+
+  gap: "8px",
+
+  boxShadow:
+    "0 12px 30px rgba(0,0,0,.25)"
+};
+const cardContainer = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+  gap: "24px",
+  marginBottom: "35px",
+};
+const searchStyle = {
+  flex: 1,
+
+  padding: "14px 18px",
+
+  borderRadius: "16px",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  color: "#f8fafc",
+
+  fontSize: "15px",
+
+  outline: "none",
+
+  backdropFilter: "blur(18px)",
+};
+const filterStyle = {
+  padding: "14px 18px",
+  borderRadius: "16px",
+  border: "1px solid rgba(255,255,255,.08)",
+
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  color: "#f8fafc",
+
+  minWidth: "190px",
+
+  outline: "none",
+
+  cursor: "pointer",
+
+  backdropFilter: "blur(18px)",
+  WebkitBackdropFilter: "blur(18px)",
+
+  appearance: "none",
+  WebkitAppearance: "none",
+  MozAppearance: "none",
+
+  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5l6 6 6-6'/%3E%3C/svg%3E")`,
+
+  backgroundRepeat: "no-repeat",
+
+  backgroundPosition: "right 15px center",
+
+  paddingRight: "45px",
+};
+const addEmployeeButton = {
+  padding: "14px 24px",
+
+  borderRadius: "16px",
+
+  border: "none",
+
+  background:
+    "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+
+  color: "#08111d",
+
+  fontWeight: 700,
+
+  fontSize: "15px",
+
+  cursor: "pointer",
+
+  boxShadow:
+    "0 12px 30px rgba(55,255,215,.35)",
+
+  transition: "all .25s ease",
+};
+const employeeModal = {
+  width: "90%",
+  maxWidth: "900px",
+  maxHeight: "90vh",
+
+  overflowY: "auto",
+
+  padding: "30px",
+
+  borderRadius: "24px",
+
+  background:
+    "linear-gradient(145deg, rgba(17,24,39,.95), rgba(30,41,59,.95))",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  backdropFilter: "blur(22px)",
+
+  WebkitBackdropFilter: "blur(22px)",
+
+  boxShadow:
+    "0 25px 70px rgba(0,0,0,.55)",
+};
+const formGrid = {
+  display: "grid",
+  gridTemplateColumns: "repeat(2, 1fr)",
+  gap: "18px",
+  marginBottom: "24px",
+};
+const sectionTitle = {
+  gridColumn: "1 / -1",
+
+  margin: "10px 0 5px",
+
+  fontSize: "18px",
+
+  fontWeight: "700",
+
+  color: "#37FFD7",
+
+  paddingBottom: "10px",
+
+  borderBottom: "1px solid rgba(255,255,255,.08)",
+};
+const paginationButton = {
+  padding: "10px 18px",
+  borderRadius: "12px",
+  border: "1px solid rgba(255,255,255,.08)",
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+  color: "#f8fafc",
+  cursor: "pointer",
+  fontWeight: "600",
+  transition: "all .25s ease",
+};
+const Spinner = () => (
+  <div
+    style={{
+      width: "18px",
+      height: "18px",
+      border: "2px solid rgba(255,255,255,.25)",
+      borderTop: "2px solid #37FFD7",
+      borderRadius: "50%",
+      animation: "spin .7s linear infinite",
+    }}
+  />
+);
 export default Employees

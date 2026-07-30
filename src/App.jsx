@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Toaster } from "react-hot-toast";
 import {
   HashRouter,
   Routes,
@@ -24,12 +25,14 @@ import ThirdPartyPayroll from "./pages/ThirdPartyPayroll";
 import LoginAnimation from "./components/LoginAnimation";
 import HRDocuments from "./pages/HRDocuments";
 import EmployeeProfile from "./pages/EmployeeProfile";
+import LogoutModal from "./components/LogoutModal";
+import { supabase } from "./supabaseClient";
 
 function AppContent() {
   const location = useLocation();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
  const hideSidebar = [
   "/",
   "/login",
@@ -37,10 +40,52 @@ function AppContent() {
   "/login-animation",
   "/employee-dashboard",
 ].includes(location.pathname);
+const handleLogout = async () => {
+  try {
+    await supabase.auth.signOut();
+    window.location.hash = "#/login";
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
   return (
     <>
+    <Toaster
+  position="top-right"
+  reverseOrder={false}
+  toastOptions={{
+    duration: 3000,
+
+    style: {
+      background: "#1e293b",
+      color: "#f8fafc",
+      border: "1px solid rgba(55,255,215,.15)",
+      borderRadius: "14px",
+      boxShadow: "0 12px 35px rgba(0,0,0,.35)",
+      padding: "14px 18px",
+      fontWeight: "600",
+    },
+
+    success: {
+      iconTheme: {
+        primary: "#37FFD7",
+        secondary: "#08111d",
+      },
+    },
+
+    error: {
+      iconTheme: {
+        primary: "#ef4444",
+        secondary: "#ffffff",
+      },
+    },
+  }}
+/>
       {!hideSidebar && (
-        <Sidebar onToggle={setSidebarCollapsed} />
+       <Sidebar
+  onToggle={setSidebarCollapsed}
+  onLogout={() => setShowLogoutModal(true)}
+/>
       )}
 
       <div
@@ -142,6 +187,14 @@ function AppContent() {
         </Routes>
         {!hideSidebar && <AIAssistant />}
       </div>
+      <LogoutModal
+  open={showLogoutModal}
+  onCancel={() => setShowLogoutModal(false)}
+  onConfirm={async () => {
+    setShowLogoutModal(false);
+    await handleLogout();
+  }}
+/>
     </>
   );
 }

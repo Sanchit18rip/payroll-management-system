@@ -5,7 +5,7 @@ import {
 import { useState } from 'react'
 import { supabase } from '../supabaseClient'
 import './Sidebar.css'
-import LogoutModal from "./LogoutModal";
+
 import {
   LayoutDashboard,
   Users,
@@ -21,18 +21,13 @@ import {
 } from "lucide-react";
 
 function Sidebar({
-  onToggle
+  onToggle,
+  onLogout,
 }) {
 
   const [collapsed, setCollapsed] =
     useState(false)
-  const [
-
-  showLogoutModal,
-
-  setShowLogoutModal
-
-] = useState(false)
+  
   const navigate = useNavigate()
 const menuItems = [
   {
@@ -161,9 +156,8 @@ const handleLogout = async () => {
   );
 })}
 <button
-  onClick={() =>
-  setShowLogoutModal(true)
-}
+  onClick={onLogout}
+
   className="logout-btn"
 >
 
@@ -173,14 +167,7 @@ const handleLogout = async () => {
     ' Logout'}
 
 </button>
-<LogoutModal
-  open={showLogoutModal}
-  onCancel={() => setShowLogoutModal(false)}
-  onConfirm={async () => {
-    setShowLogoutModal(false);
-    await handleLogout();
-  }}
-/>
+
 
     </div>
 

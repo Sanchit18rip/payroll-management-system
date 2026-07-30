@@ -254,3 +254,179 @@ body::after{
 
     z-index:-1;
 }
+select option {
+  background: #111827;
+  color: #f8fafc;
+}
+/* ============================= */
+/*      GLOBAL SCROLLBAR         */
+/* ============================= */
+
+/* Chrome, Edge, Brave, Opera */
+
+::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f172a;
+    border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb {
+
+    background:
+        linear-gradient(
+            180deg,
+            #37FFD7 0%,
+            #22D3EE 45%,
+            #0EA5E9 100%
+        );
+
+    border-radius:999px;
+
+    border:2px solid #0f172a;
+
+    box-shadow:
+        0 0 10px rgba(55,255,215,.35),
+        inset 0 0 6px rgba(255,255,255,.15);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(
+        180deg,
+        #5FFFF0,
+        #38BDF8
+    );
+
+    box-shadow:
+        0 0 10px rgba(55,255,215,.7),
+        0 0 20px rgba(14,165,233,.5);
+}
+
+::-webkit-scrollbar-thumb:active {
+    background: linear-gradient(
+        180deg,
+        #7CFFE9,
+        #60A5FA
+    );
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* Firefox */
+
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #37FFD7 #0f172a;
+}
+html{
+    scroll-behavior:smooth;
+}
+/* ============================= */
+/* EMPLOYEE TABLE SCROLLBAR */
+/* ============================= */
+
+.employee-table-container::-webkit-scrollbar{
+    width:8px;
+    height:8px;
+}
+
+.employee-table-container::-webkit-scrollbar-track{
+    background:transparent;
+}
+
+.employee-table-container::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.18);
+    border-radius:999px;
+    border:none;
+}
+
+.employee-table-container::-webkit-scrollbar-thumb:hover{
+    background:#37FFD7;
+}
+
+.employee-table-container::-webkit-scrollbar-corner{
+    background:#172033;
+}
+
+.employee-table-container{
+    scrollbar-width:thin;
+    scrollbar-color:#475569 transparent;
+}
+/* ========================= */
+/* CYBERPUNK SIMPLEBAR */
+/* ========================= */
+
+.simplebar-track {
+    background: transparent;
+    opacity: 1 !important;
+}
+
+.simplebar-track.simplebar-vertical {
+    width: 12px;
+    right: 4px;
+}
+
+.simplebar-track.simplebar-horizontal {
+    height: 12px;
+    bottom: 4px;
+}
+
+.simplebar-scrollbar::before {
+    left: 2px;
+    right: 2px;
+    top: 2px;
+    bottom: 2px;
+
+    opacity: 1 !important;
+
+    border-radius: 999px;
+
+    background: linear-gradient(
+        180deg,
+        #37FFD7,
+        #22D3EE,
+        #2563EB
+    ) !important;
+
+    box-shadow:
+        0 0 8px rgba(55,255,215,.7),
+        0 0 18px rgba(34,211,238,.5);
+}
+
+.simplebar-scrollbar:hover::before {
+    box-shadow:
+        0 0 12px #37FFD7,
+        0 0 25px #22D3EE,
+        0 0 40px rgba(55,255,215,.7);
+}
+/* =======================================
+      GLASS SCROLL AREA
+=======================================*/
+
+.glass-scroll{
+
+    scrollbar-width:none;
+
+}
+
+.glass-scroll::-webkit-scrollbar{
+
+    width:0;
+
+    height:0;
+
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}

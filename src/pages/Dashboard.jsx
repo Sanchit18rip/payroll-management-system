@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import Card from "../components/ui/Card";
 import { motion } from "framer-motion";
-import DashboardHeader from "../components/DashboardHeader";
+import DashboardHeader from "../components/Dashboard/DashboardHeader";
 import TermsModal from "../components/Dashboard/TermsModal";
 import StatCard from "../components/Dashboard/StatCard";
 import {
@@ -308,30 +308,17 @@ duration:.8
   onClose={() => setShowTerms(false)}
 
 />
-      <DashboardHeader
+    <DashboardHeader
 
   greeting="Good Morning"
 
   date={new Date().toDateString()}
 
   onTerms={() => setShowTerms(true)}
+  
 
 />
-<button
-  onClick={() => setShowTerms(true)}
-  style={{
-    padding: "8px 14px",
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    position: "relative",
-    top: "-15px"
-  }}
->
-  📄 View Terms & Conditions
-</button>
+
 
       {/* SUMMARY CARDS */}
 

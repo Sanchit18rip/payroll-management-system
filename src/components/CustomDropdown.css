@@ -1,0 +1,160 @@
+.custom-dropdown{
+    position:relative;
+    min-width:220px;
+    user-select:none;
+}
+
+.dropdown-trigger{
+    width:100%;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:14px 18px;
+
+    border-radius:18px;
+
+    border:1px solid rgba(255,255,255,.08);
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,.06),
+            rgba(255,255,255,.02)
+        );
+
+    color:#f8fafc;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    transition:.25s;
+
+    backdrop-filter:blur(18px);
+
+    box-shadow:
+        0 12px 30px rgba(0,0,0,.25);
+}
+
+.dropdown-trigger:hover{
+
+    border-color:#37FFD7;
+
+    transform:translateY(-2px);
+
+}
+
+.dropdown-trigger.active{
+
+    border-color:#37FFD7;
+
+    box-shadow:
+        0 0 0 2px rgba(55,255,215,.15),
+        0 15px 35px rgba(0,0,0,.35);
+
+}
+
+
+.dropdown-menu{
+
+    position:absolute;
+
+    top:110%;
+
+    left:0;
+
+    width:100%;
+
+    background:
+        rgba(15,23,42,.96);
+
+    border-radius:18px;
+
+    overflow:hidden;
+
+    backdrop-filter:blur(24px);
+
+    border:1px solid rgba(255,255,255,.08);
+
+    box-shadow:
+        0 25px 60px rgba(0,0,0,.55);
+
+    animation:dropdownOpen .22s ease;
+
+    z-index:9999;
+
+    transform-origin: top center;
+
+}
+
+.dropdown-item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    align-items:center;
+
+    padding:14px 18px;
+
+    cursor:pointer;
+
+    color:#f8fafc;
+
+    transition:.2s;
+
+}
+
+.dropdown-item:hover{
+
+    background:
+        rgba(55,255,215,.08);
+
+    padding-left:24px;
+
+}
+
+.dropdown-item.selected{
+
+    color:#37FFD7;
+
+    background:
+        rgba(55,255,215,.08);
+
+}
+
+.check{
+
+    font-weight:bold;
+
+    color:#37FFD7;
+
+}
+.arrow{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition:transform .3s ease;
+}
+
+.arrow svg{
+    width:18px;
+    height:18px;
+}
+
+.rotate{
+    transform:rotate(180deg);
+}
+
+@keyframes dropdownOpen{
+    from{
+        opacity:0;
+        transform:translateY(-10px) scale(.96);
+    }
+
+    to{
+        opacity:1;
+        transform:translateY(0) scale(1);
+    }
+}
