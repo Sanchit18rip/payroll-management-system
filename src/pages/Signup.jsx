@@ -5,7 +5,8 @@ import { supabase } from '../supabaseClient'
 function SignUp() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
-  const [resumeFile, setResumeFile] = useState(null) // NEW
+  const [resumeFile, setResumeFile] = useState(null)
+  const [idProofFile, setIdProofFile] = useState(null) // NEW
 
   const [user, setUser] = useState({
     email: '',
@@ -15,16 +16,16 @@ function SignUp() {
     gender: '',
     bloodGroup: '',
     maritalStatus: '',
+    marriageDate: '',           // NEW
+    spouseName: '',             // NEW
+    spouseOccupation: '',       // NEW
+    spousePhone: '',            // NEW
+    hasChildren: '',            // NEW
+    numberOfChildren: '',       // NEW
+    childrenNames: '',          // NEW
     mobileNumber: '',
     presentAddress: '',
     permanentAddress: '',
-    twelfthMarks: '',
-    twelfthPassingYear: '',
-    twelfthCollege: '',
-    degreeName: '',
-    degreeCgpa: '',
-    degreePassingYear: '',
-    degreeCollege: '',
     fatherName: '',
     fatherOccupation: '',
     fatherPhone: '',
@@ -42,14 +43,61 @@ function SignUp() {
     leavingYear: '',
     reasonForLeaving: '',
     totalExperienceYears: '',
-    linkedinUrl: '',           // NEW
-    skills: '',                // NEW
-    emergencyContactName: '',  // NEW
-    emergencyContactPhone: ''  // NEW
+    linkedinUrl: '',
+    githubUrl: '',                     // NEW
+    portfolioUrl: '',                  // NEW
+    skills: '',
+    languagesKnown: '',                // NEW
+    certifications: '',                // NEW
+    expectedSalary: '',                // NEW
+    noticePeriodDays: '',              // NEW
+    willingToRelocate: '',             // NEW
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    bankAccountNumber: '',             // NEW
+    bankName: '',                      // NEW
+    ifscCode: '',                      // NEW
+    panNumber: '',                     // NEW
+    aadharNumber: '',                  // NEW
+    reference1Name: '',                // NEW
+    reference1Designation: '',         // NEW
+    reference1Phone: '',               // NEW
+    reference2Name: '',                // NEW
+    reference2Designation: '',         // NEW
+    reference2Phone: ''                // NEW
   })
+
+  // NEW - dynamic education entries (10th, 12th, Diploma, Degree, Masters, PhD, Certification...)
+  const [educationEntries, setEducationEntries] = useState([
+    { level: '', institution: '', admissionYear: '', passingYear: '', marksOrCgpa: '', certificateFile: null }
+  ])
 
   const handleChange = (field, value) => {
     setUser(prev => ({ ...prev, [field]: value }))
+  }
+
+  // NEW - education entry handlers
+  const addEducationEntry = () => {
+    setEducationEntries(prev => [
+      ...prev,
+      { level: '', institution: '', admissionYear: '', passingYear: '', marksOrCgpa: '', certificateFile: null }
+    ])
+  }
+
+  const removeEducationEntry = (index) => {
+    setEducationEntries(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const updateEducationField = (index, field, value) => {
+    setEducationEntries(prev =>
+      prev.map((entry, i) => (i === index ? { ...entry, [field]: value } : entry))
+    )
+  }
+
+  const updateEducationFile = (index, file) => {
+    setEducationEntries(prev =>
+      prev.map((entry, i) => (i === index ? { ...entry, certificateFile: file } : entry))
+    )
   }
 
   const handleSignUp = async (e) => {
@@ -69,6 +117,7 @@ function SignUp() {
       if (authError) throw authError
 
       let resumeUrl = null
+      let idProofUrl = null // NEW
 
       // Step 2: Upload Resume to Supabase Storage
       if (resumeFile && authData?.user) {
@@ -88,6 +137,59 @@ function SignUp() {
         resumeUrl = urlData.publicUrl
       }
 
+      // Step 2b: NEW - Upload ID Proof to Supabase Storage
+      if (idProofFile && authData?.user) {
+        const fileExt = idProofFile.name.split('.').pop()
+        const fileName = `${authData.user.id}_id_proof.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('id-proofs')
+          .upload(fileName, idProofFile)
+
+        if (uploadError) throw uploadError
+
+        const { data: urlData } = supabase.storage
+          .from('id-proofs')
+          .getPublicUrl(fileName)
+
+        idProofUrl = urlData.publicUrl
+      }
+
+      // Step 2c: NEW - Upload each education certificate
+      const uploadedEducationEntries = []
+      if (authData?.user) {
+        for (let i = 0; i < educationEntries.length; i++) {
+          const entry = educationEntries[i]
+          let certificateUrl = null
+
+          if (entry.certificateFile) {
+            const fileExt = entry.certificateFile.name.split('.').pop()
+            const fileName = `${authData.user.id}_education_${i}.${fileExt}`
+
+            const { error: certUploadError } = await supabase.storage
+              .from('education-certificates')
+              .upload(fileName, entry.certificateFile)
+
+            if (certUploadError) throw certUploadError
+
+            const { data: certUrlData } = supabase.storage
+              .from('education-certificates')
+              .getPublicUrl(fileName)
+
+            certificateUrl = certUrlData.publicUrl
+          }
+
+          uploadedEducationEntries.push({
+            level: entry.level,
+            institution: entry.institution,
+            admission_year: entry.admissionYear,
+            passing_year: entry.passingYear,
+            marks_or_cgpa: entry.marksOrCgpa,
+            certificate_url: certificateUrl
+          })
+        }
+      }
+
       // Step 3: Insert profile into Supabase table
       if (authData?.user) {
         const { error: profileError } = await supabase
@@ -99,16 +201,17 @@ function SignUp() {
             gender: user.gender,
             blood_group: user.bloodGroup,
             marital_status: user.maritalStatus,
+            marriage_date: user.marriageDate || null,                                        // NEW
+            spouse_name: user.spouseName,                                                     // NEW
+            spouse_occupation: user.spouseOccupation,                                         // NEW
+            spouse_phone: user.spousePhone,                                                   // NEW
+            has_children: user.hasChildren,                                                   // NEW
+            number_of_children: user.numberOfChildren ? parseInt(user.numberOfChildren) : null, // NEW
+            children_names: user.childrenNames,                                               // NEW
             mobile_number: user.mobileNumber,
             present_address: user.presentAddress,
             permanent_address: user.permanentAddress,
-            twelfth_marks: user.twelfthMarks,
-            twelfth_passing_year: user.twelfthPassingYear,
-            twelfth_college: user.twelfthCollege,
-            degree_name: user.degreeName,
-            degree_cgpa: user.degreeCgpa,
-            degree_passing_year: user.degreePassingYear,
-            degree_college: user.degreeCollege,
+            education_history: uploadedEducationEntries,                                      // NEW (jsonb column)
             father_name: user.fatherName,
             father_occupation: user.fatherOccupation,
             father_phone: user.fatherPhone,
@@ -126,11 +229,30 @@ function SignUp() {
             leaving_year: user.leavingYear,
             reason_for_leaving: user.reasonForLeaving,
             total_experience_years: user.totalExperienceYears,
-            linkedin_url: user.linkedinUrl,           // NEW
-            skills: user.skills,                      // NEW
-            emergency_contact_name: user.emergencyContactName,   // NEW
-            emergency_contact_phone: user.emergencyContactPhone, // NEW
-            resume_url: resumeUrl,                    // NEW
+            linkedin_url: user.linkedinUrl,
+            github_url: user.githubUrl,                       // NEW
+            portfolio_url: user.portfolioUrl,                 // NEW
+            skills: user.skills,
+            languages_known: user.languagesKnown,             // NEW
+            certifications: user.certifications,               // NEW
+            expected_salary: user.expectedSalary ? parseInt(user.expectedSalary) : null, // NEW
+            notice_period_days: user.noticePeriodDays ? parseInt(user.noticePeriodDays) : null, // NEW
+            willing_to_relocate: user.willingToRelocate,       // NEW
+            emergency_contact_name: user.emergencyContactName,
+            emergency_contact_phone: user.emergencyContactPhone,
+            bank_account_number: user.bankAccountNumber,       // NEW
+            bank_name: user.bankName,                          // NEW
+            ifsc_code: user.ifscCode,                          // NEW
+            pan_number: user.panNumber,                        // NEW
+            aadhar_number: user.aadharNumber,                  // NEW
+            reference1_name: user.reference1Name,               // NEW
+            reference1_designation: user.reference1Designation, // NEW
+            reference1_phone: user.reference1Phone,             // NEW
+            reference2_name: user.reference2Name,               // NEW
+            reference2_designation: user.reference2Designation, // NEW
+            reference2_phone: user.reference2Phone,             // NEW
+            resume_url: resumeUrl,
+            id_proof_url: idProofUrl,                          // NEW
             role: 'employee'
           }])
 
@@ -179,35 +301,132 @@ function SignUp() {
               <option value="Other">Other</option>
             </select>
             <input type="text" placeholder="Blood Group" value={user.bloodGroup} onChange={(e) => handleChange('bloodGroup', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="Marital Status" value={user.maritalStatus} onChange={(e) => handleChange('maritalStatus', e.target.value)} style={inputStyle} />
+            <select value={user.maritalStatus} onChange={(e) => handleChange('maritalStatus', e.target.value)} style={inputStyle}>
+              <option value="">Marital Status</option>
+              <option value="Single">Single</option>
+              <option value="Married">Married</option>
+            </select>
             <input type="text" placeholder="Phone Number *" required value={user.mobileNumber} onChange={(e) => handleChange('mobileNumber', e.target.value)} style={inputStyle} />
           </div>
           <textarea placeholder="Present Address" value={user.presentAddress} onChange={(e) => handleChange('presentAddress', e.target.value)} style={{ ...inputStyle, height: '80px', marginTop: '16px' }} />
           <textarea placeholder="Permanent Address" value={user.permanentAddress} onChange={(e) => handleChange('permanentAddress', e.target.value)} style={{ ...inputStyle, height: '80px', marginTop: '16px' }} />
 
-          {/* EMERGENCY CONTACT - NEW */}
+          {/* MARRIAGE & FAMILY - NEW */}
+          {user.maritalStatus === 'Married' && (
+            <div style={dynamicBoxStyle}>
+              <h3 style={subSectionTitle}>Marriage &amp; Spouse Details</h3>
+              <div style={formGridStyle}>
+                <input type="date" placeholder="Marriage Date" value={user.marriageDate} onChange={(e) => handleChange('marriageDate', e.target.value)} style={inputStyle} />
+                <input type="text" placeholder="Spouse's Name" value={user.spouseName} onChange={(e) => handleChange('spouseName', e.target.value)} style={inputStyle} />
+                <input type="text" placeholder="Spouse's Occupation" value={user.spouseOccupation} onChange={(e) => handleChange('spouseOccupation', e.target.value)} style={inputStyle} />
+                <input type="text" placeholder="Spouse's Contact Number" value={user.spousePhone} onChange={(e) => handleChange('spousePhone', e.target.value)} style={inputStyle} />
+              </div>
+
+              <h3 style={{ ...subSectionTitle, marginTop: '16px' }}>Children Details</h3>
+              <div style={formGridStyle}>
+                <select value={user.hasChildren} onChange={(e) => handleChange('hasChildren', e.target.value)} style={inputStyle}>
+                  <option value="">Do you have children?</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+                {user.hasChildren === 'Yes' && (
+                  <input type="number" placeholder="Number of Children" value={user.numberOfChildren} onChange={(e) => handleChange('numberOfChildren', e.target.value)} style={inputStyle} />
+                )}
+              </div>
+              {user.hasChildren === 'Yes' && (
+                <textarea placeholder="Children's Names & Ages (e.g., Riya - 5 years, Arjun - 2 years)" value={user.childrenNames} onChange={(e) => handleChange('childrenNames', e.target.value)} style={{ ...inputStyle, height: '60px', marginTop: '16px' }} />
+              )}
+            </div>
+          )}
+
+          {/* EMERGENCY CONTACT */}
           <h2 style={sectionTitleStyle}>Emergency Contact</h2>
           <div style={formGridStyle}>
             <input type="text" placeholder="Emergency Contact Name" value={user.emergencyContactName} onChange={(e) => handleChange('emergencyContactName', e.target.value)} style={inputStyle} />
             <input type="text" placeholder="Emergency Contact Phone" value={user.emergencyContactPhone} onChange={(e) => handleChange('emergencyContactPhone', e.target.value)} style={inputStyle} />
           </div>
 
-          {/* EDUCATION DETAILS */}
+          {/* EDUCATION DETAILS - NEW: fully dynamic, add as many as needed */}
           <h2 style={sectionTitleStyle}>Education Background</h2>
-          <h3 style={subSectionTitle}>12th / Diploma Details</h3>
-          <div style={formGridStyle}>
-            <input type="text" placeholder="12th Marks / Percentage" value={user.twelfthMarks} onChange={(e) => handleChange('twelfthMarks', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="Passing Year" value={user.twelfthPassingYear} onChange={(e) => handleChange('twelfthPassingYear', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="School / College Name" value={user.twelfthCollege} onChange={(e) => handleChange('twelfthCollege', e.target.value)} style={inputStyle} />
-          </div>
-
-          <h3 style={subSectionTitle}>Degree / Graduation Details</h3>
-          <div style={formGridStyle}>
-            <input type="text" placeholder="Degree Name (e.g., B.E., B.Com)" value={user.degreeName} onChange={(e) => handleChange('degreeName', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="Final CGPA / Percentage" value={user.degreeCgpa} onChange={(e) => handleChange('degreeCgpa', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="Passing Year" value={user.degreePassingYear} onChange={(e) => handleChange('degreePassingYear', e.target.value)} style={inputStyle} />
-            <input type="text" placeholder="University / College Name" value={user.degreeCollege} onChange={(e) => handleChange('degreeCollege', e.target.value)} style={inputStyle} />
-          </div>
+          {educationEntries.map((entry, index) => (
+            <div key={index} style={dynamicBoxStyle}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={subSectionTitle}>Education Entry {index + 1}</h3>
+                {educationEntries.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeEducationEntry(index)}
+                    style={removeEntryButtonStyle}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              <div style={formGridStyle}>
+                <select
+                  value={entry.level}
+                  onChange={(e) => updateEducationField(index, 'level', e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">Select Level</option>
+                  <option value="10th">10th</option>
+                  <option value="12th">12th</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="Degree">Degree (B.E./B.Com/B.Sc/etc.)</option>
+                  <option value="Masters">Masters (M.E./MBA/M.Sc/etc.)</option>
+                  <option value="PhD">PhD</option>
+                  <option value="Certification">Certification Course</option>
+                </select>
+                <input
+                  type="text"
+                  placeholder="School / College / University Name"
+                  value={entry.institution}
+                  onChange={(e) => updateEducationField(index, 'institution', e.target.value)}
+                  style={inputStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Admission Year"
+                  value={entry.admissionYear}
+                  onChange={(e) => updateEducationField(index, 'admissionYear', e.target.value)}
+                  style={inputStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Passing Year"
+                  value={entry.passingYear}
+                  onChange={(e) => updateEducationField(index, 'passingYear', e.target.value)}
+                  style={inputStyle}
+                />
+                <input
+                  type="text"
+                  placeholder="Marks % / CGPA"
+                  value={entry.marksOrCgpa}
+                  onChange={(e) => updateEducationField(index, 'marksOrCgpa', e.target.value)}
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ marginTop: '12px' }}>
+                <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '8px' }}>
+                  Upload Certificate (optional, PDF/Image, max 5MB)
+                </p>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) => updateEducationFile(index, e.target.files[0])}
+                  style={{ color: '#f8fafc', fontSize: '14px' }}
+                />
+                {entry.certificateFile && (
+                  <p style={{ color: '#4ade80', fontSize: '13px', marginTop: '6px' }}>
+                    ✅ Selected: {entry.certificateFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={addEducationEntry} style={addEntryButtonStyle}>
+            + Add Another Education Entry
+          </button>
 
           {/* FAMILY DETAILS */}
           <h2 style={sectionTitleStyle}>Family Information</h2>
@@ -220,10 +439,46 @@ function SignUp() {
             <input type="text" placeholder="Mother's Contact Number" value={user.motherPhone} onChange={(e) => handleChange('motherPhone', e.target.value)} style={inputStyle} />
           </div>
 
-          {/* PROFESSIONAL INFO - NEW */}
+          {/* BANK & GOVERNMENT ID DETAILS - NEW */}
+          <h2 style={sectionTitleStyle}>Bank &amp; Government ID Details</h2>
+          <div style={formGridStyle}>
+            <input type="text" placeholder="Bank Account Number" value={user.bankAccountNumber} onChange={(e) => handleChange('bankAccountNumber', e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="Bank Name" value={user.bankName} onChange={(e) => handleChange('bankName', e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="IFSC Code" value={user.ifscCode} onChange={(e) => handleChange('ifscCode', e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="PAN Number" value={user.panNumber} onChange={(e) => handleChange('panNumber', e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="Aadhar Number" value={user.aadharNumber} onChange={(e) => handleChange('aadharNumber', e.target.value)} style={inputStyle} />
+          </div>
+          <div style={resumeBoxStyle}>
+            <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '12px' }}>
+              Upload ID Proof (Aadhar / PAN card scan, PDF or Image, max 5MB)
+            </p>
+            <input
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              onChange={(e) => setIdProofFile(e.target.files[0])}
+              style={{ color: '#f8fafc', fontSize: '14px' }}
+            />
+            {idProofFile && (
+              <p style={{ color: '#4ade80', fontSize: '13px', marginTop: '8px' }}>
+                ✅ Selected: {idProofFile.name}
+              </p>
+            )}
+          </div>
+
+          {/* PROFESSIONAL INFO */}
           <h2 style={sectionTitleStyle}>Professional Information</h2>
           <div style={formGridStyle}>
             <input type="url" placeholder="LinkedIn Profile URL" value={user.linkedinUrl} onChange={(e) => handleChange('linkedinUrl', e.target.value)} style={inputStyle} />
+            <input type="url" placeholder="GitHub Profile URL" value={user.githubUrl} onChange={(e) => handleChange('githubUrl', e.target.value)} style={inputStyle} />
+            <input type="url" placeholder="Portfolio / Personal Website URL" value={user.portfolioUrl} onChange={(e) => handleChange('portfolioUrl', e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="Languages Known (e.g., English, Hindi, Marathi)" value={user.languagesKnown} onChange={(e) => handleChange('languagesKnown', e.target.value)} style={inputStyle} />
+            <input type="number" placeholder="Expected Salary (per month)" value={user.expectedSalary} onChange={(e) => handleChange('expectedSalary', e.target.value)} style={inputStyle} />
+            <input type="number" placeholder="Notice Period (in days)" value={user.noticePeriodDays} onChange={(e) => handleChange('noticePeriodDays', e.target.value)} style={inputStyle} />
+            <select value={user.willingToRelocate} onChange={(e) => handleChange('willingToRelocate', e.target.value)} style={inputStyle}>
+              <option value="">Willing to Relocate?</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+            </select>
           </div>
           <textarea
             placeholder="Skills (e.g., React, Node.js, Excel, Communication...)"
@@ -231,8 +486,33 @@ function SignUp() {
             onChange={(e) => handleChange('skills', e.target.value)}
             style={{ ...inputStyle, height: '80px', marginTop: '16px' }}
           />
+          <textarea
+            placeholder="Certifications / Online Courses (e.g., AWS Certified, Google Data Analytics...)"
+            value={user.certifications}
+            onChange={(e) => handleChange('certifications', e.target.value)}
+            style={{ ...inputStyle, height: '80px', marginTop: '16px' }}
+          />
 
-          {/* RESUME UPLOAD - NEW */}
+          {/* REFERENCES - NEW */}
+          <h2 style={sectionTitleStyle}>Professional References</h2>
+          <div style={dynamicBoxStyle}>
+            <h3 style={subSectionTitle}>Reference 1</h3>
+            <div style={formGridStyle}>
+              <input type="text" placeholder="Name" value={user.reference1Name} onChange={(e) => handleChange('reference1Name', e.target.value)} style={inputStyle} />
+              <input type="text" placeholder="Designation / Relation" value={user.reference1Designation} onChange={(e) => handleChange('reference1Designation', e.target.value)} style={inputStyle} />
+              <input type="text" placeholder="Contact Number" value={user.reference1Phone} onChange={(e) => handleChange('reference1Phone', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+          <div style={dynamicBoxStyle}>
+            <h3 style={subSectionTitle}>Reference 2</h3>
+            <div style={formGridStyle}>
+              <input type="text" placeholder="Name" value={user.reference2Name} onChange={(e) => handleChange('reference2Name', e.target.value)} style={inputStyle} />
+              <input type="text" placeholder="Designation / Relation" value={user.reference2Designation} onChange={(e) => handleChange('reference2Designation', e.target.value)} style={inputStyle} />
+              <input type="text" placeholder="Contact Number" value={user.reference2Phone} onChange={(e) => handleChange('reference2Phone', e.target.value)} style={inputStyle} />
+            </div>
+          </div>
+
+          {/* RESUME UPLOAD */}
           <h2 style={sectionTitleStyle}>Resume Upload</h2>
           <div style={resumeBoxStyle}>
             <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '12px' }}>
@@ -401,6 +681,29 @@ const resumeBoxStyle = {
   borderRadius: '12px',
   border: '1px dashed #475569',
   marginBottom: '10px'
+}
+
+const addEntryButtonStyle = {
+  padding: '10px 18px',
+  background: '#1e40af',
+  color: '#ffffff',
+  border: '1px solid #3b82f6',
+  borderRadius: '10px',
+  cursor: 'pointer',
+  fontWeight: '600',
+  fontSize: '14px',
+  marginTop: '4px'
+}
+
+const removeEntryButtonStyle = {
+  padding: '6px 14px',
+  background: 'rgba(220, 38, 38, 0.15)',
+  color: '#fca5a5',
+  border: '1px solid #dc2626',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  fontWeight: '600',
+  fontSize: '12px'
 }
 
 const buttonStyle = {

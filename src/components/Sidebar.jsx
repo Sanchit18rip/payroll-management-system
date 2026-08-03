@@ -80,6 +80,11 @@ const menuItems = [
     icon: Building2,
     path: "/clients",
   },
+  {
+    title: "Worklogs",
+    icon: Building2,
+    path: "work-logs",
+  },
 ];
 
 const handleLogout = async () => {
@@ -153,6 +158,7 @@ const handleLogout = async () => {
         <span>{item.title}</span>
       )}
     </Link>
+    
   );
 })}
 <button

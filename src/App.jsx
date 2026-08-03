@@ -27,6 +27,9 @@ import HRDocuments from "./pages/HRDocuments";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import LogoutModal from "./components/LogoutModal";
 import { supabase } from "./supabaseClient";
+import WorkLogs from "./pages/WorkLogs";
+
+
 
 function AppContent() {
   const location = useLocation();
@@ -139,7 +142,7 @@ const handleLogout = async () => {
             path="/reports"
             element={<Reports />}
           />
-
+      
           <Route
             path="/clients"
             element={<Clients />}
@@ -184,6 +187,7 @@ const handleLogout = async () => {
             path="/employee-dashboard"
             element={<EmployeeDashboard />}
           />
+          <Route path="/work-logs" element={<WorkLogs />} />
         </Routes>
         {!hideSidebar && <AIAssistant />}
       </div>

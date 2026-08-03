@@ -19,6 +19,49 @@ import ChatbotWidget from '../components/ChatbotWidget'
 
 const API_BASE = 'https://payroll-management-system-owo2.onrender.com'
 
+const OFFICE_LAT = 19.0760
+const OFFICE_LNG = 72.8777
+const OFFICE_RADIUS_METERS = 200
+
+function distanceInMetersClient(lat1, lng1, lat2, lng2) {
+
+  const R = 6371000
+
+  const toRad = (deg) => (deg * Math.PI) / 180
+
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) ** 2
+
+  const c =
+    2 *
+    Math.atan2(
+      Math.sqrt(a),
+      Math.sqrt(1 - a)
+    )
+
+  return R * c
+
+}
+
+function eyeAspectRatio(eyePoints) {
+
+  const dist = (p1, p2) =>
+    Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+
+  const vertical1 = dist(eyePoints[1], eyePoints[5])
+  const vertical2 = dist(eyePoints[2], eyePoints[4])
+  const horizontal = dist(eyePoints[0], eyePoints[3])
+
+  return (vertical1 + vertical2) / (2 * horizontal)
+
+}
+
 function EmployeeDashboard() {
 
   const [loading, setLoading] = useState(true)
@@ -60,9 +103,29 @@ const [showTerms, setShowTerms] = useState(false);
   const [liveMatchFound, setLiveMatchFound] = useState(false)
   const [liveDetectedName, setLiveDetectedName] = useState('')
   const [liveDetectedCode, setLiveDetectedCode] = useState('')
+  const [attendanceType, setAttendanceType] = useState('')
+  const [geofenceChecking, setGeofenceChecking] = useState(false)
+  const [blinkDetected, setBlinkDetected] = useState(false)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const detectionIntervalRef = useRef(null)
+  const eyeStateRef = useRef('open')
+  const [showLivenessPrompt, setShowLivenessPrompt] = useState(false)
+  const wfhChecksScheduledRef = useRef(false)
+  const wfhTimeoutsRef = useRef([])
+
+  // Work Log
+  const [workLogs, setWorkLogs] = useState([])
+  const [showWorkLogPopup, setShowWorkLogPopup] = useState(false)
+  const [activeWorkLog, setActiveWorkLog] = useState(null)
+  const [taskTitle, setTaskTitle] = useState('')
+  const [relatedTo, setRelatedTo] = useState('')
+  const [workStatus, setWorkStatus] = useState('In Progress')
+  const [percentComplete, setPercentComplete] = useState(50)
+  const [screenshotFile, setScreenshotFile] = useState(null)
+  const [submittingWorkLog, setSubmittingWorkLog] = useState(false)
+  const slotsGeneratedRef = useRef(false)
+
   const handleLogout = async () => {
 
   await supabase.auth.signOut();
@@ -113,6 +176,8 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
     setLiveMatchFound(false)
     setLiveDetectedName('')
     setLiveDetectedCode('')
+    setBlinkDetected(false)
+    eyeStateRef.current = 'open'
 
   }
 
@@ -146,6 +211,53 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
   }
 
+  const startAttendanceFlow = () => {
+
+    if (!attendanceType) {
+      alert('Please select Office or Work From Home first.')
+      return
+    }
+
+    if (attendanceType === 'Office') {
+
+      setGeofenceChecking(true)
+      setCameraMessage('')
+
+      navigator.geolocation.getCurrentPosition((position) => {
+
+        const { latitude, longitude } = position.coords
+
+        const distance = distanceInMetersClient(
+          latitude,
+          longitude,
+          OFFICE_LAT,
+          OFFICE_LNG
+        )
+
+        setGeofenceChecking(false)
+
+        if (distance > OFFICE_RADIUS_METERS) {
+          alert('You must be within office premises to mark Office attendance.')
+          return
+        }
+
+        openCamera('mark')
+
+      }, () => {
+        setGeofenceChecking(false)
+        alert('Location access is required to mark Office attendance. Please allow location permission.')
+      })
+
+    }
+
+    else {
+
+      openCamera('mark')
+
+    }
+
+  }
+
   const captureDescriptor = async () => {
 
     if (!videoRef.current) return null
@@ -166,7 +278,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
   useEffect(() => {
 
-    if (cameraMode === 'mark' && modelsLoaded && employee?.face_descriptor) {
+    if ((cameraMode === 'mark' || cameraMode === 'exit' || cameraMode === 'liveness') && modelsLoaded && employee?.face_descriptor) {
 
       detectionIntervalRef.current = setInterval(async () => {
 
@@ -182,6 +294,24 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
           setLiveDetectedName('')
           setLiveDetectedCode('')
           return
+        }
+
+        const leftEar = eyeAspectRatio(detection.landmarks.getLeftEye())
+        const rightEar = eyeAspectRatio(detection.landmarks.getRightEye())
+        const avgEar = (leftEar + rightEar) / 2
+
+        if (avgEar < 0.22) {
+          eyeStateRef.current = 'closed'
+        }
+
+        else {
+
+          if (eyeStateRef.current === 'closed') {
+            setBlinkDetected(true)
+          }
+
+          eyeStateRef.current = 'open'
+
         }
 
         const storedDescriptor = new Float32Array(JSON.parse(employee.face_descriptor))
@@ -314,6 +444,12 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
         return
       }
 
+      if (!blinkDetected) {
+        setCameraMessage('Liveness check not complete. Please blink naturally and try again.')
+        setCameraBusy(false)
+        return
+      }
+
       navigator.geolocation.getCurrentPosition(async (position) => {
 
         try {
@@ -344,7 +480,8 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
               latitude,
               longitude,
               face_match: true,
-              face_distance: distance
+              face_distance: distance,
+              attendance_type: attendanceType
             })
           })
           console.log("Response Status:", res.status);
@@ -381,6 +518,232 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
       console.log(err)
       setCameraMessage('Something went wrong. Please try again.')
       setCameraBusy(false)
+    }
+
+  }
+
+  const submitAttendanceExit = async () => {
+
+    setCameraBusy(true)
+    setCameraMessage('')
+
+    try {
+
+      const liveDescriptor = await captureDescriptor()
+
+      if (!liveDescriptor) {
+        setCameraBusy(false)
+        return
+      }
+
+      const storedDescriptor = new Float32Array(JSON.parse(employee.face_descriptor))
+      const distance = faceapi.euclideanDistance(storedDescriptor, liveDescriptor)
+      const faceMatch = distance < 0.6
+
+      if (!faceMatch) {
+        setCameraMessage('Face not recognized. Please make sure it is really you and try again.')
+        setCameraBusy(false)
+        return
+      }
+
+      if (!blinkDetected) {
+        setCameraMessage('Liveness check not complete. Please blink naturally and try again.')
+        setCameraBusy(false)
+        return
+      }
+
+      navigator.geolocation.getCurrentPosition(async (position) => {
+
+        try {
+
+          const { latitude, longitude } = position.coords
+
+          const res = await fetch(`${API_BASE}/api/attendance/self-mark-exit`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employee_id: employee.id,
+              latitude,
+              longitude,
+              face_match: true
+            })
+          })
+
+          const result = await res.json()
+
+          if (!res.ok) {
+            setCameraMessage(result.message || 'Could not mark exit.')
+            setCameraBusy(false)
+            return
+          }
+
+          alert('Exit marked successfully!')
+          stopCamera()
+          setCameraBusy(false)
+          loadDashboard(employee.id)
+
+        }
+
+        catch (err) {
+          console.log(err)
+          setCameraMessage('Something went wrong while marking exit.')
+          setCameraBusy(false)
+        }
+
+      }, () => {
+        setCameraMessage('Location access is required to mark exit. Please allow location permission.')
+        setCameraBusy(false)
+      })
+
+    }
+
+    catch (err) {
+      console.log(err)
+      setCameraMessage('Something went wrong. Please try again.')
+      setCameraBusy(false)
+    }
+
+  }
+
+  const loadWorkLogs = useCallback(async (employeeId) => {
+
+    try {
+
+      const res = await fetch(`${API_BASE}/api/work-logs/${employeeId}`)
+
+      if (!res.ok) return
+
+      const data = await res.json()
+
+      setWorkLogs(data)
+
+    }
+
+    catch (err) {
+
+      console.log(err)
+
+    }
+
+  }, [])
+
+  const submitLivenessCheck = async () => {
+
+    setCameraBusy(true)
+    setCameraMessage('')
+
+    try {
+
+      const liveDescriptor = await captureDescriptor()
+
+      if (!liveDescriptor) {
+        setCameraBusy(false)
+        return
+      }
+
+      const storedDescriptor = new Float32Array(JSON.parse(employee.face_descriptor))
+      const distance = faceapi.euclideanDistance(storedDescriptor, liveDescriptor)
+      const faceMatch = distance < 0.6
+
+      if (!faceMatch) {
+        setCameraMessage('Face not recognized. Please make sure it is really you and try again.')
+        setCameraBusy(false)
+        return
+      }
+
+      if (!blinkDetected) {
+        setCameraMessage('Liveness check not complete. Please blink naturally and try again.')
+        setCameraBusy(false)
+        return
+      }
+
+      alert('Identity verified, thank you!')
+      setShowLivenessPrompt(false)
+      stopCamera()
+      setCameraBusy(false)
+
+    }
+
+    catch (err) {
+      console.log(err)
+      setCameraMessage('Something went wrong. Please try again.')
+      setCameraBusy(false)
+    }
+
+  }
+
+  const submitWorkLog = async () => {
+
+    if (!taskTitle.trim() || taskTitle.trim().length < 10) {
+      alert('Please describe your task in at least 10 characters.')
+      return
+    }
+
+    setSubmittingWorkLog(true)
+
+    try {
+
+      let screenshotUrl = null
+
+      if (screenshotFile) {
+
+        const fileName = `worklog_${employee.id}_${Date.now()}_${screenshotFile.name}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('work-log-screenshots')
+          .upload(fileName, screenshotFile)
+
+        if (!uploadError) {
+
+          const { data: urlData } = supabase.storage
+            .from('work-log-screenshots')
+            .getPublicUrl(fileName)
+
+          screenshotUrl = urlData.publicUrl
+
+        }
+
+      }
+
+      const res = await fetch(`${API_BASE}/api/work-logs/${activeWorkLog.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_title: taskTitle,
+          related_to: relatedTo,
+          status: workStatus,
+          percent_complete: Number(percentComplete),
+          screenshot_url: screenshotUrl
+        })
+      })
+
+      if (!res.ok) {
+        throw new Error('Could not submit work log')
+      }
+
+      setShowWorkLogPopup(false)
+      setActiveWorkLog(null)
+      setTaskTitle('')
+      setRelatedTo('')
+      setWorkStatus('In Progress')
+      setPercentComplete(50)
+      setScreenshotFile(null)
+
+      loadWorkLogs(employee.id)
+
+    }
+
+    catch (err) {
+
+      console.log(err)
+      alert('Something went wrong while submitting your work log.')
+
+    }
+
+    finally {
+
+      setSubmittingWorkLog(false)
+
     }
 
   }
@@ -466,6 +829,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
         const empData = await empRes.json()
 
         await loadDashboard(empData.id)
+        await loadWorkLogs(empData.id)
 
       }
 
@@ -482,7 +846,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     init()
 
-  }, [loadDashboard])
+  }, [loadDashboard, loadWorkLogs])
 
 
   useEffect(() => {
@@ -491,11 +855,141 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     const interval = setInterval(() => {
       loadDashboard(employee.id)
+      loadWorkLogs(employee.id)
     }, 8000)
 
     return () => clearInterval(interval)
 
-  }, [employee?.id, loadDashboard])
+  }, [employee?.id, loadDashboard, loadWorkLogs])
+
+
+  useEffect(() => {
+
+    const todayStr = new Date().toLocaleDateString('en-CA')
+
+    const todayRow = attendance.find(row => {
+      const rowDate = new Date(row.attendance_date).toLocaleDateString('en-CA')
+      return rowDate === todayStr
+    })
+
+    const isWFHCheckedIn =
+      todayRow &&
+      todayRow.status === 'Present' &&
+      todayRow.attendance_type === 'WFH' &&
+      !todayRow.check_out_time
+
+    if (isWFHCheckedIn && !wfhChecksScheduledRef.current) {
+
+      wfhChecksScheduledRef.current = true
+
+      const minDelay = 60 * 60 * 1000
+      const maxDelay = 4 * 60 * 60 * 1000
+
+      const firstDelay = minDelay + Math.random() * (maxDelay - minDelay)
+      const secondDelay = firstDelay + minDelay + Math.random() * (maxDelay - minDelay)
+
+      const timeout1 = setTimeout(() => setShowLivenessPrompt(true), firstDelay)
+      const timeout2 = setTimeout(() => setShowLivenessPrompt(true), secondDelay)
+
+      wfhTimeoutsRef.current = [timeout1, timeout2]
+
+    }
+
+    if (!isWFHCheckedIn) {
+
+      wfhChecksScheduledRef.current = false
+      wfhTimeoutsRef.current.forEach(t => clearTimeout(t))
+      wfhTimeoutsRef.current = []
+
+    }
+
+  }, [attendance])
+
+  useEffect(() => {
+
+    const todayStr = new Date().toLocaleDateString('en-CA')
+
+    const todayRow = attendance.find(row => {
+      const rowDate = new Date(row.attendance_date).toLocaleDateString('en-CA')
+      return rowDate === todayStr
+    })
+
+    const isCheckedInToday = todayRow && todayRow.status === 'Present'
+
+    if (isCheckedInToday && !slotsGeneratedRef.current && employee?.id) {
+
+      slotsGeneratedRef.current = true
+
+      fetch(`${API_BASE}/api/work-logs/generate-slots`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employee_id: employee.id,
+          slot_hours: 2
+        })
+      })
+        .then(() => loadWorkLogs(employee.id))
+        .catch(err => console.log(err))
+
+    }
+
+  }, [attendance, employee?.id, loadWorkLogs])
+
+  useEffect(() => {
+
+    if (showWorkLogPopup) return
+
+    const now = new Date()
+
+    const pendingSlot = workLogs.find(log => {
+
+      if (log.status !== 'Pending') return false
+
+      const slotStart = new Date(log.slot_start_time)
+      const slotEnd = new Date(log.slot_end_time)
+
+      return now >= slotStart && now <= slotEnd
+
+    })
+
+    if (pendingSlot) {
+
+      setActiveWorkLog(pendingSlot)
+      setShowWorkLogPopup(true)
+
+    }
+
+    const missedSlots = workLogs.filter(log => {
+
+      if (log.status !== 'Pending') return false
+
+      const slotEnd = new Date(log.slot_end_time)
+
+      return now > slotEnd
+
+    })
+
+    missedSlots.forEach(log => {
+
+      fetch(`${API_BASE}/api/work-logs/${log.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          task_title: log.task_title || 'No update submitted',
+          related_to: log.related_to || '',
+          status: 'Missed',
+          percent_complete: log.percent_complete || 0,
+          screenshot_url: log.screenshot_url || null
+        })
+      }).catch(err => console.log(err))
+
+    })
+
+    if (missedSlots.length > 0 && employee?.id) {
+      setTimeout(() => loadWorkLogs(employee.id), 1000)
+    }
+
+  }, [workLogs, showWorkLogPopup, employee?.id, loadWorkLogs])
 
 
   useEffect(() => {
@@ -701,6 +1195,25 @@ You requested ${requestedDays} day(s).`
     fontWeight: '700'
   })
 
+  const workLogStatusStyle = (status) => ({
+    color: status === 'Completed' ? '#16a34a' : status === 'Missed' ? '#dc2626' : status === 'In Progress' ? '#2563eb' : '#d97706',
+    background: status === 'Completed' ? '#dcfce7' : status === 'Missed' ? '#fee2e2' : status === 'In Progress' ? '#dbeafe' : '#fef3c7',
+    padding: '4px 10px',
+    borderRadius: '20px',
+    fontSize: '12px',
+    fontWeight: '700'
+  })
+
+  const todayDateStr = new Date().toLocaleDateString('en-CA')
+
+  const todayRecord = attendance.find(row => {
+    const rowDate = new Date(row.attendance_date).toLocaleDateString('en-CA')
+    return rowDate === todayDateStr
+  })
+
+  const isCheckedIn = todayRecord && todayRecord.status === 'Present'
+  const isCheckedOut = todayRecord && !!todayRecord.check_out_time
+
  
 console.log(increments);
 
@@ -856,13 +1369,13 @@ console.log(increments);
             </h2>
             <div style={termsTextBox}>
               <p>
-                <strong>{employee.name}</strong>, to mark attendance, your face needs to be detected first.
+                <strong>{employee.name}</strong>, you need to detect your face before you can mark attendance.
               </p>
               <p>
-                Any photo will not work — your real, live face must be in front of the camera.
+                No photo will work here — you need to show your real, live face to the camera.
               </p>
               <p>
-                The face you detect right now will be used to mark your daily attendance. So make sure it is your own face — {employee.name}'s — because this same face must match for daily attendance going forward.
+                Whichever face you detect right now will be used to match your attendance every day going forward. So please make sure this is your own face — {employee.name}'s face — since this is the face that will need to match daily.
               </p>
             </div>
             <button
@@ -879,6 +1392,157 @@ console.log(increments);
               style={{ ...secondaryButton, width: '100%', marginTop: '10px' }}
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showLivenessPrompt && (
+        <div style={termsOverlay}>
+          <div style={termsBox}>
+            <h2 style={{ color: '#f8fafc', marginTop: 0, marginBottom: '14px' }}>
+              Quick Identity Check
+            </h2>
+            <div style={termsTextBox}>
+              <p>
+                Since you marked today's attendance as Work From Home, we need a quick face check to confirm it is really you working right now.
+              </p>
+            </div>
+
+            {cameraMode !== 'liveness' ? (
+              <button
+                onClick={() => openCamera('liveness')}
+                style={primaryButton}
+              >
+                Verify My Face
+              </button>
+            ) : (
+              <div>
+                <video ref={videoRef} autoPlay muted style={cameraPreview} />
+
+                <div style={liveMatchBadge}>
+                  {liveMatchFound ? (
+                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
+                      ✅ {liveDetectedName}, {liveDetectedCode}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#fbbf24', fontSize: '13px' }}>
+                      🔍 Detecting your face...
+                    </span>
+                  )}
+                  {liveMatchFound && !blinkDetected && (
+                    <p style={{ color: '#fbbf24', fontSize: '12px', margin: '6px 0 0' }}>
+                      Please blink naturally to confirm liveness.
+                    </p>
+                  )}
+                </div>
+
+                {cameraMessage && (
+                  <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{cameraMessage}</p>
+                )}
+
+                <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
+                  {liveMatchFound && blinkDetected && (
+                    <button
+                      onClick={submitLivenessCheck}
+                      disabled={cameraBusy}
+                      style={{ ...primaryButton, opacity: cameraBusy ? 0.6 : 1 }}
+                    >
+                      {cameraBusy ? 'Verifying...' : 'Confirm'}
+                    </button>
+                  )}
+                  <button onClick={stopCamera} style={secondaryButton}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {showWorkLogPopup && activeWorkLog && (
+        <div style={termsOverlay}>
+          <div style={termsBox}>
+            <h2 style={{ color: '#f8fafc', marginTop: 0, marginBottom: '14px' }}>
+              Work Log Update
+            </h2>
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '16px' }}>
+              Slot: {new Date(activeWorkLog.slot_start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} - {new Date(activeWorkLog.slot_end_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+            </p>
+
+            <label style={labelStyle}>What did you work on?</label>
+            <textarea
+              placeholder="Describe your task..."
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              style={textareaStyle}
+            />
+
+            <label style={labelStyle}>Related To</label>
+            <select value={relatedTo} onChange={(e) => setRelatedTo(e.target.value)} style={inputStyle}>
+              <option value="">Select Module</option>
+              <option value="FRAS">FRAS (Face Attendance)</option>
+              <option value="Leave Management">Leave Management</option>
+              <option value="Performance Reviews">Performance Reviews</option>
+              <option value="Payroll">Payroll</option>
+              <option value="Employee Management">Employee Management</option>
+              <option value="Chatbot">Chatbot</option>
+              <option value="Other">Other</option>
+            </select>
+
+            <label style={labelStyle}>Status</label>
+            <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+              <label style={radioLabel}>
+                <input
+                  type="radio"
+                  name="workStatus"
+                  value="In Progress"
+                  checked={workStatus === 'In Progress'}
+                  onChange={(e) => setWorkStatus(e.target.value)}
+                />
+                In Progress
+              </label>
+              <label style={radioLabel}>
+                <input
+                  type="radio"
+                  name="workStatus"
+                  value="Completed"
+                  checked={workStatus === 'Completed'}
+                  onChange={(e) => setWorkStatus(e.target.value)}
+                />
+                Completed
+              </label>
+            </div>
+
+            {workStatus === 'In Progress' && (
+              <>
+                <label style={labelStyle}>% Complete: {percentComplete}%</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={percentComplete}
+                  onChange={(e) => setPercentComplete(e.target.value)}
+                  style={{ width: '100%', marginBottom: '16px' }}
+                />
+              </>
+            )}
+
+            <label style={labelStyle}>Screenshot (optional)</label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setScreenshotFile(e.target.files[0])}
+              style={{ ...inputStyle, padding: '10px' }}
+            />
+
+            <button
+              onClick={submitWorkLog}
+              disabled={submittingWorkLog}
+              style={{ ...primaryButton, opacity: submittingWorkLog ? 0.6 : 1 }}
+            >
+              {submittingWorkLog ? 'Submitting...' : 'Submit Update'}
             </button>
           </div>
         </div>
@@ -1026,10 +1690,92 @@ top: "-15px",
                   </div>
                 )}
               </div>
+            ) : isCheckedIn && isCheckedOut ? (
+
+              <p style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600' }}>
+                ✅ You have checked in and checked out for today.
+              </p>
+
+            ) : isCheckedIn && !isCheckedOut ? (
+
+              cameraMode !== 'exit' ? (
+                <button onClick={() => openCamera('exit')} style={primaryButton}>
+                  Mark My Exit
+                </button>
+              ) : (
+                <div>
+                  <video ref={videoRef} autoPlay muted style={cameraPreview} />
+
+                  <div style={liveMatchBadge}>
+                    {liveMatchFound ? (
+                      <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
+                        ✅ {liveDetectedName}, {liveDetectedCode}
+                      </span>
+                    ) : (
+                      <span style={{ color: '#fbbf24', fontSize: '13px' }}>
+                        🔍 Detecting your face...
+                      </span>
+                    )}
+                    {liveMatchFound && !blinkDetected && (
+                      <p style={{ color: '#fbbf24', fontSize: '12px', margin: '6px 0 0' }}>
+                        Please blink naturally to confirm liveness.
+                      </p>
+                    )}
+                  </div>
+
+                  {cameraMessage && (
+                    <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{cameraMessage}</p>
+                  )}
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
+                    {liveMatchFound && blinkDetected && (
+                      <button
+                        onClick={submitAttendanceExit}
+                        disabled={cameraBusy}
+                        style={{ ...primaryButton, opacity: cameraBusy ? 0.6 : 1 }}
+                      >
+                        {cameraBusy ? 'Verifying...' : 'Capture & Mark Exit'}
+                      </button>
+                    )}
+                    <button onClick={stopCamera} style={secondaryButton}>
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )
+
             ) : cameraMode !== 'mark' ? (
-              <button onClick={() => openCamera('mark')} style={primaryButton}>
-                Mark My Attendance
-              </button>
+              <div>
+                <label style={labelStyle}>Where are you working from today?</label>
+                <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+                  <label style={radioLabel}>
+                    <input
+                      type="radio"
+                      name="attendanceType"
+                      value="Office"
+                      checked={attendanceType === 'Office'}
+                      onChange={(e) => setAttendanceType(e.target.value)}
+                    />
+                    Office
+                  </label>
+                  <label style={radioLabel}>
+                    <input
+                      type="radio"
+                      name="attendanceType"
+                      value="WFH"
+                      checked={attendanceType === 'WFH'}
+                      onChange={(e) => setAttendanceType(e.target.value)}
+                    />
+                    Work From Home
+                  </label>
+                </div>
+                <button
+                  onClick={startAttendanceFlow}
+                  disabled={geofenceChecking}
+                  style={{ ...primaryButton, opacity: geofenceChecking ? 0.6 : 1 }}
+                >
+                  {geofenceChecking ? 'Checking location...' : 'Mark My Attendance'}
+                </button>
+              </div>
             ) : (
               <div>
                 <video ref={videoRef} autoPlay muted style={cameraPreview} />
@@ -1044,13 +1790,18 @@ top: "-15px",
                       🔍 Detecting your face...
                     </span>
                   )}
+                  {liveMatchFound && !blinkDetected && (
+                    <p style={{ color: '#fbbf24', fontSize: '12px', margin: '6px 0 0' }}>
+                      Please blink naturally to confirm liveness.
+                    </p>
+                  )}
                 </div>
 
                 {cameraMessage && (
                   <p style={{ color: '#f87171', fontSize: '13px', marginTop: '10px' }}>{cameraMessage}</p>
                 )}
                 <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
-                  {liveMatchFound && (
+                  {liveMatchFound && blinkDetected && (
                     <button
                       onClick={submitAttendanceMark}
                       disabled={cameraBusy}
@@ -1064,6 +1815,35 @@ top: "-15px",
                   </button>
                 </div>
               </div>
+            )}
+          </div>
+
+          {/* WORK LOG */}
+          <div style={sectionCard}>
+            <h2 style={sectionTitle}>Work Log</h2>
+            <p style={{ color: '#94a3b8', fontSize: '13px', marginBottom: '14px' }}>
+              A quick update is requested every 2 hours during your working day.
+            </p>
+
+            {workLogs.length === 0 ? (
+              <p style={{ color: '#94a3b8' }}>No work log slots yet today.</p>
+            ) : (
+              workLogs.map((log) => (
+                <div key={log.id} style={performanceItem}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#cbd5e1', fontSize: '13px' }}>
+                      {new Date(log.slot_start_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} - {new Date(log.slot_end_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span style={workLogStatusStyle(log.status)}>{log.status}</span>
+                  </div>
+                  {log.task_title && (
+                    <p style={{ color: '#f8fafc', fontSize: '13px', margin: '8px 0 0' }}>{log.task_title}</p>
+                  )}
+                  {log.status === 'In Progress' && (
+                    <p style={{ color: '#94a3b8', fontSize: '12px', margin: '4px 0 0' }}>{log.percent_complete}% complete</p>
+                  )}
+                </div>
+              ))
             )}
           </div>
 
@@ -1475,6 +2255,15 @@ const liveMatchBadge = {
   border: '1px solid #334155',
   borderRadius: '10px',
   textAlign: 'center'
+}
+
+const radioLabel = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  color: '#f8fafc',
+  fontSize: '14px',
+  cursor: 'pointer'
 }
 
 const summaryGrid = {

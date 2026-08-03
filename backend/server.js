@@ -4257,3 +4257,230 @@ cron.schedule("0 0 1 * *", async () => {
   }
 
 });
+app.post("/api/work-logs/generate-slots", async (req, res) => {
+
+  try {
+
+    const { employee_id, slot_hours } = req.body;
+
+    const hoursPerSlot = slot_hours || 2;
+
+    const existing = await db.query(
+      `
+      SELECT id
+      FROM work_logs
+      WHERE employee_id = $1
+      AND attendance_date =
+      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+      `,
+      [employee_id]
+    );
+
+    if (existing.rows.length > 0) {
+
+      return res.json({
+        message: "Today's slots already generated"
+      });
+
+    }
+
+    const workStartHour = 10;
+    const workEndHour =23;
+
+    let currentHour = workStartHour;
+
+    while (currentHour < workEndHour) {
+
+      const slotStart = new Date();
+      slotStart.setHours(currentHour, 0, 0, 0);
+
+      const slotEnd = new Date();
+      slotEnd.setHours(currentHour + hoursPerSlot, 0, 0, 0);
+
+      await db.query(
+        `
+        INSERT INTO work_logs
+        (
+          employee_id,
+          status,
+          percent_complete,
+          slot_start_time,
+          slot_end_time,
+          attendance_date
+        )
+        VALUES
+        (
+          $1,
+          'Pending',
+          0,
+          $2,
+          $3,
+          (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+        )
+        `,
+        [employee_id, slotStart, slotEnd]
+      );
+
+      currentHour += hoursPerSlot;
+
+    }
+
+    res.json({
+      message: "Slots generated"
+    });
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+
+
+app.post("/api/work-logs/:id", async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    const {
+      task_title,
+      related_to,
+      status,
+      percent_complete,
+      screenshot_url
+    } = req.body;
+
+    const finalPercent =
+      status === "Completed" ? 100 : percent_complete;
+
+    await db.query(
+      `
+      UPDATE work_logs
+
+      SET
+
+      task_title = $1,
+
+      related_to = $2,
+
+      status = $3,
+
+      percent_complete = $4,
+
+      screenshot_url = $5,
+
+      submitted_at = CURRENT_TIMESTAMP
+
+      WHERE id = $6
+      `,
+      [
+        task_title,
+        related_to,
+        status,
+        finalPercent,
+        screenshot_url,
+        id
+      ]
+    );
+
+    res.json({
+      message: "Work log updated"
+    });
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+
+
+
+
+app.get("/api/work-logs/:employeeId", async (req, res) => {
+
+  try {
+
+    const { employeeId } = req.params;
+
+    const result = await db.query(
+      `
+      SELECT *
+      FROM work_logs
+      WHERE employee_id = $1
+      AND attendance_date =
+      (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+      ORDER BY slot_start_time ASC
+      `,
+      [employeeId]
+    );
+
+    res.json(result.rows);
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+
+app.get("/api/work-logs", async (req, res) => {
+
+  try {
+
+    const result = await db.query(
+      `
+      SELECT
+        work_logs.*,
+        employees.name AS employee_name,
+        employees.department
+
+      FROM work_logs
+
+      JOIN employees
+      ON work_logs.employee_id = employees.id
+
+      ORDER BY work_logs.attendance_date DESC, work_logs.slot_start_time DESC
+      `
+    );
+
+    res.json(result.rows);
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
