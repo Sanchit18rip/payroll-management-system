@@ -733,15 +733,32 @@ employeeId
 
     console.error("Could not add employee:", err);
 
-    const status = err.code === "23505" ? 409 : 400;
+    const clientErrorCodes = ["22001", "22007", "22P02", "23502"];
+    const status =
+      err.code === "23505"
+        ? 409
+        : clientErrorCodes.includes(err.code)
+          ? 400
+          : 500;
     const message =
       err.code === "23505"
         ? "An employee with that code already exists."
         : err.code === "22001"
           ? "Employee code must be 20 characters or fewer."
+          : err.code === "22007"
+            ? "Enter a valid joining date."
+            : err.code === "22P02"
+              ? "Enter a valid salary and employee details."
+              : err.code === "23502"
+                ? "Please fill in all required employee details."
           : "Unable to add the employee. Please check the entered details.";
 
-    res.status(status).json({ message });
+    res.status(status).json({
+      message:
+        process.env.NODE_ENV === "production"
+          ? message
+          : `${message} (${err.message})`
+    });
 
   }
 
