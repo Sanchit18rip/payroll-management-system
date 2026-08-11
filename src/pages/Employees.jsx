@@ -7,6 +7,13 @@ import { FaCalendarAlt } from "react-icons/fa";
 import CustomDropdown from "../components/CustomDropdown";
 import toast from "react-hot-toast";
 import GlassScrollArea from "../components/GlassScrollArea";
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ??
+  (import.meta.env.DEV
+    ? "http://localhost:5000"
+    : "https://payroll-management-system-three.vercel.app");
+
 function Employees() {
 
  const [employees, setEmployees] = useState([])
@@ -57,66 +64,60 @@ useState('')
 const [previousExperience, setPreviousExperience] =
 useState('')
   const [editingId, setEditingId] = useState(null);
-  const exportCSV = () => {
-
-  const headers = [
-
+  const EMPLOYEE_CSV_HEADERS = [
   "employee_code",
-
   "name",
-
+  "email",
+  "phone",
+  "designation",
+  "employee_type",
+  "employment_status",
+  "internship_duration",
+  "joining_date",
+  "confirmation_date",
+  "last_job_details",
+  "previous_experience",
   "department",
-
   "salary",
-
   "bonus",
-
   "deduction"
-
 ];
 
+const exportCSV = () => {
+  if (!employees.length) {
+    alert("There are no employees to export.");
+    return;
+  }
 
-  const rows = employees.map(
+  const exportRows = employees.map((employee) => ({
+    employee_code: employee.employee_code ?? "",
+    name: employee.name ?? "",
+    email: employee.email ?? "",
+    phone: employee.phone ?? "",
+    designation: employee.designation ?? "",
+    employee_type: employee.employee_type ?? "",
+    employment_status: employee.employment_status ?? "",
+    internship_duration: employee.internship_duration ?? "",
+    joining_date: employee.joining_date ?? "",
+    confirmation_date: employee.confirmation_date ?? "",
+    last_job_details: employee.last_job_details ?? "",
+    previous_experience: employee.previous_experience ?? "",
+    department: employee.department ?? "",
+    salary: employee.salary ?? "",
+    bonus: employee.bonus ?? 0,
+    deduction: employee.deduction ?? 0
+  }));
 
-    employee => [
-
-      employee.employee_code,
-
-employee.name,
-
-employee.department,
-
-employee.salary,
-
-employee.bonus,
-
-employee.deduction
-    ]
-
-  );
-
-  const csvContent = [
-
-    headers.join(","),
-
-    ...rows.map(
-
-      row => row.join(",")
-
+  const csv = Papa.unparse({
+    fields: EMPLOYEE_CSV_HEADERS,
+    data: exportRows.map((row) =>
+      EMPLOYEE_CSV_HEADERS.map((header) => row[header])
     )
-
-  ].join("\n");
+  });
 
   const blob = new Blob(
-
-    [csvContent],
-
-    {
-
-      type: "text/csv"
-
-    }
-
+    [csv],
+    { type: "text/csv;charset=utf-8;" }
   );
 
   const url = URL.createObjectURL(blob);
@@ -125,7 +126,8 @@ employee.deduction
 
   link.href = url;
 
-  link.download = "employees.csv";
+  link.download =
+    `employees-${new Date().toISOString().split("T")[0]}.csv`;
 
   document.body.appendChild(link);
 
@@ -133,89 +135,269 @@ employee.deduction
 
   document.body.removeChild(link);
 
+  URL.revokeObjectURL(url);
 };
 const importCSV = (event) => {
+  const file = event.target.files?.[0];
 
-  const file = event.target.files[0]
+  if (!file) return;
 
-  if (!file) return
+  const resetInput = () => {
+    event.target.value = "";
+  };
+
+  if (!file.name.toLowerCase().endsWith(".csv")) {
+    alert(
+      "❌ Invalid File\n\nPlease select a CSV file."
+    );
+
+    resetInput();
+    return;
+  }
 
   Papa.parse(file, {
-
     header: true,
-
     skipEmptyLines: true,
 
     complete: async (results) => {
-
       try {
+        const rows = results.data || [];
 
-        await Promise.all(
+        const actualHeaders = results.meta.fields || [];
 
-  results.data.map(
+        // --------------------------------
+        // HEADER VALIDATION
+        // --------------------------------
 
-    employee =>
+        const missingHeaders =
+          EMPLOYEE_CSV_HEADERS.filter(
+            (header) =>
+              !actualHeaders.includes(header)
+          );
 
-      fetch(
+        if (missingHeaders.length > 0) {
+          alert(
+            `❌ Invalid CSV Format\n\n` +
+            `The selected file does not match the Employee table format.\n\n` +
+            `Missing columns:\n` +
+            missingHeaders.join(", ") +
+            `\n\nPlease export an Employee CSV from this system and use that format.`
+          );
 
-        'https://payroll-management-system-three.vercel.app/api/employees/import',
-
-        {
-
-          method: 'POST',
-
-          headers: {
-
-            'Content-Type': 'application/json'
-
-          },
-
-          body: JSON.stringify({
-
-  employee_code: employee.employee_code,
-name: employee.name,
-email: employee.email,
-phone: employee.phone,
-designation: employee.designation,
-employee_type: employee.employee_type,
-employment_status: employee.employment_status,
-joining_date: employee.joining_date || null,
-confirmation_date: employee.confirmation_date || null,
-last_job_details: employee.last_job_details,
-previous_experience: employee.previous_experience,
-department: employee.department,
-salary: employee.salary,
-bonus: 0,
-deduction: 0
-
-})
+          resetInput();
+          return;
         }
 
-      )
+        // --------------------------------
+        // EMPTY FILE CHECK
+        // --------------------------------
 
-  )
+        if (rows.length === 0) {
+          alert(
+            "❌ Empty CSV\n\n" +
+            "The selected file contains no employee records."
+          );
 
-);
+          resetInput();
+          return;
+        }
+
+        // --------------------------------
+        // ROW VALIDATION
+        // --------------------------------
+
+        const invalidRows = [];
+
+        rows.forEach((employee, index) => {
+          const rowNumber = index + 2;
+
+          if (!employee.employee_code?.trim()) {
+            invalidRows.push(
+              `Row ${rowNumber}: Employee Code is missing`
+            );
+          }
+
+          if (!employee.name?.trim()) {
+            invalidRows.push(
+              `Row ${rowNumber}: Employee Name is missing`
+            );
+          }
+
+          if (!employee.department?.trim()) {
+            invalidRows.push(
+              `Row ${rowNumber}: Department is missing`
+            );
+          }
+
+          if (
+            employee.salary === "" ||
+            employee.salary === null ||
+            Number.isNaN(Number(employee.salary))
+          ) {
+            invalidRows.push(
+              `Row ${rowNumber}: Salary is invalid`
+            );
+          }
+
+          if (
+            employee.email &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+              employee.email.trim()
+            )
+          ) {
+            invalidRows.push(
+              `Row ${rowNumber}: Email format is invalid`
+            );
+          }
+        });
+
+        // --------------------------------
+        // STOP ENTIRE IMPORT IF INVALID
+        // --------------------------------
+
+        if (invalidRows.length > 0) {
+          alert(
+            `❌ Import Cancelled\n\n` +
+            `The CSV contains invalid data.\n\n` +
+            invalidRows.slice(0, 10).join("\n") +
+            (invalidRows.length > 10
+              ? `\n\n...and ${
+                  invalidRows.length - 10
+                } more errors.`
+              : "") +
+            `\n\nNo records were imported.`
+          );
+
+          resetInput();
+          return;
+        }
+
+        // --------------------------------
+        // CONFIRM VALID FILE
+        // --------------------------------
+
+        const confirmed = window.confirm(
+          `✅ CSV verified successfully.\n\n` +
+          `${rows.length} employee record(s) are ready to import.\n\n` +
+          `Continue?`
+        );
+
+        if (!confirmed) {
+          resetInput();
+          return;
+        }
+
+        // --------------------------------
+        // IMPORT
+        // --------------------------------
+
+        for (const employee of rows) {
+          const response = await fetch(
+            "http://localhost:5000/api/employees/import",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type": "application/json"
+              },
+
+              body: JSON.stringify({
+                employee_code:
+                  employee.employee_code.trim(),
+
+                name:
+                  employee.name.trim(),
+
+                email:
+                  employee.email?.trim() || null,
+
+                phone:
+                  employee.phone?.trim() || null,
+
+                designation:
+                  employee.designation?.trim() || null,
+
+                employee_type:
+                  employee.employee_type?.trim() || "Direct",
+
+                employment_status:
+                  employee.employment_status?.trim() || "Intern",
+
+                internship_duration:
+                  employee.internship_duration?.trim() || null,
+
+                joining_date:
+                  employee.joining_date?.trim() || null,
+
+                confirmation_date:
+                  employee.confirmation_date?.trim() || null,
+
+                last_job_details:
+                  employee.last_job_details?.trim() || null,
+
+                previous_experience:
+                  employee.previous_experience?.trim() || null,
+
+                department:
+                  employee.department.trim(),
+
+                salary:
+                  Number(employee.salary),
+
+                bonus:
+                  Number(employee.bonus || 0),
+
+                deduction:
+                  Number(employee.deduction || 0)
+              })
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Import failed for ${employee.name}`
+            );
+          }
+        }
 
         await fetchEmployees();
 
-toast.success("Employees imported successfully!");
+        alert(
+          `✅ Import Successful\n\n` +
+          `${rows.length} employee record(s) imported successfully.`
+        );
       }
 
-      catch (err) {
+      catch (error) {
+        console.error(error);
 
-        console.log(err)
-
+        alert(
+          `❌ Import Failed\n\n` +
+          `${error.message}\n\n` +
+          `No further records were processed.`
+        );
       }
 
+      finally {
+        resetInput();
+      }
+    },
+
+    error: () => {
+      alert(
+        "❌ Could not read CSV\n\n" +
+        "Please check that the file is a valid CSV."
+      );
+
+      resetInput();
     }
-
-  })
-
-}
+  });
+};
   useEffect(() => {
-
-  fetchEmployees();
+  fetchEmployees().catch((err) => {
+    console.error(err);
+    toast.error("Unable to load employees.");
+  });
 
 }, []);
 useEffect(() => {
@@ -223,38 +405,31 @@ useEffect(() => {
 }, [searchTerm, departmentFilter, statusFilter]);
 
   const fetchEmployees = async () => {
+    const response = await fetch(`${API_BASE}/api/employees`);
+    const data = await response.json().catch(() => null);
 
-  try {
+    if (!response.ok) {
+      throw new Error(data?.message || "Unable to load employees.");
+    }
 
-    const response = await fetch(
+    if (!Array.isArray(data)) {
+      throw new Error("The employee API returned an invalid response.");
+    }
 
-      "https://payroll-management-system-three.vercel.app/api/employees"
+    // The API returns records in oldest-first order.  Showing newest records
+    // first means a newly added employee is immediately visible on page one.
+    setEmployees([...data].sort((a, b) => Number(b.id) - Number(a.id)));
+  };
 
-    );
-
-    const data =
-      await response.json();
-
-    setEmployees(data);
-
-  }
-
-  catch (err) {
-
-    console.log(err);
-
-  }
-
-};
-  const addEmployee = () => {
+  const addEmployee = async () => {
   
     if (
 
-  !employeeCode ||
+  !employeeCode.trim() ||
 
-  !name ||
+  !name.trim() ||
 
-  !department ||
+  !department.trim() ||
 
   !salary
 
@@ -265,91 +440,109 @@ useEffect(() => {
 
     }
 
-    fetch("https://payroll-management-system-three.vercel.app/api/employees", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
+    if (employeeCode.trim().length > 20) {
+      toast.error("Employee code must be 20 characters or fewer.");
+      return;
+    }
 
-  employee_code:
-    employeeCode,
+    if (isSubmitting) return;
 
-  name,
+    setIsSubmitting(true);
 
-  email,
+    try {
+      const response = await fetch(`${API_BASE}/api/employees`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
 
-  phone,
+          employee_code: employeeCode.trim(),
 
-  designation,
+          name: name.trim(),
 
-  employee_type:
-    employeeType,
+          email,
 
-  employment_status:
-    employmentStatus,
+          phone,
 
-  joining_date:
-  joiningDate
-    ? joiningDate.toISOString().split("T")[0]
-    : null,
+          designation,
 
-confirmation_date:
-  confirmationDate
-    ? confirmationDate
-    : null,
+          employee_type: employeeType,
 
-  last_job_details:
-    lastJobDetails,
+          employment_status: employmentStatus,
 
-  previous_experience:
-    previousExperience,
+          internship_duration:
+            employmentStatus === "Intern" ? internshipDuration : null,
 
-  department,
+          joining_date: joiningDate
+            ? joiningDate.toISOString().split("T")[0]
+            : null,
 
-  salary,
+          confirmation_date: confirmationDate || null,
 
-  bonus: 0,
+          last_job_details: lastJobDetails,
 
-  deduction: 0
+          previous_experience: previousExperience,
 
-})
-  })
-  .then(res => res.json())
-  .then(() => {
-  toast.success("Employee added successfully!");
-    setEmployeeCode('')
-setName('')
+          department: department.trim(),
 
-setEmail('')
-setPhone('')
+          salary: Number(salary),
 
-setDesignation('')
+          bonus: 0,
 
-setEmployeeType('Direct')
+          deduction: 0
+        })
+      });
 
-setEmploymentStatus('Intern')
+      const data = await response.json().catch(() => null);
 
-setJoiningDate(null);
-setConfirmationDate('')
+      // fetch() only rejects on network failures.  Without this check, a
+      // validation or database error still reached the success toast.
+      if (!response.ok) {
+        throw new Error(data?.message || "Unable to add the employee.");
+      }
 
-setLastJobDetails('')
-setPreviousExperience('')
+      setEmployeeCode('')
+      setName('')
 
-setDepartment('')
-setSalary('')
-setShowEmployeeModal(false);
-    return fetch("https://payroll-management-system-three.vercel.app/api/employees")
+      setEmail('')
+      setPhone('')
 
-  })
-  .then(res => res.json())
-  .then(data => setEmployees(data))
-  .catch((err) => {
-  console.error(err);
-  toast.error("Something went wrong. Please try again.");
-});
+      setDesignation('')
 
-}
+      setEmployeeType('Direct')
+
+      setEmploymentStatus('Intern')
+
+      setInternshipDuration('3 Months')
+      setJoiningDate(null);
+      setConfirmationDate('')
+
+      setLastJobDetails('')
+      setPreviousExperience('')
+
+      setDepartment('')
+      setSalary('')
+      setShowEmployeeModal(false);
+      setCurrentPage(1);
+      toast.success("Employee added successfully!");
+
+      // Reload only after the POST is confirmed.  The sorted result places
+      // the new employee on the currently visible first page.
+      try {
+        await fetchEmployees();
+      } catch (refreshError) {
+        console.error(refreshError);
+        toast.error("Employee was added, but the list could not be refreshed.");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+
+  }
 
   const deleteEmployee = () => {
 
@@ -768,6 +961,7 @@ const totalPages = Math.ceil(
   type="text"
   placeholder="Employee Code"
   value={employeeCode}
+  maxLength={20}
   onChange={(e) =>
     setEmployeeCode(
       e.target.value
@@ -973,6 +1167,7 @@ const totalPages = Math.ceil(
       ? updateEmployee
       : addEmployee
   }
+  disabled={isSubmitting}
   style={{
   width: "100%",
 
@@ -987,7 +1182,9 @@ const totalPages = Math.ceil(
 
   borderRadius: "16px",
 
-  cursor: "pointer",
+  cursor: isSubmitting ? "not-allowed" : "pointer",
+
+  opacity: isSubmitting ? 0.7 : 1,
 
   fontSize: "16px",
 
@@ -1000,7 +1197,9 @@ const totalPages = Math.ceil(
 }}
 >
   {
-    editingId
+    isSubmitting
+      ? "Saving..."
+      : editingId
       ? "Update Employee"
       : "Add Employee"
   }

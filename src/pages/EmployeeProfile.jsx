@@ -246,10 +246,11 @@ const confirmEmployee = () => {
 
     <div
   style={{
-    padding:"35px",
+    padding: "35px",
+    minHeight: "100vh",
     background:
-      "linear-gradient(180deg,#020617,#0f172a)",
-    minHeight:"100vh"
+      "radial-gradient(circle at top right, rgba(55,255,215,.08), transparent 30%), #020617",
+    color: "#e2e8f0"
   }}
 >
 

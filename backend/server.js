@@ -399,7 +399,12 @@ app.get("/api/employees", async (req, res) => {
 
 app.post("/api/employees", async (req, res) => {
 
+  let client;
+
   try {
+    client = await db.connect();
+    await client.query("BEGIN");
+
     console.log(req.body)
     const {
   employee_code,
@@ -490,7 +495,7 @@ const otherAllowance =
 
 const pf =
   PayrollFormula.pf(salary);
-    const result = await db.query(
+    const result = await client.query(
       `
       INSERT INTO employees
 (
@@ -608,7 +613,7 @@ const documentType
 of documentTypes
 ) {
 
-await db.query(
+await client.query(
 
 `
 INSERT INTO
@@ -636,7 +641,7 @@ documentType
 
 }
 
-    await db.query(
+    await client.query(
 `
 INSERT INTO leave_balance
 (
@@ -675,7 +680,7 @@ employeeId
 ]
 );
 
-    await db.query(
+    await client.query(
       `
       INSERT INTO activities
       (
@@ -691,7 +696,7 @@ employeeId
         `New employee  Added`
       ]
     );
-    await db.query(
+    await client.query(
   `
   INSERT INTO attendance
   (
@@ -709,19 +714,40 @@ employeeId
   [employeeId]
 );
 
-    console.log(result.rows);
+    await client.query("COMMIT");
 
-    res.json({
-      message: "Employee Added"
+    res.status(201).json({
+      message: "Employee added successfully.",
+      employee: result.rows[0]
     });
 
   }
 
   catch (err) {
 
-    console.log(err);
+    if (client) {
+      await client.query("ROLLBACK").catch((rollbackError) => {
+        console.error("Could not roll back employee creation:", rollbackError);
+      });
+    }
 
-    res.status(500).json(err);
+    console.error("Could not add employee:", err);
+
+    const status = err.code === "23505" ? 409 : 400;
+    const message =
+      err.code === "23505"
+        ? "An employee with that code already exists."
+        : err.code === "22001"
+          ? "Employee code must be 20 characters or fewer."
+          : "Unable to add the employee. Please check the entered details.";
+
+    res.status(status).json({ message });
+
+  }
+
+  finally {
+
+    client?.release();
 
   }
 

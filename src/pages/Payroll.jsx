@@ -3,6 +3,8 @@ import { jsPDF } from 'jspdf'
 import StatCard from "../components/Dashboard/StatCard";
 import PayrollDrawer from "../components/PayrollDrawer";
 import GlassScrollArea from "../components/GlassScrollArea";
+import { Download } from "lucide-react";
+import Papa from 'papaparse'
 // Single source of truth for the backend URL. Change this in one place
 // instead of hardcoding the host in every fetch call.
 const API_BASE = "https://payroll-management-system-three.vercel.app"
@@ -13,7 +15,7 @@ function Payroll() {
   const [editingEmployee, setEditingEmployee] =
   useState(null)
 const [showPayrollDrawer, setShowPayrollDrawer] = useState(false); 
-
+const [importingPayroll, setImportingPayroll] = useState(false);
 const [editBonus, setEditBonus] =
   useState("")
 const [payrollSettings, setPayrollSettings] = useState({
@@ -181,47 +183,42 @@ const employeeCount =
     )
 
   }
-  const exportPayroll = () => {
+  const PAYROLL_CSV_HEADERS = [
+  "Employee Name",
+  "Salary",
+  "Bonus",
+  "Deduction",
+  "Present",
+  "Absent",
+  "Paid Leave",
+  "Payable Salary"
+];
+const exportPayroll = () => {
 
-  const headers = [
-    "Employee Name",
-    "Salary",
-    "Bonus",
-    "Deduction",
-    "Payable Salary"
-  ];
+  if (!payroll.length) {
+    alert("There is no payroll data to export.");
+    return;
+  }
 
-  const rows = payroll.map(employee => [
-
-    employee.name,
-
-    employee.salary,
-
-    employee.bonus,
-
-    employee.deduction,
-
-    employee.payable_salary
-
+  const rows = payroll.map((employee) => [
+    employee.name ?? "",
+    employee.salary ?? "",
+    employee.bonus ?? 0,
+    employee.deduction ?? 0,
+    employee.present_days ?? 0,
+    employee.absent_days ?? 0,
+    employee.paid_leave_days ?? 0,
+    employee.payable_salary ?? 0
   ]);
 
-  const csvContent = [
-
-    headers,
-
-    ...rows
-
-  ]
-    .map(row => row.join(","))
-
-    .join("\n");
+  const csvContent = Papa.unparse({
+    fields: PAYROLL_CSV_HEADERS,
+    data: rows
+  });
 
   const blob = new Blob(
-
     [csvContent],
-
-    { type: "text/csv" }
-
+    { type: "text/csv;charset=utf-8;" }
   );
 
   const url = URL.createObjectURL(blob);
@@ -233,9 +230,326 @@ const employeeCount =
   link.download =
     `payroll-${new Date().toISOString().split("T")[0]}.csv`;
 
+  document.body.appendChild(link);
+
   link.click();
 
+  document.body.removeChild(link);
+
   URL.revokeObjectURL(url);
+};
+const importPayrollCSV = (event) => {
+
+  const file = event.target.files?.[0];
+
+  if (!file) return;
+
+  const resetInput = () => {
+    event.target.value = "";
+  };
+
+  if (
+    !file.name
+      .toLowerCase()
+      .endsWith(".csv")
+  ) {
+
+    alert(
+      "❌ Invalid File\n\n" +
+      "Please select a CSV file."
+    );
+
+    resetInput();
+
+    return;
+  }
+
+  Papa.parse(file, {
+
+    header: true,
+
+    skipEmptyLines: true,
+
+    complete: async (results) => {
+
+      try {
+
+        const rows = results.data || [];
+
+        const actualHeaders =
+          results.meta.fields || [];
+
+        // ==============================
+        // HEADER VALIDATION
+        // ==============================
+
+        const missingHeaders =
+          PAYROLL_CSV_HEADERS.filter(
+            (header) =>
+              !actualHeaders.includes(header)
+          );
+
+        if (missingHeaders.length > 0) {
+
+          alert(
+            "❌ Invalid Payroll CSV Format\n\n" +
+            "The selected file does not match " +
+            "the Payroll table format.\n\n" +
+            "Missing columns:\n" +
+            missingHeaders.join(", ") +
+            "\n\n" +
+            "Please export a Payroll CSV from " +
+            "this system and use that format."
+          );
+
+          resetInput();
+
+          return;
+        }
+
+        // ==============================
+        // EMPTY FILE
+        // ==============================
+
+        if (rows.length === 0) {
+
+          alert(
+            "❌ Empty CSV\n\n" +
+            "The selected file contains no " +
+            "payroll records."
+          );
+
+          resetInput();
+
+          return;
+        }
+
+        // ==============================
+        // ROW VALIDATION
+        // ==============================
+
+        const invalidRows = [];
+
+        rows.forEach((employee, index) => {
+
+          const rowNumber = index + 2;
+
+          if (!employee["Employee Name"]?.trim()) {
+
+            invalidRows.push(
+              `Row ${rowNumber}: Employee Name is missing`
+            );
+
+          }
+
+          if (
+            employee["Salary"] === "" ||
+            employee["Salary"] === null ||
+            Number.isNaN(
+              Number(employee["Salary"])
+            )
+          ) {
+
+            invalidRows.push(
+              `Row ${rowNumber}: Salary is invalid`
+            );
+
+          }
+
+          if (
+            employee["Bonus"] !== "" &&
+            Number.isNaN(
+              Number(employee["Bonus"])
+            )
+          ) {
+
+            invalidRows.push(
+              `Row ${rowNumber}: Bonus is invalid`
+            );
+
+          }
+
+          if (
+            employee["Deduction"] !== "" &&
+            Number.isNaN(
+              Number(employee["Deduction"])
+            )
+          ) {
+
+            invalidRows.push(
+              `Row ${rowNumber}: Deduction is invalid`
+            );
+
+          }
+
+        });
+
+        // ==============================
+        // CANCEL ENTIRE IMPORT
+        // ==============================
+
+        if (invalidRows.length > 0) {
+
+          alert(
+            "❌ Import Cancelled\n\n" +
+            "The Payroll CSV contains invalid data.\n\n" +
+            invalidRows
+              .slice(0, 10)
+              .join("\n") +
+            (
+              invalidRows.length > 10
+                ? `\n\n...and ${
+                    invalidRows.length - 10
+                  } more errors.`
+                : ""
+            ) +
+            "\n\nNo payroll records were imported."
+          );
+
+          resetInput();
+
+          return;
+        }
+
+        // ==============================
+        // CONFIRM
+        // ==============================
+
+        const confirmed =
+          window.confirm(
+            "✅ Payroll CSV verified successfully.\n\n" +
+            `${rows.length} payroll record(s) are ready to import.\n\n` +
+            "Continue?"
+          );
+
+        if (!confirmed) {
+
+          resetInput();
+
+          return;
+        }
+
+        setImportingPayroll(true);
+
+        // ==============================
+        // IMPORT
+        // ==============================
+
+        for (const row of rows) {
+
+          const employeeName =
+            row["Employee Name"].trim();
+
+          const employee =
+            payroll.find(
+              (item) =>
+                item.name?.trim().toLowerCase() ===
+                employeeName.toLowerCase()
+            );
+
+          if (!employee) {
+
+            throw new Error(
+              `Employee "${employeeName}" was not found in the current payroll records.`
+            );
+
+          }
+
+          const response = await fetch(
+            `${API_BASE}/api/payroll/${employee.id}`,
+            {
+              method: "PUT",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                bonus:
+                  Number(row["Bonus"] || 0),
+
+                deduction:
+                  Number(row["Deduction"] || 0)
+              })
+            }
+          );
+
+          if (!response.ok) {
+
+            throw new Error(
+              `Failed to import payroll for ${employeeName}.`
+            );
+
+          }
+
+        }
+
+        // ==============================
+        // REFRESH PAYROLL
+        // ==============================
+
+        const refreshed =
+          await fetch(
+            `${API_BASE}/api/payroll`
+          );
+
+        if (!refreshed.ok) {
+
+          throw new Error(
+            "Payroll was updated, but the refreshed payroll data could not be loaded."
+          );
+
+        }
+
+        const updatedPayroll =
+          await refreshed.json();
+
+        setPayroll(updatedPayroll);
+
+        alert(
+          "✅ Payroll Import Successful\n\n" +
+          `${rows.length} payroll record(s) imported successfully.`
+        );
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "Payroll import error:",
+          error
+        );
+
+        alert(
+          "❌ Payroll Import Failed\n\n" +
+          error.message
+        );
+
+      }
+
+      finally {
+
+        setImportingPayroll(false);
+
+        resetInput();
+
+      }
+
+    },
+
+    error: () => {
+
+      alert(
+        "❌ Could not read CSV\n\n" +
+        "Please check that the file is a valid CSV."
+      );
+
+      resetInput();
+
+    }
+
+  });
 
 };
 const handleEdit = async (employee) => {
@@ -283,11 +597,9 @@ const payrollOptions = [
 
     <div
   style={{
-    padding: '30px',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    minHeight: '100vh',
-    background: '#0f172a'
+    padding: "30px",
+    width: "100%",
+    minHeight: "100vh",
   }}
 >
 
@@ -295,17 +607,17 @@ const payrollOptions = [
   style={{
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: "35px",
   }}
 >
   <div>
     <h1
       style={{
-        margin: 0,
-        fontSize: "42px",
-        fontWeight: 800,
+        fontSize: "52px",
+        fontWeight: "800",
         color: "#f8fafc",
+        margin: 0,
       }}
     >
       💰 Payroll Management
@@ -313,43 +625,100 @@ const payrollOptions = [
 
     <p
       style={{
+        color: "#94a3b8",
         marginTop: "10px",
-        color: "rgba(255,255,255,.60)",
-        fontSize: "16px",
+        fontSize: "17px",
       }}
     >
-      Manage salaries, bonuses, deductions, increments and employee payroll.
+      Manage employee salaries, bonuses, deductions and payroll.
     </p>
   </div>
 
+  <input
+  id="payroll-csv-import"
+  type="file"
+  accept=".csv"
+  hidden
+  onChange={importPayrollCSV}
+/>
+
+<div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  }}
+>
+  <input
+    id="payroll-csv-import"
+    type="file"
+    accept=".csv"
+    hidden
+    onChange={importPayrollCSV}
+  />
+
   <button
-    onClick={exportPayroll}
-    style={{
-      padding: "12px 22px",
-      borderRadius: "16px",
-      border: "1px solid rgba(255,255,255,.08)",
-      background:
-        "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-      backdropFilter: "blur(18px)",
-      WebkitBackdropFilter: "blur(18px)",
-      color: "#f8fafc",
-      fontWeight: 600,
-      cursor: "pointer",
-      transition: ".25s",
-      boxShadow:
-        "0 12px 30px rgba(0,0,0,.25)",
-    }}
+    onClick={() =>
+      document
+        .getElementById("payroll-csv-import")
+        .click()
+    }
+    style={glassButton}
     onMouseEnter={(e) => {
-      e.currentTarget.style.transform =
-        "translateY(-2px)";
+      e.currentTarget.style.transform = "translateY(-2px)";
+      e.currentTarget.style.border =
+        "1px solid rgba(55,255,215,.35)";
+      e.currentTarget.style.boxShadow =
+        "0 0 22px rgba(55,255,215,.18)";
     }}
     onMouseLeave={(e) => {
-      e.currentTarget.style.transform =
-        "translateY(0)";
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.border =
+        "1px solid rgba(255,255,255,.08)";
+      e.currentTarget.style.boxShadow =
+        "0 12px 30px rgba(0,0,0,.25)";
     }}
   >
-    📤 Export CSV
+    <span
+      style={{
+        fontSize: "14px",
+        fontWeight: 600,
+        letterSpacing: ".2px",
+      }}
+    >
+      Import CSV
+    </span>
   </button>
+
+  <button
+    onClick={exportPayroll}
+    style={glassButton}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = "translateY(-2px)";
+      e.currentTarget.style.border =
+        "1px solid rgba(55,255,215,.35)";
+      e.currentTarget.style.boxShadow =
+        "0 0 22px rgba(55,255,215,.18)";
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = "translateY(0)";
+      e.currentTarget.style.border =
+        "1px solid rgba(255,255,255,.08)";
+      e.currentTarget.style.boxShadow =
+        "0 12px 30px rgba(0,0,0,.25)";
+    }}
+  >
+    <span
+      style={{
+        fontSize: "14px",
+        fontWeight: 600,
+        letterSpacing: ".2px",
+      }}
+    >
+      Export CSV
+    </span>
+  </button>
+</div>
 </div>
 <div style={cardContainer}>
 
@@ -391,43 +760,44 @@ const payrollOptions = [
 </div>
 <>
     <div
-        style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: "22px",
-        }}
-    >
-
+    style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "flex-end",
+        marginBottom: "24px",
+        gap: "20px",
+    }}
+>
         <div>
 
-            <h2
-                style={{
-                    margin: 0,
-                    color: "#f8fafc",
-                    fontSize: "28px",
-                    fontWeight: "700",
-                }}
-            >
-                Employee Payroll
-            </h2>
+    <h2
+        style={{
+            margin: 0,
+            fontSize: "30px",
+            fontWeight: "700",
+            color: "#f8fafc",
+        }}
+    >
+        Employee Payroll
+    </h2>
 
-            <p
-                style={{
-                    marginTop: "8px",
-                    color: "#94a3b8",
-                }}
-            >
-                {employeeCount} Employees
-            </p>
+    <p
+        style={{
+            marginTop: "8px",
+            color: "#94a3b8",
+            fontSize: "15px",
+        }}
+    >
+        {employeeCount} Employees
+    </p>
 
-        </div>
+</div>
 
         <div
 style={{
 display:"flex",
 alignItems:"center",
-gap:"14px"
+gap:"16px",
 }}
 >
 
@@ -444,24 +814,22 @@ setSearchTerm(e.target.value)
 style={searchInput}
 />
 
-<button
-
-onClick={exportPayroll}
-
-style={toolbarButton}
-
->
-
-Export CSV
-
-</button>
 
 </div>
     </div>
 
     <GlassScrollArea
-        height={600}
-    >
+  height={650}
+  style={{
+    borderRadius: "24px",
+    border: "1px solid rgba(255,255,255,.08)",
+    background:
+      "linear-gradient(180deg, rgba(17,24,39,.72), rgba(15,23,42,.72))",
+    backdropFilter: "blur(22px)",
+    WebkitBackdropFilter: "blur(22px)",
+    boxShadow: "0 15px 40px rgba(0,0,0,.28)",
+  }}
+>
 
         <table style={tableStyle}>
         <thead>
@@ -798,19 +1166,51 @@ e.currentTarget.style.transform=
 </>
       
 <>
-  <h2
-    style={{
-      color:"#f8fafc",
-      marginBottom:"20px"
-    }}
-  >
-    📈 Increment History
-  </h2>
-<GlassScrollArea
-    height={420}
+  <div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginTop: "45px",
+    marginBottom: "24px",
+  }}
 >
-  <table style={incrementTableStyle}>
+  <div>
+    <h2
+      style={{
+        margin: 0,
+        fontSize: "30px",
+        fontWeight: "700",
+        color: "#f8fafc",
+      }}
+    >
+      Increment History
+    </h2>
 
+    <p
+      style={{
+        marginTop: "8px",
+        color: "#94a3b8",
+        fontSize: "15px",
+      }}
+    >
+      Salary revision records
+    </p>
+  </div>
+</div>
+<GlassScrollArea
+  height={420}
+  style={{
+    borderRadius: "24px",
+    border: "1px solid rgba(255,255,255,.08)",
+    background:
+      "linear-gradient(180deg, rgba(17,24,39,.72), rgba(15,23,42,.72))",
+    backdropFilter: "blur(22px)",
+    WebkitBackdropFilter: "blur(22px)",
+    boxShadow: "0 15px 40px rgba(0,0,0,.28)",
+  }}
+>
+  <table style={tableStyle}>
     <thead>
 
 <tr style={tableHeaderRow}>
@@ -858,33 +1258,118 @@ onMouseEnter={(e)=>{
 
 e.currentTarget.style.background=
 "rgba(55,255,215,.05)";
-
+e.currentTarget.style.boxShadow =
+"0 8px 22px rgba(0,0,0,.18)";
 }}
 
 onMouseLeave={(e)=>{
 
 e.currentTarget.style.background=
 "transparent";
-
+e.currentTarget.style.boxShadow =
+"none";
 }}
 
 >
 
-              <td style={tdStyle}>
-                {item.employee_name || "-"}
-              </td>
+              <td
+  style={{
+    padding: "18px 16px",
+    borderBottom: "1px solid rgba(255,255,255,.06)",
+  }}
+>
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+    }}
+  >
+    <div
+      style={{
+        width: "38px",
+        height: "38px",
+        borderRadius: "50%",
+        background:
+          "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#08111d",
+        fontWeight: "700",
+        fontSize: "15px",
+        boxShadow:
+          "0 0 16px rgba(55,255,215,.30)",
+      }}
+    >
+      {(item.employee_name || "?")
+        .charAt(0)
+        .toUpperCase()}
+    </div>
+
+    <span
+      style={{
+        color: "#f8fafc",
+        fontWeight: "600",
+      }}
+    >
+      {item.employee_name || "-"}
+    </span>
+  </div>
+</td>
+
+<td style={tdStyle}>
+<div
+style={{
+
+display:"inline-block",
+
+padding:"7px 14px",
+
+borderRadius:"999px",
+
+background:"rgba(255,255,255,.05)",
+
+color:"#94a3b8",
+
+fontWeight:"600",
+
+}}
+>
+
+₹{Number(item.old_salary).toLocaleString()}
+
+</div>
+
+</td> 
 
               <td style={tdStyle}>
-                ₹{
-                  Number(
-                    item.old_salary
-                  ).toLocaleString()
-                }
-              </td>
 
-              <td style={tdStyle}>
-                {item.increment_percent || 0}%
-              </td>
+<div
+style={{
+
+display:"inline-block",
+
+padding:"7px 14px",
+
+borderRadius:"999px",
+
+background:"rgba(34,197,94,.12)",
+
+border:"1px solid rgba(34,197,94,.25)",
+
+color:"#22c55e",
+
+fontWeight:"700",
+
+}}
+>
+
++{item.increment_percent}%
+
+</div>
+
+</td>
 
               <td
                 style={{
@@ -892,19 +1377,42 @@ e.currentTarget.style.background=
                   color:"#22c55e"
                 }}
               >
+                <div
+style={{
+
+display:"inline-block",
+
+padding:"7px 14px",
+
+borderRadius:"999px",
+
+background:
+"rgba(55,255,215,.10)",
+
+border:"1px solid rgba(34,197,94,.25)",
+
+color:"#22c55e",
+
+fontWeight:"700",
+
+}}
+>
                 ₹{
                   Number(
                     item.increment_amount
                   ).toLocaleString()
                 }
+              </div>
               </td>
 
               <td
                 style={{
-                  ...tdStyle,
-                  color:"#38bdf8",
-                  fontWeight:"700"
-                }}
+  ...tdStyle,
+  color: "#37FFD7",
+  fontWeight: "800",
+  textShadow:
+    "0 0 10px rgba(55,255,215,.30)",
+}}
               >
                 ₹{
                   Number(
@@ -913,10 +1421,34 @@ e.currentTarget.style.background=
                 }
               </td>
 
-              <td style={tdStyle}>
+              <td
+  style={{
+    ...tdStyle,
+    color: "#cbd5e1",
+    fontWeight: "500",
+  }}
+>
+<div
+style={{
+
+display:"inline-block",
+
+padding:"6px 14px",
+
+borderRadius:"999px",
+
+background:"rgba(255,255,255,.04)",
+
+color:"#cbd5e1",
+
+}}
+>
+
+
                 {new Date(
   item.effective_date
 ).toLocaleDateString()}
+</div>
               </td>
 
             </tr>
@@ -1021,66 +1553,216 @@ e.currentTarget.style.background=
   >
     <div
       style={{
-        width: "500px",
-        background: "#1f2937",
-        color: "#fff",
-        borderRadius: "12px",
-        padding: "25px",
-        boxShadow: "0 10px 30px rgba(0,0,0,0.4)",
+  width: "560px",
+
+  maxHeight: "82vh",
+
+  overflowY: "auto",
+
+  background:
+    "linear-gradient(180deg,#172033,#101827)",
+
+  color: "#fff",
+
+  borderRadius: "24px",
+
+  padding: "30px",
+
+  border:
+    "1px solid rgba(55,255,215,.12)",
+
+  backdropFilter: "blur(20px)",
+
+  boxShadow:
+    "0 0 45px rgba(0,212,255,.10)",
+}}
+    >
+      <div
+style={{
+marginBottom:"25px"
+}}
+>
+
+<div
+style={{
+fontSize:"12px",
+letterSpacing:"2px",
+fontWeight:"700",
+color:"#37FFD7",
+}}
+>
+
+PAYROLL CONFIGURATION
+
+</div>
+
+<h2
+style={{
+margin:"8px 0",
+fontSize:"32px",
+fontWeight:"800",
+}}
+>
+
+Payroll Settings
+
+</h2>
+
+<p
+style={{
+margin:0,
+color:"#94a3b8",
+}}
+>
+
+Configure employee salary components.
+
+</p>
+
+</div>
+
+      <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    marginBottom: "24px",
+    padding: "18px",
+    borderRadius: "18px",
+    background: "rgba(255,255,255,.03)",
+    border: "1px solid rgba(255,255,255,.06)",
+  }}
+>
+  <div
+    style={{
+      width: "48px",
+      height: "48px",
+      borderRadius: "50%",
+      background:
+        "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      color: "#08111d",
+      fontWeight: "700",
+      fontSize: "18px",
+    }}
+  >
+    {selectedEmployee?.name?.charAt(0).toUpperCase()}
+  </div>
+
+  <div>
+    <div
+      style={{
+        fontSize: "18px",
+        fontWeight: "700",
       }}
     >
-      <h2 style={{ marginTop: 0 }}>Payroll Settings</h2>
+      {selectedEmployee?.name}
+    </div>
 
-      <p>
-        Employee: <strong>{selectedEmployee?.name}</strong>
-      </p>
+    <div
+      style={{
+        fontSize: "13px",
+        color: "#94a3b8",
+      }}
+    >
+      Employee Payroll Configuration
+    </div>
+  </div>
+</div>
 
       <div style={{ marginTop: "20px" }}>
   {payrollOptions.map((option) => (
   <div
     key={option.key}
     style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: "16px",
-      paddingBottom: "10px",
-      borderBottom: "1px solid #374151",
-    }}
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+
+  padding: "18px 20px",
+
+  marginBottom: "14px",
+
+  borderRadius: "18px",
+
+  background: "rgba(255,255,255,.03)",
+
+  border: "1px solid rgba(255,255,255,.06)",
+
+  transition: "all .25s ease",
+}}
+onMouseEnter={(e) => {
+  e.currentTarget.style.background =
+    "rgba(55,255,215,.05)";
+  e.currentTarget.style.border =
+    "1px solid rgba(55,255,215,.18)";
+}}
+
+onMouseLeave={(e) => {
+  e.currentTarget.style.background =
+    "rgba(255,255,255,.03)";
+  e.currentTarget.style.border =
+    "1px solid rgba(255,255,255,.06)";
+}}
   >
     <span style={{ fontWeight: "500" }}>{option.label}</span>
 
-    <div style={{ display: "flex", gap: "20px" }}>
-      <label>
-        <input
-          type="radio"
-          name={option.key}
-          checked={payrollSettings[option.key]}
-          onChange={() =>
-            setPayrollSettings({
-              ...payrollSettings,
-              [option.key]: true,
-            })
-          }
-        />
-        {" "}Yes
-      </label>
+<div
+  style={{
+    display: "flex",
+    gap: "10px",
+  }}
+>
 
-      <label>
-        <input
-          type="radio"
-          name={option.key}
-          checked={!payrollSettings[option.key]}
-          onChange={() =>
-            setPayrollSettings({
-              ...payrollSettings,
-              [option.key]: false,
-            })
-          }
-        />
-        {" "}No
-      </label>
-    </div>
+<button
+    onClick={() =>
+        setPayrollSettings({
+            ...payrollSettings,
+            [option.key]: true,
+        })
+    }
+
+    style={{
+        ...toggleButton,
+
+        background: payrollSettings[option.key]
+            ? "linear-gradient(135deg,#06b6d4,#2563eb)"
+            : "rgba(255,255,255,.04)",
+
+        color: payrollSettings[option.key]
+            ? "#fff"
+            : "#94a3b8",
+    }}
+>
+    YES
+</button>
+
+<button
+    onClick={() =>
+        setPayrollSettings({
+            ...payrollSettings,
+            [option.key]: false,
+        })
+    }
+
+    style={{
+        ...toggleButton,
+
+        background: !payrollSettings[option.key]
+            ? "linear-gradient(135deg,#ef4444,#dc2626)"
+            : "rgba(255,255,255,.04)",
+
+        color: !payrollSettings[option.key]
+            ? "#fff"
+            : "#94a3b8",
+    }}
+>
+    NO
+</button>
+
+</div>
   </div>
 ))}
 </div>
@@ -1095,11 +1777,12 @@ e.currentTarget.style.background=
   <button
     onClick={() => setShowPayrollModal(false)}
     style={{
-      padding: "10px 18px",
-      borderRadius: "8px",
-      border: "none",
-      cursor: "pointer"
-    }}
+  ...glassButton,
+
+  minWidth: "120px",
+
+  color: "#cbd5e1",
+}}
   >
     Cancel
   </button>
@@ -1140,15 +1823,23 @@ e.currentTarget.style.background=
   }
 }}
   style={{
-    background: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 20px",
-    cursor: "pointer"
-  }}
+  ...glassButton,
+
+  minWidth: "160px",
+
+  background:
+    "linear-gradient(135deg,#06b6d4,#2563eb)",
+
+  border:
+    "1px solid rgba(55,255,215,.18)",
+
+  color: "#fff",
+
+  boxShadow:
+    "0 0 24px rgba(55,255,215,.18)",
+}}
 >
-  Save
+  Save Changes
 </button>
 </div>
     </div>
@@ -1198,7 +1889,7 @@ const tableStyle = {
 
 const rowStyle = {
 
-  transition: ".25s",
+  transition: "all .25s ease",
 
   cursor: "pointer",
 
@@ -1301,14 +1992,14 @@ const cancelButton = {
 }
 const cardContainer = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "24px",
-  marginBottom: "35px",
+  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+  gap: "20px",
+  marginBottom: "30px",
 };
 
 const searchInput={
 
-width:"340px",
+width: "420px",
 
 height:"48px",
 
@@ -1352,37 +2043,29 @@ const tableHeaderRow = {
 
 }
 const tableHeader = {
-
   position: "sticky",
-
   top: 0,
+  zIndex: 10,
 
-  zIndex: 20,
+  background: "rgba(15,23,42,.95)",
 
-  background:
-    "rgba(12,18,31,.96)",
+  backdropFilter: "blur(18px)",
 
-  backdropFilter: "blur(22px)",
-
-  WebkitBackdropFilter: "blur(22px)",
-
-  color: "#e2e8f0",
-
-  fontSize: "13px",
+  color: "#cbd5e1",
 
   fontWeight: "700",
 
+  fontSize: "13px",
+
   textTransform: "uppercase",
 
-  letterSpacing: "1.2px",
+  letterSpacing: "1px",
 
   padding: "18px",
 
-  borderBottom:
-    "1px solid rgba(55,255,215,.15)",
+  borderBottom: "1px solid rgba(255,255,255,.08)",
 
   whiteSpace: "nowrap",
-
 };
 const toolbarButton={
 
@@ -1408,4 +2091,60 @@ cursor:"pointer",
 transition:".25s",
 
 }
+const glassButton = {
+  padding: "12px 22px",
+
+  borderRadius: "16px",
+
+  border: "1px solid rgba(255,255,255,.08)",
+
+  background:
+    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+
+  backdropFilter: "blur(18px)",
+
+  WebkitBackdropFilter: "blur(18px)",
+
+  color: "#f8fafc",
+
+  fontWeight: 600,
+
+  cursor: "pointer",
+
+  transition: "all .25s ease",
+
+  display: "flex",
+
+  alignItems: "center",
+
+  justifyContent: "center",
+
+  gap: "8px",
+
+  boxShadow:
+    "0 12px 30px rgba(0,0,0,.25)"
+};
+const toggleButton = {
+
+width: "74px",
+
+height: "36px",
+
+border: "1px solid rgba(255,255,255,.08)",
+
+borderRadius: "12px",
+
+cursor: "pointer",
+
+fontWeight: "700",
+
+fontSize: "13px",
+
+transition: ".25s",
+
+backdropFilter: "blur(12px)",
+
+color: "#fff",
+
+};
 export default Payroll
