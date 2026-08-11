@@ -229,6 +229,16 @@ body::after{
     min-height:100vh;
 }
 
+/* Keep the desktop dashboard comfortable at Chrome's default 100% zoom.
+   Most page dimensions are defined inline, so scaling the shared app root
+   keeps pages, the sidebar, tables, and dialogs in proportion. */
+@media (min-width: 1024px) {
+    #root {
+        zoom: 0.88;
+        min-height: 113.64vh;
+    }
+}
+
 #root .top-glow{
     position:fixed;
 
