@@ -490,6 +490,9 @@ const conveyanceAllowance =
 const medicalAllowance =
   PayrollFormula.medical();
 
+const ta = conveyanceAllowance;
+const ma = medicalAllowance;
+
 const otherAllowance =
   PayrollFormula.otherAllowance(salary);
 
@@ -803,6 +806,9 @@ const conveyanceAllowance =
 const medicalAllowance =
   PayrollFormula.medical();
 
+const ta = conveyanceAllowance;
+const ma = medicalAllowance;
+
 const otherAllowance =
   PayrollFormula.otherAllowance(salary);
 
@@ -1089,6 +1095,9 @@ const conveyanceAllowance =
 
 const medicalAllowance =
   PayrollFormula.medical();
+
+const ta = conveyanceAllowance;
+const ma = medicalAllowance;
 
 const otherAllowance =
   PayrollFormula.otherAllowance(salary);
@@ -3204,6 +3213,9 @@ const conveyanceAllowance =
 
 const medicalAllowance =
   PayrollFormula.medical();
+
+const ta = conveyanceAllowance;
+const ma = medicalAllowance;
 
 const otherAllowance =
   PayrollFormula.otherAllowance(salary);

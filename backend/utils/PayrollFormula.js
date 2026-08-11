@@ -1,4 +1,39 @@
 class PayrollFormula {
+  static grossSalary(salary) {
+    return Number(salary) || 0;
+  }
+
+  static basicDA(salary) {
+    return Math.round(this.grossSalary(salary) * 0.5);
+  }
+
+  static hra(salary) {
+    return Math.round(this.basicDA(salary) * 0.5);
+  }
+
+  static conveyance() {
+    return 1200;
+  }
+
+  static medical() {
+    return 1000;
+  }
+
+  static otherAllowance(salary) {
+    return Math.max(
+      0,
+      this.grossSalary(salary) -
+        this.basicDA(salary) -
+        this.hra(salary) -
+        this.conveyance() -
+        this.medical()
+    );
+  }
+
+  static pf(salary) {
+    return Math.round(this.basicDA(salary) * 0.12);
+  }
+
   static calculate(employee) {
 
   console.log("================================");
