@@ -28,8 +28,10 @@ import EmployeeProfile from "./pages/EmployeeProfile";
 import LogoutModal from "./components/LogoutModal";
 import { supabase } from "./supabaseClient";
 import WorkLogs from "./pages/WorkLogs";
-
-
+import ProtectedRoute from "./ProtectedRoute";
+import AuthenticatorSetup from "./pages/AuthenticatorSetup";
+import AuthenticatorVerify from './pages/AuthenticatorVerify'
+import AuthenticatorLogin from './pages/AuthenticatorLogin'
 
 function AppContent() {
   const location = useLocation();
@@ -111,47 +113,84 @@ const handleLogout = async () => {
         <Routes>
           <Route path="/" element={<Login />} />
 
-          <Route path="/dashboard" element={<Dashboard />} />
+         <Route
+  path="/dashboard"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Dashboard />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/employees"
-            element={<Employees />}
-          />
+  path="/employees"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Employees />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/attendance"
-            element={<Attendance />}
-          />
+  path="/attendance"
+  element={
+    <ProtectedRoute allowedRoles={["hr", "employee"]}>
+      <Attendance />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/payroll"
-            element={<Payroll />}
-          />
+  path="/payroll"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Payroll />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/leave"
+  element={
+    <ProtectedRoute allowedRoles={["hr", "employee"]}>
+      <Leave />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/leave"
-            element={<Leave />}
-          />
+  path="/performance"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Performance />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/performance"
-            element={<Performance />}
-          />
+  path="/reports"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Reports />
+    </ProtectedRoute>
+  }
+/>
+          <Route
+  path="/clients"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <Clients />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
-            path="/reports"
-            element={<Reports />}
-          />
-      
-          <Route
-            path="/clients"
-            element={<Clients />}
-          />
-
-          <Route
-            path="/outsourced-employees"
-            element={<OutsourcedEmployees />}
-          />
+  path="/outsourced-employees"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <OutsourcedEmployees />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/third-party-payroll"
@@ -159,19 +198,32 @@ const handleLogout = async () => {
           />
 
           <Route
-            path="/hr-documents"
-            element={<HRDocuments />}
-          />
+  path="/hr-documents"
+  element={
+    <ProtectedRoute allowedRoles={["hr"]}>
+      <HRDocuments />
+    </ProtectedRoute>
+  }
+/>
 
-          <Route
-            path="/employee-profile"
-            element={<EmployeeProfile />}
-          />
+         <Route
+  path="/employee-profile"
+  element={
+    <ProtectedRoute allowedRoles={["employee"]}>
+      <EmployeeProfile />
+    </ProtectedRoute>
+  }
+/>
 
           <Route
             path="/login"
             element={<Login />}
           />
+
+          <Route
+  path="/authenticator-login"
+  element={<AuthenticatorLogin />}
+/>
 
           <Route
             path="/signup"
@@ -184,10 +236,30 @@ const handleLogout = async () => {
           />
 
           <Route
-            path="/employee-dashboard"
-            element={<EmployeeDashboard />}
-          />
-          <Route path="/work-logs" element={<WorkLogs />} />
+  path="/authenticator-setup"
+  element={<AuthenticatorSetup />}
+/>
+<Route
+  path="/authenticator-verify"
+  element={<AuthenticatorVerify />}
+/>
+
+          <Route
+  path="/employee-dashboard"
+  element={
+    <ProtectedRoute allowedRoles={["employee"]}>
+      <EmployeeDashboard />
+    </ProtectedRoute>
+  }
+/>
+          <Route
+  path="/work-logs"
+  element={
+    <ProtectedRoute allowedRoles={["employee"]}>
+      <WorkLogs />
+    </ProtectedRoute>
+  }
+/>
         </Routes>
         {!hideSidebar && <AIAssistant />}
       </div>

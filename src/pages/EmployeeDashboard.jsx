@@ -16,8 +16,9 @@ import { supabase } from '../supabaseClient'
 import * as faceapi from 'face-api.js'
 
 import ChatbotWidget from '../components/ChatbotWidget'
+import NotificationBell from '../components/NotificationBell'
 
-const API_BASE = 'https://payroll-management-system-three.vercel.app'
+const API_BASE = 'http://localhost:5000'
 
 const OFFICE_LAT = 19.0760
 const OFFICE_LNG = 72.8777
@@ -62,7 +63,45 @@ function eyeAspectRatio(eyePoints) {
 
 }
 
+/* Time-based greeting for the employee dashboard hero + loader */
+function getTimeGreeting() {
+
+  const hour = new Date().getHours()
+
+  if (hour >= 5 && hour < 12) return { text: 'Good Morning', emoji: '🌅' }
+  if (hour >= 12 && hour < 17) return { text: 'Good Afternoon', emoji: '☀️' }
+  if (hour >= 17 && hour < 21) return { text: 'Good Evening', emoji: '🌆' }
+  return { text: 'Good Night', emoji: '🌙' }
+
+}
+
+/* Time-based accent gradient used in the hero panel */
+function getTimeHeroAccent() {
+
+  const hour = new Date().getHours()
+
+  // Sunrise gold
+  if (hour >= 5 && hour < 12) {
+    return 'linear-gradient(135deg, rgba(251,191,36,0.18), rgba(139,92,246,0.12), rgba(30,41,59,0.55))'
+  }
+
+  // Bright daylight blue
+  if (hour >= 12 && hour < 17) {
+    return 'linear-gradient(135deg, rgba(56,189,248,0.18), rgba(139,92,246,0.12), rgba(30,41,59,0.55))'
+  }
+
+  // Warm sunset orange
+  if (hour >= 17 && hour < 21) {
+    return 'linear-gradient(135deg, rgba(249,115,22,0.2), rgba(236,72,153,0.12), rgba(30,41,59,0.55))'
+  }
+
+  // Deep night indigo
+  return 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(56,189,248,0.1), rgba(30,41,59,0.55))'
+
+}
+
 function EmployeeDashboard() {
+  const greet = getTimeGreeting()
 
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
@@ -776,7 +815,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
       setPayableSalary(data.payableSalary ?? 0)
       setAttendance(data.attendance)
       setAttendanceSummary(data.attendanceSummary)
-      setLeaveBalance(data.leaveBalance)
+      setLeaveBalance(data.leaveBalance || { available_leaves: 0, total_leaves_earned: 0 })
       setLeaves(data.leaves)
       setPerformance(data.performance)
       setIncrements(data.increments || [])
@@ -1131,7 +1170,42 @@ You requested ${requestedDays} day(s).`
   if (loading) {
     return (
       <div style={centerScreen}>
-        <p style={{ color: '#94a3b8', fontSize: '16px' }}>Loading your dashboard...</p>
+        {/* Welcome loading screen with pulsing logo, time greeting + spinner */}
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 84,
+            height: 84,
+            margin: '0 auto 26px',
+            borderRadius: '26px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: 38,
+            background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(139,92,246,0.25))',
+            border: '1px solid rgba(148,163,184,0.2)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
+            animation: 'welcomePulse 1.6s ease-in-out infinite'
+          }}>💼</div>
+          <h1 style={{ fontSize: 26, margin: '0 0 10px 0', color: '#f8fafc', animation: 'fadeInUp 0.6s ease' }}>
+            {greet.text} {greet.emoji}
+          </h1>
+          <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 26px 0', animation: 'fadeInUp 0.6s ease 0.15s both' }}>
+            Loading your workspace...
+          </p>
+          {/* Gradient spinner ring */}
+          <div style={{
+            width: 46,
+            height: 46,
+            margin: '0 auto',
+            borderRadius: '50%',
+            border: '3px solid rgba(148,163,184,0.2)',
+            borderTopColor: '#38bdf8',
+            borderRightColor: '#8b5cf6',
+            animation: 'welcomeSpin 0.9s linear infinite'
+          }} />
+        </div>
       </div>
     )
   }
@@ -1214,6 +1288,9 @@ You requested ${requestedDays} day(s).`
   const isCheckedIn = todayRecord && todayRecord.status === 'Present'
   const isCheckedOut = todayRecord && !!todayRecord.check_out_time
 
+  // Time-based greeting used in the hero and welcome loader
+
+
  
 console.log(increments);
 
@@ -1230,17 +1307,7 @@ console.log(increments);
 >
   <button
     onClick={() => setShowLogoutModal(true)}
-    style={{
-      background: "#dc2626",
-      color: "#fff",
-      border: "none",
-      padding: "12px 22px",
-      borderRadius: "10px",
-      cursor: "pointer",
-      fontWeight: "700",
-      fontSize: "15px",
-      boxShadow: "0 6px 20px rgba(0,0,0,.3)"
-    }}
+    style={logoutFloatingButton}
   >
     🚪 Logout
   </button>
@@ -1549,37 +1616,71 @@ console.log(increments);
       )}
 
 
-      <div style={{ marginBottom: '30px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+      {/* HERO PANEL — glass banner with time-based gradient + welcome text */}
+      <div style={{
+        marginBottom: '30px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '16px',
+        padding: '28px 30px',
+        borderRadius: '24px',
+        background: getTimeHeroAccent(),
+        backdropFilter: 'blur(18px)',
+        WebkitBackdropFilter: 'blur(18px)',
+        border: '1px solid rgba(148, 163, 184, 0.2)',
+        boxShadow: '0 10px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.07)',
+        animation: 'fadeInUp 0.6s ease both'
+      }}>
         <div>
-          <h1 style={{ color: '#f8fafc', fontSize: '38px', marginBottom: '6px' }}>
-            Welcome back, {employee.name} 👋
+          {/* Gradient name text for an eye-catching hero title */}
+          <h1 style={{
+            fontSize: '40px',
+            marginBottom: '8px',
+            marginTop: 0,
+            background: 'linear-gradient(120deg, #38bdf8 0%, #818cf8 45%, #e879f9 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            {greet.text}, {employee.name} {greet.emoji}
           </h1>
           
-          <p style={{ color: '#94a3b8', fontSize: '15px' }}>
+          <p style={{ color: '#cbd5e1', fontSize: '15px', margin: 0 }}>
             {employee.department || 'Department not set'} • {employee.email}
           </p>
         </div>
         
-        <span style={{
-          padding: '8px 16px',
-          borderRadius: '20px',
-          fontSize: '13px',
-          fontWeight: '700',
-          background: employee.employee_type === 'Third-Party' ? '#fef3c7' : '#dcfce7',
-          color: employee.employee_type === 'Third-Party' ? '#d97706' : '#16a34a'
-        }}>
-          {employee.employee_type || 'Direct'} Employee
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <NotificationBell employeeId={employee.id} />
+          {/* Employee type pill on frosted glass */}
+          <span style={{
+            padding: '8px 16px',
+            borderRadius: '20px',
+            fontSize: '13px',
+            fontWeight: '700',
+            background: employee.employee_type === 'Third-Party' ? 'rgba(217,119,6,0.15)' : 'rgba(34,197,94,0.15)',
+            border: employee.employee_type === 'Third-Party' ? '1px solid rgba(217,119,6,0.4)' : '1px solid rgba(34,197,94,0.4)',
+            color: employee.employee_type === 'Third-Party' ? '#fbbf24' : '#4ade80',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)'
+          }}>
+            {employee.employee_type || 'Direct'} Employee
+          </span>
+        </div>
       </div>
       <button
   onClick={() => setShowTerms(true)}
   style={{
     position: "relative",
-top: "-15px",
+    top: "-15px",
     padding: "8px 14px",
-    background: "#2563eb",
+    background: "rgba(37, 99, 235, 0.35)",
+    backdropFilter: "blur(8px)",
+    WebkitBackdropFilter: "blur(8px)",
     color: "white",
-    border: "none",
+    border: "1px solid rgba(96, 165, 250, 0.4)",
     borderRadius: "8px",
     cursor: "pointer"
   }}
@@ -1600,22 +1701,71 @@ top: "-15px",
         </div>
       </div>
 
-      {/* SUMMARY CARDS */}
+      {/* SUMMARY CARDS — glass KPI tiles with icon chips, staggered entrance */}
       <div style={summaryGrid}>
-        <div style={card}>
+        <div style={{ ...card, animation: 'fadeInUp 0.6s ease 0.08s both' }}>
+          {/* Icon chip for a colorful accent */}
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            marginBottom: '14px',
+            background: 'linear-gradient(135deg, rgba(34,197,94,0.25), rgba(34,197,94,0.08))',
+            border: '1px solid rgba(34,197,94,0.35)'
+          }}>💰</div>
           <h3 style={cardLabel}>Net Payable Salary</h3>
           <h1 style={{ ...cardValue, color: '#22c55e' }}>₹{Number(payableSalary).toLocaleString()}</h1>
         </div>
-        <div style={card}>
+        <div style={{ ...card, animation: 'fadeInUp 0.6s ease 0.16s both' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            marginBottom: '14px',
+            background: 'linear-gradient(135deg, rgba(6,182,212,0.25), rgba(6,182,212,0.08))',
+            border: '1px solid rgba(6,182,212,0.35)'
+          }}>📅</div>
           <h3 style={cardLabel}>Attendance</h3>
           <h1 style={{ ...cardValue, color: '#06b6d4' }}>{attendancePercentage}%</h1>
         </div>
-        <div style={card}>
+        <div style={{ ...card, animation: 'fadeInUp 0.6s ease 0.24s both' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            marginBottom: '14px',
+            background: 'linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08))',
+            border: '1px solid rgba(168,85,247,0.35)'
+          }}>🌴</div>
           <h3 style={cardLabel}>Leave Balance</h3>
           <h1 style={{ ...cardValue, color: '#a855f7' }}>{Number(leaveBalance.available_leaves).toFixed(1)}</h1>
           <p style={cardSub}>of {Number(leaveBalance.total_leaves_earned).toFixed(1)} earned</p>
         </div>
-        <div style={card}>
+        <div style={{ ...card, animation: 'fadeInUp 0.6s ease 0.32s both' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            marginBottom: '14px',
+            background: 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(245,158,11,0.08))',
+            border: '1px solid rgba(245,158,11,0.35)'
+          }}>🚀</div>
           <h3 style={cardLabel}>Performance</h3>
           <h1 style={{ ...cardValue, color: '#f59e0b' }}>{averageRating} ⭐</h1>
           <p style={cardSub}>{performance.length} review(s)</p>
@@ -2181,7 +2331,13 @@ const pageContainer = {
   maxWidth: '1400px',
   margin: '0 auto',
   minHeight: '100vh',
-  background: '#0f172a'
+  /* Aurora gradient backdrop + subtle radial glows for a premium glass look */
+  background:
+    'radial-gradient(circle at 12% 8%, rgba(56,189,248,0.12), transparent 40%),' +
+    'radial-gradient(circle at 88% 12%, rgba(167,139,250,0.14), transparent 42%),' +
+    'radial-gradient(circle at 50% 95%, rgba(34,211,238,0.10), transparent 45%),' +
+    'linear-gradient(160deg, #020617 0%, #0f172a 55%, #172554 100%)',
+  animation: 'pageFadeIn 0.4s ease'
 }
 
 const centerScreen = {
@@ -2189,13 +2345,20 @@ const centerScreen = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  background: '#0f172a',
+  /* Match the aurora backdrop so the loader/error screens blend with the page */
+  background:
+    'radial-gradient(circle at 12% 8%, rgba(56,189,248,0.12), transparent 40%),' +
+    'radial-gradient(circle at 88% 12%, rgba(167,139,250,0.14), transparent 42%),' +
+    'linear-gradient(160deg, #020617 0%, #0f172a 55%, #172554 100%)',
   padding: '20px'
 }
 
 const errorCard = {
-  background: '#1e293b',
-  border: '1px solid #334155',
+  /* Frosted glass panel for a premium look */
+  background: 'rgba(30, 41, 59, 0.55)',
+  backdropFilter: 'blur(20px)',
+  WebkitBackdropFilter: 'blur(20px)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
   borderRadius: '20px',
   padding: '40px',
   maxWidth: '480px',
@@ -2218,8 +2381,11 @@ const termsOverlay = {
 }
 
 const termsBox = {
-  background: '#1e293b',
-  border: '1px solid #334155',
+  /* Frosted glass modal */
+  background: 'rgba(30, 41, 59, 0.7)',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
+  border: '1px solid rgba(148, 163, 184, 0.2)',
   borderRadius: '20px',
   padding: '32px',
   maxWidth: '560px',
@@ -2228,8 +2394,8 @@ const termsBox = {
 }
 
 const termsTextBox = {
-  background: '#0f172a',
-  border: '1px solid #334155',
+  background: 'rgba(2, 6, 23, 0.5)',
+  border: '1px solid rgba(148, 163, 184, 0.15)',
   borderRadius: '12px',
   padding: '16px 18px',
   maxHeight: '220px',
@@ -2251,8 +2417,8 @@ const termsCheckboxRow = {
 const liveMatchBadge = {
   marginTop: '10px',
   padding: '10px 14px',
-  background: '#0f172a',
-  border: '1px solid #334155',
+  background: 'rgba(2, 6, 23, 0.5)',
+  border: '1px solid rgba(148, 163, 184, 0.15)',
   borderRadius: '10px',
   textAlign: 'center'
 }
@@ -2274,11 +2440,14 @@ const summaryGrid = {
 }
 
 const card = {
-  background: '#1e293b',
+  /* Frosted glass KPI card with a soft inner highlight */
+  background: 'linear-gradient(160deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.5))',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
   borderRadius: '20px',
   padding: '28px',
-  border: '1px solid #334155',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)'
 }
 
 const cardLabel = {
@@ -2307,11 +2476,14 @@ const twoColumnLayout = {
 }
 
 const sectionCard = {
-  background: '#1e293b',
+  /* Frosted glass section panel */
+  background: 'linear-gradient(160deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.45))',
+  backdropFilter: 'blur(18px)',
+  WebkitBackdropFilter: 'blur(18px)',
   borderRadius: '20px',
   padding: '24px',
-  border: '1px solid #334155',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.05)',
   marginBottom: '24px'
 }
 
@@ -2347,7 +2519,7 @@ const salaryRow = {
   display: 'flex',
   justifyContent: 'space-between',
   padding: '10px 0',
-  borderBottom: '1px solid #334155'
+  borderBottom: '1px solid rgba(148, 163, 184, 0.12)'
 }
 
 const netSalaryBox = {
@@ -2356,7 +2528,7 @@ const netSalaryBox = {
   alignItems: 'center',
   marginTop: '16px',
   paddingTop: '16px',
-  borderTop: '1px solid #334155'
+  borderTop: '1px solid rgba(148, 163, 184, 0.15)'
 }
 
 const labelStyle = {
@@ -2372,12 +2544,13 @@ const inputStyle = {
   padding: '12px 14px',
   marginBottom: '16px',
   borderRadius: '10px',
-  border: '1px solid #475569',
-  background: '#0f172a',
+  border: '1px solid rgba(148, 163, 184, 0.25)',
+  background: 'rgba(2, 6, 23, 0.5)',
   color: '#f8fafc',
   fontSize: '14px',
   outline: 'none',
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
+  transition: 'border-color 0.2s ease'
 }
 
 const textareaStyle = {
@@ -2389,20 +2562,25 @@ const textareaStyle = {
 const primaryButton = {
   width: '100%',
   padding: '14px',
-  background: '#2563eb',
+  /* Vibrant blue→violet gradient for the primary action */
+  background: 'linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #8b5cf6 100%)',
   color: '#ffffff',
   border: 'none',
   borderRadius: '12px',
   fontWeight: '600',
   fontSize: '15px',
-  boxShadow: '0 4px 20px rgba(37,99,235,0.3)'
+  boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
+  cursor: 'pointer'
 }
 
 const secondaryButton = {
   padding: '14px 20px',
-  background: '#334155',
+  /* Frosted glass secondary button */
+  background: 'rgba(51, 65, 85, 0.6)',
+  backdropFilter: 'blur(10px)',
+  WebkitBackdropFilter: 'blur(10px)',
   color: '#f8fafc',
-  border: 'none',
+  border: '1px solid rgba(148, 163, 184, 0.2)',
   borderRadius: '12px',
   fontWeight: '600',
   fontSize: '15px',
@@ -2413,8 +2591,9 @@ const cameraPreview = {
   width: '100%',
   maxWidth: '360px',
   borderRadius: '12px',
-  border: '1px solid #334155',
-  background: '#000'
+  border: '1px solid rgba(148, 163, 184, 0.2)',
+  background: '#000',
+  boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
 }
 
 const tableStyle = {
@@ -2428,19 +2607,20 @@ const thStyle = {
   color: '#94a3b8',
   fontSize: '12px',
   textTransform: 'uppercase',
-  borderBottom: '1px solid #334155'
+  letterSpacing: '0.5px',
+  borderBottom: '1px solid rgba(148, 163, 184, 0.15)'
 }
 
 const tdStyle = {
   padding: '10px',
   color: '#f8fafc',
   fontSize: '14px',
-  borderBottom: '1px solid #334155'
+  borderBottom: '1px solid rgba(148, 163, 184, 0.12)'
 }
 
 const performanceItem = {
-  background: '#0f172a',
-  border: '1px solid #334155',
+  background: 'rgba(2, 6, 23, 0.45)',
+  border: '1px solid rgba(148, 163, 184, 0.15)',
   borderRadius: '12px',
   padding: '14px',
   marginBottom: '10px'
@@ -2461,15 +2641,16 @@ const modalOverlay = {
 };
 
 const modalBox = {
-
-  background: "#1e293b",
+  /* Frosted glass modal */
+  background: "rgba(30, 41, 59, 0.75)",
+  backdropFilter: "blur(24px)",
+  WebkitBackdropFilter: "blur(24px)",
   padding: "30px",
   borderRadius: "20px",
   width: "420px",
   color: "#f8fafc",
-  border: "1px solid #334155",
+  border: "1px solid rgba(148, 163, 184, 0.2)",
   boxShadow: "0 10px 35px rgba(0,0,0,.45)"
-
 };
 
 const cancelButton = {
@@ -2486,7 +2667,7 @@ const cancelButton = {
 
 const confirmButton = {
 
-  background: "#dc2626",
+  background: "linear-gradient(135deg, #f87171, #dc2626)",
   color: "#fff",
   border: "none",
   padding: "12px 24px",
@@ -2494,5 +2675,21 @@ const confirmButton = {
   cursor: "pointer",
   fontWeight: "700"
 
+};
+
+/* Floating logout pill (top-right) with a frosted glass look */
+const logoutFloatingButton = {
+  padding: "10px 18px",
+  background: "rgba(30, 41, 59, 0.65)",
+  backdropFilter: "blur(12px)",
+  WebkitBackdropFilter: "blur(12px)",
+  color: "#f8fafc",
+  border: "1px solid rgba(148, 163, 184, 0.25)",
+  borderRadius: "30px",
+  cursor: "pointer",
+  fontWeight: "600",
+  fontSize: "14px",
+  boxShadow: "0 6px 20px rgba(0,0,0,0.3)",
+  transition: "transform 0.15s ease, background 0.15s ease"
 };
 export default EmployeeDashboard

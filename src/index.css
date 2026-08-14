@@ -237,6 +237,12 @@ body::after{
         zoom: 0.88;
         min-height: 113.64vh;
     }
+
+    /* The cinematic loading screen must always cover the physical viewport. */
+    #root:has(.login-animation) {
+        zoom: 1;
+        min-height: 100vh;
+    }
 }
 
 #root .top-glow{

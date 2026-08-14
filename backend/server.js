@@ -2,9 +2,20 @@ import express from "express";
 import cors from "cors";
 import db from "./db.js";
 import cron from "node-cron";
+import { Resend } from "resend";
+import crypto from "crypto";
 import PayrollFormula from "./utils/PayrollFormula.js";
+import {
+  requireAuth,
+  requireRole,
+  requireSession
+} from "./authMiddleware.js";
+import { generateSecret, generateURI, verify } from "otplib";
+import QRCode from "qrcode";
+import jwt from "jsonwebtoken";
 
 const app = express();
+const resend = new Resend(process.env.RESEND_API_KEY);
 // Office Location
 const OFFICE_LAT = 19.0760;
 const OFFICE_LNG = 72.8777;
@@ -179,9 +190,355 @@ employee.id
 app.get("/", (req, res) => {
   res.send("Backend Running");
 });
+app.post(
+  "/api/authenticator/generate",
+  async (req, res) => {
 
+    try {
+
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({
+          message: "Email is required."
+        });
+      }
+
+      // Find employee by email
+      const employeeResult = await db.query(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          authenticator_secret,
+          authenticator_enabled
+        FROM employees
+        WHERE LOWER(email) = LOWER($1)
+        LIMIT 1
+        `,
+        [email.trim()]
+      );
+
+      if (employeeResult.rows.length === 0) {
+
+        return res.status(404).json({
+          message:
+            "No payroll account was found for this email."
+        });
+
+      }
+
+      const employee =
+        employeeResult.rows[0];
+
+      let secret =
+        employee.authenticator_secret;
+
+      /*
+       * Generate a secret only if this
+       * account does not have one yet.
+       */
+      if (!secret) {
+
+        secret = generateSecret();
+
+        await db.query(
+          `
+          UPDATE employees
+          SET
+            authenticator_secret = $1,
+            authenticator_enabled = FALSE
+          WHERE id = $2
+          `,
+          [
+            secret,
+            employee.id
+          ]
+        );
+
+      }
+
+      /*
+       * Create Google Authenticator
+       * compatible OTP URI.
+       */
+      const otpauth = generateURI({
+  issuer: "Payroll System",
+  label: employee.email,
+  secret: secret
+});
+
+      /*
+       * Convert the OTP URI into a QR image.
+       */
+      const qrCode =
+        await QRCode.toDataURL(
+          otpauth
+        );
+
+      res.json({
+
+        success: true,
+
+        employeeId:
+          employee.id,
+
+        email:
+          employee.email,
+
+        qrCode,
+
+        authenticatorEnabled:
+          employee.authenticator_enabled
+
+      });
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Authenticator QR error:",
+        err
+      );
+
+      res.status(500).json({
+
+        message:
+          "Unable to generate Authenticator QR code."
+
+      });
+
+    }
+
+  }
+);
+app.post(
+  "/api/authenticator/verify",
+  async (req, res) => {
+
+    try {
+
+      const {
+        email,
+        token
+      } = req.body;
+
+      if (!email || !token) {
+        return res.status(400).json({
+          message:
+            "Email and Authenticator code are required."
+        });
+      }
+
+      if (!/^\d{6}$/.test(token)) {
+        return res.status(400).json({
+          message:
+            "Authenticator code must be 6 digits."
+        });
+      }
+
+      // Find the payroll account
+      const employeeResult =
+        await db.query(
+          `
+          SELECT
+            id,
+            name,
+            email,
+            authenticator_secret,
+            authenticator_enabled,
+            employment_status
+          FROM employees
+          WHERE LOWER(email) = LOWER($1)
+          LIMIT 1
+          `,
+          [email.trim()]
+        );
+
+      if (employeeResult.rows.length === 0) {
+
+        return res.status(404).json({
+          message:
+            "No payroll account was found for this email."
+        });
+
+      }
+
+      const employee =
+        employeeResult.rows[0];
+
+      // Authenticator has not been configured
+      if (!employee.authenticator_secret) {
+
+        return res.status(400).json({
+          message:
+            "Authenticator has not been configured for this account."
+        });
+
+      }
+
+      // Verify Google Authenticator code
+      const verification =
+        await verify({
+          secret:
+            employee.authenticator_secret,
+          token
+        });
+
+      if (!verification.valid) {
+
+        return res.status(401).json({
+          message:
+            "Invalid Authenticator code."
+        });
+
+      }
+
+      /*
+       * First successful verification means
+       * Authenticator setup is complete.
+       */
+      if (!employee.authenticator_enabled) {
+
+        await db.query(
+          `
+          UPDATE employees
+          SET authenticator_enabled = TRUE
+          WHERE id = $1
+          `,
+          [employee.id]
+        );
+
+      }
+
+      const profileResult = await db.query(
+  `
+  SELECT
+    id,
+    role,
+    full_name
+  FROM employee_profiles
+  WHERE LOWER(email) = LOWER($1)
+  LIMIT 1
+  `,
+  [employee.email]
+);
+
+if (profileResult.rows.length === 0) {
+
+  return res.status(403).json({
+    message: "User profile not found."
+  });
+
+}
+
+const profile = profileResult.rows[0];
+
+const authenticatorToken = jwt.sign(
+  {
+    userId: profile.id,
+    email: employee.email,
+    role: profile.role,
+    authMethod: "authenticator"
+  },
+  process.env.AUTHENTICATOR_JWT_SECRET,
+  {
+    expiresIn: "1h"
+  }
+);
+
+console.log(
+  "AUTHENTICATOR LOGIN SUCCESS:",
+  {
+    userId: profile.id,
+    email: employee.email,
+    role: profile.role
+  }
+);
+
+return res.json({
+
+  success: true,
+
+  message:
+    "Authenticator verification successful.",
+
+  token: authenticatorToken,
+
+  user: {
+    id: profile.id,
+    email: employee.email,
+    role: profile.role,
+    name: profile.full_name
+  }
+
+});
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Authenticator verification error:",
+        err
+      );
+
+      res.status(500).json({
+
+        message:
+          "Unable to verify Authenticator code."
+
+      });
+
+    }
+
+  }
+);
+app.get(
+  "/api/test-auth",
+  requireAuth,
+  (req, res) => {
+
+    res.json({
+      message: "Authentication successful",
+      userId: req.user.id,
+      email: req.user.email,
+      role: req.userRole
+    });
+
+  }
+);
+app.get(
+  "/api/me",
+  requireAuth,
+  (req, res) => {
+
+    try {
+
+      res.json({
+        userId: req.user.id,
+        email: req.user.email,
+        role: req.userRole
+      });
+
+    } catch (err) {
+
+      console.error("ME endpoint error:", err);
+
+      res.status(500).json({
+        message: "Unable to load user profile"
+      });
+
+    }
+
+  }
+);
 app.get(
   "/api/outsourced-employees",
+  requireAuth,
+  requireRole("hr"),
   async (req, res) => {
 
     try {
@@ -239,6 +596,8 @@ app.get(
 );
 app.post(
   "/api/outsourced-employees",
+  requireAuth,
+  requireRole("hr"),
   async (req, res) => {
 
     const {
@@ -319,8 +678,455 @@ app.post(
 
   }
 );
+app.get("/api/test-email", async (req, res) => {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: ["sanchit.dhone8595@gmail.com"],
+      subject: "Payroll Email Test",
+      html: `
+        <h2>Payroll System Email Test</h2>
+        <p>If you received this email, Resend is working correctly.</p>
+      `,
+    });
+
+    if (error) {
+      console.error("Resend error:", error);
+
+      return res.status(500).json({
+        message: error.message || "Email sending failed",
+      });
+    }
+
+    console.log("Test email sent:", data);
+
+    res.json({
+      success: true,
+      message: "Test email sent successfully",
+      id: data?.id,
+    });
+
+  } catch (err) {
+    console.error("Email test error:", err);
+
+    res.status(500).json({
+      message: err.message || "Email sending failed",
+    });
+  }
+});
+app.post(
+  "/api/login/send-email-otp",
+  requireSession,
+  async (req, res) => {
+
+    try {
+
+      const userId = req.user.id;
+      const email = req.user.email;
+      const sessionId = req.sessionId;
+
+      if (!userId || !email || !sessionId) {
+        return res.status(400).json({
+          message: "User session information is missing"
+        });
+      }
+
+      // Check if an OTP was sent in the last 60 seconds
+      const recentOtp = await db.query(
+        `
+        SELECT id
+        FROM login_otps
+        WHERE user_id = $1
+          AND created_at > NOW() - INTERVAL '60 seconds'
+          AND used = FALSE
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [userId]
+      );
+
+      if (recentOtp.rows.length > 0) {
+        return res.status(429).json({
+          message: "Please wait 60 seconds before requesting another OTP."
+        });
+      }
+
+      // Generate secure 6-digit OTP
+      const otp = crypto
+        .randomInt(100000, 1000000)
+        .toString();
+
+      // Hash OTP before storing it
+      const otpHash = crypto
+        .createHash("sha256")
+        .update(otp)
+        .digest("hex");
+
+      
+
+      // Invalidate previous unused OTPs
+      await db.query(
+        `
+        UPDATE login_otps
+        SET used = TRUE
+        WHERE user_id = $1
+          AND used = FALSE
+        `,
+        [userId]
+      );
+
+      // Store OTP hash
+      await db.query(
+        `
+        INSERT INTO login_otps
+(
+  user_id,
+  email,
+  otp_hash,
+  expires_at
+)
+VALUES (
+  $1,
+  $2,
+  $3,
+  NOW() + INTERVAL '5 minutes'
+)
+        `,
+        [
+  userId,
+  email,
+  otpHash
+]
+      );
+
+      // Create login challenge
+      // Create login challenge
+await db.query(
+  `
+  INSERT INTO login_challenges
+  (
+    user_id,
+    session_id,
+    email,
+    otp_verified,
+    expires_at
+  )
+  VALUES (
+    $1,
+    $2,
+    $3,
+    FALSE,
+    NOW() + INTERVAL '5 minutes'
+  )
+  `,
+  [
+    userId,
+    sessionId,
+    email
+  ]
+);  
+
+      // Send OTP
+      const { data, error } =
+        await resend.emails.send({
+          from: "onboarding@resend.dev",
+          to: [email],
+          subject: "Payroll System Login OTP",
+          html: `
+            <div style="font-family: Arial, sans-serif;">
+
+              <h2>Payroll System Login</h2>
+
+              <p>
+                Your verification code is:
+              </p>
+
+              <div
+                style="
+                  font-size: 32px;
+                  font-weight: bold;
+                  letter-spacing: 8px;
+                  margin: 20px 0;
+                "
+              >
+                ${otp}
+              </div>
+
+              <p>
+                This OTP will expire in 5 minutes.
+              </p>
+
+              <p>
+                If you did not attempt to log in,
+                please ignore this email.
+              </p>
+
+            </div>
+          `
+        });
+
+      if (error) {
+
+        console.error(
+          "Resend OTP error:",
+          error
+        );
+
+        return res.status(500).json({
+          message: "Unable to send OTP email."
+        });
+
+      }
+
+      console.log(
+        "Login OTP sent:",
+        data?.id
+      );
+
+      return res.json({
+        success: true,
+        message: "OTP sent successfully."
+      });
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Send OTP error:",
+        err
+      );
+
+      return res.status(500).json({
+        message: "Unable to send OTP."
+      });
+
+    }
+
+  }
+);
+app.post(
+  "/api/login/verify-email-otp",
+  requireSession,
+  async (req, res) => {
+
+    try {
+
+      const userId = req.user.id;
+      const sessionId = req.sessionId;
+      const email = req.user.email;
+      const { otp } = req.body;
+
+      console.log("=== VERIFY OTP DEBUG ===");
+console.log("User ID:", userId);
+console.log("Session ID:", sessionId);
+console.log("Email:", email);
+console.log("Entered OTP:", otp);
+
+      if (!otp) {
+        return res.status(400).json({
+          message: "OTP is required"
+        });
+      }
+
+      if (!/^\d{6}$/.test(otp)) {
+        return res.status(400).json({
+          message: "OTP must be 6 digits"
+        });
+      }
+
+      // Find the latest unused OTP
+      const otpResult = await db.query(
+        `
+        SELECT
+          id,
+          otp_hash,
+          expires_at,
+          attempts
+        FROM login_otps
+        WHERE user_id = $1
+          AND email = $2
+          AND used = FALSE
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [userId, email]
+      );
+
+      if (otpResult.rows.length === 0) {
+        return res.status(400).json({
+          message: "No active OTP found. Please request a new OTP."
+        });
+      }
+
+      const storedOtp = otpResult.rows[0];
+
+     // Check expiration using PostgreSQL time
+const expiryCheck = await db.query(
+  `
+  SELECT id
+  FROM login_otps
+  WHERE id = $1
+    AND expires_at > NOW()
+  `,
+  [storedOtp.id]
+);
+
+if (expiryCheck.rows.length === 0) {
+
+  await db.query(
+    `
+    UPDATE login_otps
+    SET used = TRUE
+    WHERE id = $1
+    `,
+    [storedOtp.id]
+  );
+
+  return res.status(400).json({
+    message: "OTP has expired. Please request a new OTP."
+  });
+}
+
+      // Limit incorrect attempts
+      if (storedOtp.attempts >= 5) {
+
+        await db.query(
+          `
+          UPDATE login_otps
+          SET used = TRUE
+          WHERE id = $1
+          `,
+          [storedOtp.id]
+        );
+
+        return res.status(429).json({
+          message: "Too many incorrect attempts. Please request a new OTP."
+        });
+      }
+
+      // Hash submitted OTP
+      const submittedOtpHash = crypto
+        .createHash("sha256")
+        .update(otp)
+        .digest("hex");
+
+      // Compare hashes
+      if (
+        submittedOtpHash !== storedOtp.otp_hash
+      ) {
+
+        await db.query(
+          `
+          UPDATE login_otps
+          SET attempts = attempts + 1
+          WHERE id = $1
+          `,
+          [storedOtp.id]
+        );
+
+        return res.status(401).json({
+          message: "Invalid OTP"
+        });
+      }
+
+      
+
+      // Mark this specific login session as OTP verified
+      // Find the latest active login challenge
+const challengeResult = await db.query(
+  `
+  SELECT
+    id,
+    session_id,
+    expires_at
+  FROM login_challenges
+  WHERE user_id = $1
+    AND email = $2
+    AND otp_verified = FALSE
+    AND expires_at > NOW()
+  ORDER BY created_at DESC
+  LIMIT 1
+  `,
+  [
+    userId,
+    email
+  ]
+);
+
+if (challengeResult.rows.length === 0) {
+
+  console.log("NO ACTIVE LOGIN CHALLENGE");
+  console.log({
+    userId,
+    email,
+    sessionId
+  });
+
+  return res.status(400).json({
+    message: "Login challenge is invalid or expired."
+  });
+
+}
+
+const challenge =
+  challengeResult.rows[0];
+
+console.log("LOGIN CHALLENGE FOUND:", {
+  challengeId: challenge.id,
+  challengeSessionId: challenge.session_id,
+  currentSessionId: sessionId,
+  expiresAt: challenge.expires_at
+});
+
+// Mark challenge as verified
+await db.query(
+  `
+  UPDATE login_challenges
+  SET otp_verified = TRUE
+  WHERE id = $1
+  `,
+  [
+    challenge.id
+  ]
+);
+
+// OTP is correct
+      await db.query(
+        `
+        UPDATE login_otps
+        SET used = TRUE
+        WHERE id = $1
+        `,
+        [storedOtp.id]
+      );  
+
+      return res.json({
+        success: true,
+        message: "Email OTP verified successfully."
+      });
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Verify OTP error:",
+        err
+      );
+
+      return res.status(500).json({
+        message: "Unable to verify OTP."
+      });
+
+    }
+
+  }
+);
 app.delete(
   "/api/outsourced-employees/:id",
+  requireAuth,
+  requireRole("hr"),
   async (req, res) => {
 
     try {
@@ -374,7 +1180,11 @@ if (process.env.NODE_ENV !== "production") {
 
 export default app;
 
-app.get("/api/employees", async (req, res) => {
+app.get(
+  "/api/employees",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
   try {
     const result =
   await db.query(
@@ -397,7 +1207,11 @@ app.get("/api/employees", async (req, res) => {
 
 });
 
-app.post("/api/employees", async (req, res) => {
+app.post(
+  "/api/employees",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   let client;
 
@@ -1259,7 +2073,11 @@ if (
   }
 
 });
-app.delete("/api/employees/:id", async (req, res) => {
+app.delete(
+  "/api/employees/:id",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 
@@ -1311,7 +2129,11 @@ await db.query(
   }
 
 });
-app.put("/api/attendance/:id", async (req, res) => {
+app.put(
+  "/api/attendance/:id",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 
@@ -1430,7 +2252,10 @@ app.put("/api/attendance/:id", async (req, res) => {
   }
 
 });
-app.get("/api/attendance", async (req, res) => {
+app.get(
+  "/api/attendance",
+  requireAuth,
+  async (req, res) => {
 
   try {
 
@@ -1450,14 +2275,21 @@ app.get("/api/attendance", async (req, res) => {
       ON attendance.employee_id = employees.id
 
       WHERE attendance.attendance_date = (
-        SELECT MAX(attendance_date)
-        FROM attendance
-      )
+  SELECT MAX(attendance_date)
+  FROM attendance
+)
+AND (
+  $1 = 'hr'
+  OR employees.email = $2
+)
 
       ORDER BY attendance.updated_at DESC
-      `
-    );
-
+`,
+[
+  req.userRole,
+  req.user.email
+]
+);
     res.json(result.rows);
 
   }
@@ -1470,7 +2302,10 @@ app.get("/api/attendance", async (req, res) => {
   }
 
 });
-app.get("/api/attendance/:date", async (req, res) => {
+app.get(
+  "/api/attendance/:date",
+  requireAuth,
+  async (req, res) => {
 
   try {
 
@@ -1493,9 +2328,18 @@ app.get("/api/attendance/:date", async (req, res) => {
 
       WHERE attendance.attendance_date = $1
 
-      ORDER BY employees.id ASC
-      `,
-      [date]
+AND (
+  $2 = 'hr'
+  OR employees.email = $3
+)
+
+ORDER BY employees.id ASC
+`,
+[
+  date,
+  req.userRole,
+  req.user.email
+]
     );
 
     res.json(result.rows);
@@ -1905,7 +2749,11 @@ currentYear
   }
 
 });
-app.get("/api/payroll", async (req, res) => {
+app.get(
+  "/api/payroll",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
   try {
     const result = await db.query(`
       SELECT
@@ -2037,7 +2885,11 @@ net_pay: calculation.netPay,
     });
   }
 });
-app.put("/api/payroll/:id", async (req, res) => {
+app.put(
+  "/api/payroll/:id",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 
@@ -2286,7 +3138,10 @@ app.get(
 
   }
 )
-app.get("/api/leaves", async (req, res) => {
+app.get(
+  "/api/leaves",
+  requireAuth,
+  async (req, res) => {
 
   try {
 
@@ -2320,7 +3175,10 @@ app.get("/api/leaves", async (req, res) => {
 
 });
 
-app.post("/api/leaves", async (req, res) => {
+app.post(
+  "/api/leaves",
+  requireAuth,
+  async (req, res) => {
 
   try {
 
@@ -2425,7 +3283,11 @@ reason,
 
 });
 
-app.put("/api/leaves/:id", async (req, res) => {
+app.put(
+  "/api/leaves/:id",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 
@@ -2737,7 +3599,11 @@ app.post("/api/performance", async (req, res) => {
   }
 
 });
-app.get("/api/clients", async (req, res) => {
+app.get(
+  "/api/clients",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 
@@ -2763,7 +3629,11 @@ app.get("/api/clients", async (req, res) => {
 
   }
 
-});app.post("/api/clients", async (req, res) => {
+});app.post(
+  "/api/clients",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   const {
 
@@ -2818,7 +3688,12 @@ app.get("/api/clients", async (req, res) => {
 
   }
 
-});app.delete("/api/clients/:id", async (req, res) => {
+});
+app.delete(
+  "/api/clients/:id",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
 
   try {
 

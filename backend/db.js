@@ -1,5 +1,7 @@
-import "dotenv/config";
 import pg from "pg";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const { Pool } = pg;
 
@@ -9,9 +11,18 @@ const db = new Pool({
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
+
   ssl: {
-    rejectUnauthorized: false,
-  },
+    rejectUnauthorized: false
+  }
 });
+
+db.connect()
+  .then(() => {
+    console.log("Supabase PostgreSQL Connected");
+  })
+  .catch((err) => {
+    console.log("Database connection failed:", err.message);
+  });
 
 export default db;
