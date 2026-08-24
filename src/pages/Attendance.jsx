@@ -4,7 +4,10 @@ import { useState, useEffect } from 'react'
 import "./Attendance.css";
 import StatCard from "../components/Dashboard/StatCard";
 import GlassScrollArea from "../components/GlassScrollArea";
+import { apiFetch, API_BASE } from "../api";
+import { useTheme } from "../context/ThemeContext";
 function Attendance() {
+  const { isDark } = useTheme();
 
   const [attendance, setAttendance] = useState([])
   const [selectedDate, setSelectedDate] = useState(
@@ -18,37 +21,32 @@ function Attendance() {
   useState("");
   useEffect(() => {
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/attendance/${selectedDate}`
-  )
+  apiFetch(`${API_BASE}/api/attendance/${selectedDate}`)
     .then(res => res.json())
-    .then(data => setAttendance(data))
-    .catch(err => console.log(err))
+    .then(data => { if (Array.isArray(data)) setAttendance(data); })
+    .catch(err => console.error(err))
 
 }, [selectedDate])
   
 useEffect(() => {
 
-  fetch('https://payroll-management-system-three.vercel.app/api/leave-balance')
+  apiFetch(`${API_BASE}/api/leave-balance`)
     .then(res => res.json())
-    .then(data => setLeaveBalance(data))
-    .catch(err => console.log(err))
+    .then(data => { if (Array.isArray(data)) setLeaveBalance(data); })
+    .catch(err => console.error(err))
 
 }, [])
 useEffect(() => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
-  )
+  apiFetch(`${API_BASE}/api/monthly-attendance-summary`)
     .then(res => res.json())
-    .then(data => setMonthlySummary(data))
-    .catch(err => console.log(err))
+    .then(data => { if (Array.isArray(data)) setMonthlySummary(data); })
+    .catch(err => console.error(err))
 
 }, [])
 useEffect(() => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/process-monthly-leaves",
+  apiFetch(`${API_BASE}/api/process-monthly-leaves`,
     {
       method: "POST"
     }
@@ -79,9 +77,6 @@ useEffect(() => {
   return () => clearInterval(interval)
 
 }, [selectedDate])
-  if (attendance.length > 0) {
-  console.log(attendance[0]);
-}
   
 
 const leaveMap = {}
@@ -126,26 +121,21 @@ if (
     return
   }
 
-  fetch(`https://payroll-management-system-three.vercel.app/api/attendance/${id}`, {
+  apiFetch(`${API_BASE}/api/attendance/${id}`, {
     method: "PUT",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       status
     })
   })
-  .then(() => {
-    
+  .then(res => {
+    if (!res.ok) throw new Error('Failed to update attendance');
     if (status === "Paid Leave") {
 
-      return fetch(
-        `https://payroll-management-system-three.vercel.app/api/leave-balance/${employeeId}`,
+      return apiFetch(`${API_BASE}/api/leave-balance/${employeeId}`,
         {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json"
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             available_leaves:
               currentLeaveBalance - 1
@@ -158,16 +148,13 @@ if (
   })
   .then(() =>
   Promise.all([
-    fetch(
-      `https://payroll-management-system-three.vercel.app/api/attendance/${selectedDate}`
+    apiFetch(`${API_BASE}/api/attendance/${selectedDate}`
     ).then(res => res.json()),
 
-    fetch(
-      "https://payroll-management-system-three.vercel.app/api/leave-balance"
+    apiFetch(`${API_BASE}/api/leave-balance`
     ).then(res => res.json()),
 
-    fetch(
-      "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
+    apiFetch(`${API_BASE}/api/monthly-attendance-summary`
     ).then(res => res.json())
   ])
 )
@@ -179,22 +166,25 @@ if (
   ]
 ) => {
 
-  setAttendance(attendanceData)
+  if (Array.isArray(attendanceData)) setAttendance(attendanceData)
 
-  setLeaveBalance(leaveData)
+  if (Array.isArray(leaveData)) setLeaveBalance(leaveData)
 
-  setMonthlySummary(monthlyData)
+  if (Array.isArray(monthlyData)) setMonthlySummary(monthlyData)
 
-})}
+})
+.catch(err => console.error(err))}
 const generateTodayAttendance = () => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/attendance/generate-today",
+  apiFetch(`${API_BASE}/api/attendance/generate-today`,
     {
       method: "POST"
     }
   )
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok) throw new Error('Failed to generate attendance');
+      return res.json();
+    })
 
     .then(data => {
 
@@ -208,17 +198,20 @@ const generateTodayAttendance = () => {
 
       setSelectedDate(currentDate)
 
-      return fetch(
-        `https://payroll-management-system-three.vercel.app/api/attendance/${currentDate}`
-      )
+      return apiFetch(`${API_BASE}/api/attendance/${currentDate}`)
 
     })
 
     .then(res => res.json())
 
-    .then(data => setAttendance(data))
+    .then(data => {
+      if (Array.isArray(data)) setAttendance(data);
+    })
 
-    .catch(err => console.log(err))
+    .catch(err => {
+      console.error(err);
+      alert('Error: ' + err.message);
+    })
 
 }
 const formattedDate = new Date(
@@ -267,18 +260,7 @@ const todayDate =
       'en-CA'
     )
 
-console.log(
-  "Selected Date:",
-  selectedDate
-)
 
-console.log(
-  "Current Date:",
-  new Date()
-    .toLocaleDateString(
-      'en-CA'
-    )
-)
 const filteredAttendance =
   attendance.filter((record) =>
     record.name
@@ -290,7 +272,7 @@ const filteredAttendance =
   return (
     
 
-    <div>
+    <div className="hr-page-light">
 
       <div className="attendanceHero">
 
@@ -312,7 +294,7 @@ const filteredAttendance =
 
     <button
         onClick={generateTodayAttendance}
-        style={glassButton}
+        style={getGlassButton(isDark)}
     >
         📅 Generate Attendance
     </button>
@@ -1284,37 +1266,32 @@ const newCell = {
 
 const glassButton = {
   padding: "12px 22px",
-
   borderRadius: "16px",
-
   border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
+  background: "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
   backdropFilter: "blur(18px)",
-
   WebkitBackdropFilter: "blur(18px)",
-
   color: "#f8fafc",
-
   fontWeight: 600,
-
   cursor: "pointer",
-
   transition: "all .25s ease",
-
   display: "flex",
-
   alignItems: "center",
-
   justifyContent: "center",
-
   gap: "8px",
-
-  boxShadow:
-    "0 12px 30px rgba(0,0,0,.25)"
+  boxShadow: "0 12px 30px rgba(0,0,0,.25)"
 };
+function getGlassButton(isDark) {
+  return {
+    ...glassButton,
+    border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
+    background: isDark
+      ? "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))"
+      : "rgba(255,255,255,0.85)",
+    color: isDark ? "#f8fafc" : "#0f172a",
+    boxShadow: isDark ? "0 12px 30px rgba(0,0,0,.25)" : "0 2px 8px rgba(0,0,0,0.06)",
+  };
+}
 const cardContainer = {
   display: "grid",
   gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
@@ -1331,4 +1308,12 @@ const searchInput = {
   outline: "none",
   backdropFilter: "blur(18px)",
 };
+function getSearchInput(isDark) {
+  return {
+    ...searchInput,
+    border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
+    background: isDark ? "rgba(255,255,255,.04)" : "rgba(255,255,255,0.85)",
+    color: isDark ? "#f8fafc" : "#0f172a",
+  };
+}
 export default Attendance

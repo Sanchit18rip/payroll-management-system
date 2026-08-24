@@ -1,13 +1,12 @@
-import { useState, useEffect } from 'react'
+import { apiFetch, API_BASE } from "../api";
+import { useState, useEffect, useMemo } from 'react'
+import SearchableDropdown from '../components/SearchableDropdown'
 import { jsPDF } from 'jspdf'
 import StatCard from "../components/Dashboard/StatCard";
 import PayrollDrawer from "../components/PayrollDrawer";
 import GlassScrollArea from "../components/GlassScrollArea";
 import { Download } from "lucide-react";
 import Papa from 'papaparse'
-// Single source of truth for the backend URL. Change this in one place
-// instead of hardcoding the host in every fetch call.
-const API_BASE = "https://payroll-management-system-three.vercel.app"
 
 function Payroll() {
 
@@ -29,37 +28,36 @@ const [payrollSettings, setPayrollSettings] = useState({
   gratuity: true,
   incentive: true,
   otherExpense: true,
+  esic: false,
+  lwf: false,
 });  
 
 const [employeePayrollSettings, setEmployeePayrollSettings] = useState({});
 const [showPayrollModal, setShowPayrollModal] = useState(false);
 const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-const [editDeduction, setEditDeduction] =
-  useState("")
-const [searchTerm, setSearchTerm] =
-  useState("")
-const [
-  incrementHistory,
-  setIncrementHistory
-] = useState([]);
-  useEffect(() => {
+const [editDeduction, setEditDeduction] =useState("")
+const [searchTerm, setSearchTerm] =useState("")
+const [deptFilter, setDeptFilter] = useState("All")
+const [incrementHistory,setIncrementHistory] = useState([]);
 
-    fetch(`${API_BASE}/api/payroll`)
+const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+
+
+
+  useEffect(() => {
+    apiFetch(`${API_BASE}/api/payroll/monthly?month=${selectedMonth}&year=${selectedYear}`)
       .then(res => res.json())
       .then(data => setPayroll(data))
-      .catch(err => console.log(err))
-    fetch(
-  `${API_BASE}/api/increment-history`
-)
-  .then(res => res.json())
-  .then(data =>
-    setIncrementHistory(data)
-  )
-  .catch(err =>
-    console.log(err)
-  );
-  }, [])
+      .catch(err => console.log(err));
+    apiFetch(`${API_BASE}/api/increment-history/monthly?month=${selectedMonth}&year=${selectedYear}`)
+      .then(res => res.json())
+      .then(data => setIncrementHistory(data))
+      .catch(err => console.log(err));
+  }, [selectedMonth, selectedYear]);
+
+
   const openEditModal = (employee) => {
 
   setEditingEmployee(employee)
@@ -71,7 +69,7 @@ const [
 }
 const savePayrollChanges = () => {
 
-  fetch(
+  apiFetch(
     `${API_BASE}/api/payroll/${editingEmployee.id}`,
     {
       method: "PUT",
@@ -86,7 +84,7 @@ const savePayrollChanges = () => {
     }
   )
     .then(() =>
-      fetch(
+      apiFetch(
         `${API_BASE}/api/payroll`
       )
     )
@@ -124,11 +122,11 @@ const averagePayroll =
     : 0
 console.log(payroll);
 const filteredPayroll = Array.isArray(payroll)
-  ? payroll.filter((employee) =>
-      (employee?.name ?? "")
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-    )
+  ? payroll.filter((employee) => {
+      if (!(employee?.name ?? "").toLowerCase().includes(searchTerm.toLowerCase())) return false;
+      if (deptFilter !== "All" && employee.department !== deptFilter) return false;
+      return true;
+    })
   : [];
 const employeeCount =
   payroll.length
@@ -455,7 +453,7 @@ const importPayrollCSV = (event) => {
 
           }
 
-          const response = await fetch(
+          const response = await apiFetch(
             `${API_BASE}/api/payroll/${employee.id}`,
             {
               method: "PUT",
@@ -490,7 +488,7 @@ const importPayrollCSV = (event) => {
         // ==============================
 
         const refreshed =
-          await fetch(
+          await apiFetch(
             `${API_BASE}/api/payroll`
           );
 
@@ -556,7 +554,7 @@ const handleEdit = async (employee) => {
   setSelectedEmployee(employee);
 
   try {
-    const response = await fetch(
+    const response = await apiFetch(
       `${API_BASE}/api/employees/${employee.id}`
     );
 
@@ -573,6 +571,8 @@ const handleEdit = async (employee) => {
       gratuity: data.gratuity_enabled,
       incentive: data.incentive_enabled,
       otherExpense: data.other_expense_enabled,
+      esic: data.esic_enabled || false,
+      lwf: data.lwf_enabled || false,
     });
 
     setShowPayrollModal(true);
@@ -592,6 +592,8 @@ const payrollOptions = [
   { label: "Gratuity", key: "gratuity" },
   { label: "Incentive", key: "incentive" },
   { label: "Other Expense", key: "otherExpense" },
+  { label: "ESIC", key: "esic" },
+  { label: "Labour Welfare Fund (LWF)", key: "lwf" },
 ];
   return (
 
@@ -801,6 +803,12 @@ gap:"16px",
 }}
 >
 
+<SearchableDropdown
+  value={deptFilter}
+  onChange={setDeptFilter}
+  width={220}
+/>
+
 <input
 type="text"
 placeholder="Search employee..."
@@ -817,6 +825,104 @@ style={searchInput}
 
 </div>
     </div>
+
+
+    {/* ===== MONTH / YEAR SELECTOR ===== */}
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        marginBottom: "20px",
+      }}
+    >
+      <label
+        style={{
+          color: "#94a3b8",
+          fontSize: "15px",
+          fontWeight: "600",
+        }}
+      >
+        Select Month:
+      </label>
+      <select
+        value={selectedMonth}
+        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(255,255,255,.04)",
+          color: "#f8fafc",
+          fontSize: "14px",
+          fontWeight: "600",
+          outline: "none",
+          cursor: "pointer",
+        }}
+      >
+        <option value={1}>January</option>
+        <option value={2}>February</option>
+        <option value={3}>March</option>
+        <option value={4}>April</option>
+        <option value={5}>May</option>
+        <option value={6}>June</option>
+        <option value={7}>July</option>
+        <option value={8}>August</option>
+        <option value={9}>September</option>
+        <option value={10}>October</option>
+        <option value={11}>November</option>
+        <option value={12}>December</option>
+      </select>
+ 
+      <label
+        style={{
+          color: "#94a3b8",
+          fontSize: "15px",
+          fontWeight: "600",
+        }}
+      >
+        Select Year:
+      </label>
+      <select
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(Number(e.target.value))}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(255,255,255,.04)",
+          color: "#f8fafc",
+          fontSize: "14px",
+          fontWeight: "600",
+          outline: "none",
+          cursor: "pointer",
+        }}
+      >
+        {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+          <option key={yr} value={yr}>
+            {yr}
+          </option>
+        ))}
+      </select>
+ 
+      <span
+        style={{
+          color: "#37FFD7",
+          fontSize: "14px",
+          fontWeight: "700",
+          marginLeft: "10px",
+        }}
+      >
+        Showing:{" "}
+        {
+          ["", "January", "February", "March", "April", "May", "June",
+           "July", "August", "September", "October", "November", "December"
+          ][selectedMonth]
+        }{" "}
+        {selectedYear}
+      </span>
+    </div>
+
 
     <GlassScrollArea
   height={650}
@@ -955,7 +1061,7 @@ onClick={async()=>{
 try{
 
 const response=
-await fetch(
+await apiFetch(
 `${API_BASE}/api/payroll/${employee.id}`
 );
 
@@ -1198,6 +1304,75 @@ e.currentTarget.style.transform=
     </p>
   </div>
 </div>
+
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "16px",
+        marginBottom: "20px",
+      }}
+    >
+      <label
+        style={{
+          color: "#94a3b8",
+          fontSize: "15px",
+          fontWeight: "600",
+        }}
+      >
+        Filter Increment:
+      </label>
+      <select
+        value={selectedMonth}
+        onChange={(e) => setSelectedMonth(Number(e.target.value))}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(255,255,255,.04)",
+          color: "#f8fafc",
+          fontSize: "14px",
+          fontWeight: "600",
+          outline: "none",
+          cursor: "pointer",
+        }}
+      >
+        <option value={1}>January</option>
+        <option value={2}>February</option>
+        <option value={3}>March</option>
+        <option value={4}>April</option>
+        <option value={5}>May</option>
+        <option value={6}>June</option>
+        <option value={7}>July</option>
+        <option value={8}>August</option>
+        <option value={9}>September</option>
+        <option value={10}>October</option>
+        <option value={11}>November</option>
+        <option value={12}>December</option>
+      </select>
+      <select
+        value={selectedYear}
+        onChange={(e) => setSelectedYear(Number(e.target.value))}
+        style={{
+          padding: "10px 16px",
+          borderRadius: "12px",
+          border: "1px solid rgba(255,255,255,.08)",
+          background: "rgba(255,255,255,.04)",
+          color: "#f8fafc",
+          fontSize: "14px",
+          fontWeight: "600",
+          outline: "none",
+          cursor: "pointer",
+        }}
+      >
+        {[2024, 2025, 2026, 2027, 2028].map((yr) => (
+          <option key={yr} value={yr}>
+            {yr}
+          </option>
+        ))}
+      </select>
+    </div>
+
 <GlassScrollArea
   height={420}
   style={{
@@ -1790,7 +1965,7 @@ onMouseLeave={(e) => {
 <button
   onClick={async () => {
   try {
-    const response = await fetch(
+    const response = await apiFetch(
   `${API_BASE}/api/employees/${selectedEmployee.id}/payroll-settings`,
       {
         method: "PUT",
@@ -1806,7 +1981,7 @@ onMouseLeave={(e) => {
     }
 
     // Refresh payroll data
-    const payrollResponse = await fetch(
+    const payrollResponse = await apiFetch(
       `${API_BASE}/api/payroll`
     );
 

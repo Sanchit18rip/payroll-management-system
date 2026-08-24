@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 
 import Button from "../Button";
+import { useTheme } from "../../context/ThemeContext";
 
 import "./DashboardHeader.css";
 
@@ -12,12 +13,10 @@ export default function DashboardHeader({
 
   greeting,
 
-  date,
-
-  onTerms
+  date,  onTerms
 
 }) {
-
+  const { isDark } = useTheme();
   return (
 
     <div className="dashboard-header">
@@ -49,41 +48,33 @@ export default function DashboardHeader({
     display: "flex",
     alignItems: "center",
     gap: "10px",
-
     padding: "12px 20px",
-
     borderRadius: "16px",
-
-    border: "1px solid rgba(255,255,255,.08)",
-
-    background:
-      "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
+    border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
+    background: isDark
+      ? "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))"
+      : "rgba(255,255,255,0.85)",
     backdropFilter: "blur(20px)",
     WebkitBackdropFilter: "blur(20px)",
-
-    color: "#f8fafc",
-
+    color: isDark ? "#f8fafc" : "#0f172a",
     fontWeight: 600,
-
     cursor: "pointer",
-
     transition: "all .25s ease",
-
-    boxShadow:
-      "0 10px 30px rgba(0,0,0,.22)"
+    boxShadow: isDark
+      ? "0 10px 30px rgba(0,0,0,.22)"
+      : "0 2px 8px rgba(0,0,0,0.06)"
   }}
 
   onMouseEnter={(e) => {
     e.currentTarget.style.transform = "translateY(-3px)";
     e.currentTarget.style.boxShadow =
-      "0 16px 35px rgba(55,255,215,.18)";
+      isDark ? "0 16px 35px rgba(55,255,215,.18)" : "0 4px 16px rgba(59,130,246,0.12)";
   }}
 
   onMouseLeave={(e) => {
     e.currentTarget.style.transform = "translateY(0)";
     e.currentTarget.style.boxShadow =
-      "0 10px 30px rgba(0,0,0,.22)";
+      isDark ? "0 10px 30px rgba(0,0,0,.22)" : "0 2px 8px rgba(0,0,0,0.06)";
   }}
 >
   📄 View Terms & Conditions

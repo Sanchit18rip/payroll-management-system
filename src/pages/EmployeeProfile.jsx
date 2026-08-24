@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import {
   useState,
   useEffect
@@ -61,8 +62,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/hr-documents"
+  apiFetch(
+    `${API_BASE}/api/hr-documents`
   )
     .then(res => res.json())
     .then(data => {
@@ -86,8 +87,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/increment-history"
+  apiFetch(
+    `${API_BASE}/api/increment-history`
   )
     .then(res => res.json())
     .then(data => {
@@ -110,8 +111,8 @@ useEffect(() => {
 
 }, [selectedEmployee]);
 useEffect(() => {
-   fetch(
-    "https://payroll-management-system-three.vercel.app/api/employees"
+   apiFetch(
+    `${API_BASE}/api/employees`
   )
     .then(res => res.json())
     .then(data =>
@@ -127,8 +128,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
+  apiFetch(
+    `${API_BASE}/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -142,8 +143,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/leave-balance/${selectedEmployee}`
+  apiFetch(
+    `${API_BASE}/api/leave-balance/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data =>
@@ -159,8 +160,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/performance-reviews`
+  apiFetch(
+    `${API_BASE}/api/performance-reviews`
   )
     .then(res => res.json())
     .then(data => {
@@ -184,8 +185,8 @@ useEffect(() => {
   if (!selectedEmployee)
     return;
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
+  apiFetch(
+    `${API_BASE}/api/employees/${selectedEmployee}`
   )
     .then(res => res.json())
     .then(data => {
@@ -205,8 +206,8 @@ useEffect(() => {
 }, [selectedEmployee]);
 const confirmEmployee = () => {
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/confirm-employee/${selectedEmployee}`,
+  apiFetch(
+    `${API_BASE}/api/confirm-employee/${selectedEmployee}`,
     {
       method: "PUT"
     }
@@ -216,8 +217,8 @@ const confirmEmployee = () => {
 
       alert(data.message);
 
-      return fetch(
-        `https://payroll-management-system-three.vercel.app/api/employees/${selectedEmployee}`
+      return apiFetch(
+        `${API_BASE}/api/employees/${selectedEmployee}`
       );
 
     })
@@ -226,8 +227,8 @@ const confirmEmployee = () => {
 
       setEmployeeData(data);
 
-      return fetch(
-        `https://payroll-management-system-three.vercel.app/api/leave-balance/${selectedEmployee}`
+      return apiFetch(
+        `${API_BASE}/api/leave-balance/${selectedEmployee}`
       );
 
     })
@@ -245,12 +246,13 @@ const confirmEmployee = () => {
   return (
 
     <div
+  className="hr-page-light"
   style={{
     padding: "35px",
     minHeight: "100vh",
     background:
-      "radial-gradient(circle at top right, rgba(55,255,215,.08), transparent 30%), #020617",
-    color: "#e2e8f0"
+      "var(--bg-page, radial-gradient(circle at top right, rgba(55,255,215,.08), transparent 30%), #020617)",
+    color: "var(--text-primary, #e2e8f0)"
   }}
 >
 
@@ -1158,12 +1160,12 @@ const fullWidthCard = {
 };
 
 const cardStyle = {
-  background:"#1e293b",
+  background:"var(--bg-card-solid, #1e293b)",
   borderRadius:"22px",
   padding:"28px",
-  border:"1px solid #334155",
-  color:"#f8fafc",
-  boxShadow:"0 8px 25px rgba(0,0,0,.25)",
+  border:"var(--border-card, 1px solid #334155)",
+  color:"var(--text-primary, #f8fafc)",
+  boxShadow:"var(--shadow-card, 0 8px 25px rgba(0,0,0,.25))",
   transition:
 "transform .25s ease, box-shadow .25s ease",
   cursor:"default"
@@ -1173,8 +1175,8 @@ const cardTitleStyle = {
   fontSize: "22px",
   fontWeight: "700",
   marginBottom: "20px",
-  color: "#ffffff",
-  borderBottom: "2px solid #3b82f6",
+  color: "var(--text-primary, #ffffff)",
+  borderBottom: "2px solid var(--accent-blue, #3b82f6)",
   paddingBottom: "12px"
 };
 
@@ -1183,16 +1185,16 @@ const infoRow = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: "10px 0",
-  borderBottom: "1px solid #334155"
+  borderBottom: "1px solid var(--border-default, #334155)"
 };
 
 const labelStyle = {
-  color: "#94a3b8",
+  color: "var(--text-secondary, #94a3b8)",
   fontWeight: "600"
 };
 
 const valueStyle = {
-  color: "#f8fafc",
+  color: "var(--text-primary, #f8fafc)",
   fontWeight: "700"
 };
 const metricGrid = {
@@ -1203,46 +1205,46 @@ const metricGrid = {
 };
 
 const metricCard = {
-  background: "#0f172a",
-  border: "1px solid #334155",
+  background: "var(--bg-input, #0f172a)",
+  border: "1px solid var(--border-default, #334155)",
   borderRadius: "14px",
   padding: "16px",
   textAlign: "center"
 };
 
 const metricValue = {
-  color: "#38bdf8",
+  color: "var(--text-accent, #38bdf8)",
   fontSize: "22px",
   fontWeight: "700"
 };
 
 const metricLabel = {
-  color: "#94a3b8",
+  color: "var(--text-secondary, #94a3b8)",
   marginTop: "8px",
   fontSize: "14px"
 };
 const summaryCard={
-background:"#0f172a",
+background:"var(--bg-input, #0f172a)",
 padding:"24px",
 borderRadius:"16px",
 textAlign:"center",
-border:"1px solid #334155"
+border:"1px solid var(--border-default, #334155)"
 };
 
 const summaryNumber={
 fontSize:"34px",
 fontWeight:"700",
-color:"#3b82f6"
+color:"var(--accent-blue, #3b82f6)"
 };
 
 const summaryText={
 marginTop:"8px",
-color:"#94a3b8"
+color:"var(--text-secondary, #94a3b8)"
 };
 
 const successBadge={
-background:"#14532d",
-color:"#22c55e",
+background:"rgba(34,197,94,0.12)",
+color:"var(--accent-green, #22c55e)",
 padding:"6px 14px",
 borderRadius:"999px",
 fontWeight:"600",
@@ -1250,8 +1252,8 @@ fontSize:"13px"
 };
 
 const dangerBadge={
-background:"#7f1d1d",
-color:"#f87171",
+background:"rgba(239,68,68,0.12)",
+color:"var(--accent-red, #f87171)",
 padding:"6px 14px",
 borderRadius:"999px",
 fontWeight:"600",
@@ -1287,7 +1289,7 @@ zIndex:9999
 
 const modalBox={
 
-background:"#1e293b",
+background:"var(--bg-card-solid, #1e293b)",
 
 padding:"30px",
 
@@ -1295,9 +1297,9 @@ borderRadius:"20px",
 
 width:"430px",
 
-color:"#f8fafc",
+color:"var(--text-primary, #f8fafc)",
 
-border:"1px solid #334155",
+border:"var(--border-card, 1px solid #334155)",
 
 boxShadow:
 "0 10px 35px rgba(0,0,0,.45)"

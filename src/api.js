@@ -1,31 +1,15 @@
 import { supabase } from "./supabaseClient";
 
+export const API_BASE =
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:5000";
+
 export const apiFetch = async (url, options = {}) => {
 
-  let token = null;
+  const {
+    data: { session }
+  } = await supabase.auth.getSession();
 
-  // Check Google Authenticator session first
-  const authenticatorToken =
-    localStorage.getItem(
-      "payroll_authenticator_token"
-    );
-
-  if (authenticatorToken) {
-
-    token = authenticatorToken;
-
-  } else {
-
-    // Existing Supabase session
-    const {
-      data: { session }
-    } = await supabase.auth.getSession();
-
-    if (session?.access_token) {
-      token = session.access_token;
-    }
-
-  }
+  const token = session?.access_token;
 
   if (!token) {
     throw new Error("You are not logged in");
@@ -37,8 +21,19 @@ export const apiFetch = async (url, options = {}) => {
     "Content-Type": "application/json"
   };
 
-  return fetch(url, {
+  const response = await fetch(url, {
     ...options,
     headers
   });
+
+  // If 403 Forbidden and not on login page, redirect to login
+  if (response.status === 403 && !window.location.hash.includes("#/login")) {
+    console.warn("Session expired or access denied. Redirecting to login.");
+    localStorage.removeItem("payroll_keep_signed_in");
+    sessionStorage.removeItem("payroll_session_only");
+    window.location.hash = "#/login";
+    throw new Error("Session expired. Please log in again.");
+  }
+
+  return response;
 };

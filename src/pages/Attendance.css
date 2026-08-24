@@ -34,6 +34,12 @@ margin-bottom:18px;
 
 }
 
+[data-theme="light"] .heroBadge {
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.2);
+  color: #2563eb;
+}
+
 .heroTitle{
 
 margin:0;
@@ -46,6 +52,10 @@ color:white;
 
 letter-spacing:1px;
 
+}
+
+[data-theme="light"] .heroTitle {
+  color: #0f172a;
 }
 
 .heroSubtitle{
@@ -61,6 +71,10 @@ max-width:620px;
 line-height:1.8;
 
 }
+
+[data-theme="light"] .heroSubtitle {
+  color: #475569;
+}
 /* ================================
    CYBERPUNK ATTENDANCE CALENDAR
 ================================ */
@@ -71,6 +85,10 @@ line-height:1.8;
   background: transparent !important;
   color: #f8fafc !important;
   font-family: inherit;
+}
+
+[data-theme="light"] .attendance-calendar {
+  color: #0f172a !important;
 }
 
 /* Calendar navigation */
@@ -92,6 +110,16 @@ line-height:1.8;
   transition: all 0.2s ease;
 }
 
+[data-theme="light"] .attendance-calendar .react-calendar__navigation button {
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.9);
+  color: #0f172a;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__navigation button:hover {
+  background: rgba(37,99,235,0.08);
+  color: #2563eb;
+}
+
 .attendance-calendar .react-calendar__navigation button:hover {
   background: rgba(55, 255, 215, 0.12);
   border-color: rgba(55, 255, 215, 0.35);
@@ -108,6 +136,10 @@ line-height:1.8;
   flex: 1;
   color: #37FFD7 !important;
   font-weight: 700;
+}
+
+[data-theme="light"] .attendance-calendar .react-calendar__navigation__label {
+  color: #2563eb !important;
 }
 
 /* Weekday labels */
@@ -139,6 +171,35 @@ line-height:1.8;
   font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
+}
+
+[data-theme="light"] .attendance-calendar .react-calendar__tile {
+  color: #334155;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__tile:hover {
+  background: rgba(37,99,235,0.06);
+  color: #2563eb;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__tile--now {
+  background: rgba(37,99,235,0.08);
+  border: 1px solid rgba(37,99,235,0.2);
+  color: #2563eb;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__tile--active {
+  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
+  color: #ffffff !important;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__month-view__weekdays {
+  color: #64748b;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__month-view__days__day--neighboringMonth {
+  color: #cbd5e1 !important;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__month-view__days__day--weekend {
+  color: #94a3b8;
+}
+[data-theme="light"] .attendance-calendar .react-calendar__tile:disabled {
+  color: #cbd5e1;
 }
 
 /* Hover */

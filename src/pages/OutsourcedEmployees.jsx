@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect } from "react";
 
 function OutsourcedEmployees() {
@@ -5,10 +6,7 @@ function OutsourcedEmployees() {
   const [employees, setEmployees] =
     useState([]);
 
-  const [clients, setClients] =
-    useState([]);
-
-  const [clientId, setClientId] =
+  const [clientName, setClientName] =
     useState("");
 
   const [name, setName] =
@@ -28,8 +26,8 @@ function OutsourcedEmployees() {
 ] = useState(null);
    const fetchEmployees = () => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/outsourced-employees"
+  apiFetch(
+    `${API_BASE}/api/outsourced-employees`
   )
 
     .then(res => res.json())
@@ -44,28 +42,10 @@ function OutsourcedEmployees() {
 
 };
 
-const fetchClients = () => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/clients"
-  )
+const addEmployee = () => {  if (
 
-    .then(res => res.json())
-
-    .then(data =>
-      setClients(data)
-    )
-
-    .catch(err =>
-      console.log(err)
-    );
-
-};
-const addEmployee = () => {
-
-  if (
-
-    !clientId ||
+    !clientName ||
 
     !name ||
 
@@ -77,15 +57,16 @@ const addEmployee = () => {
 
     alert(
       "Please fill all fields"
+
     )
 
     return
 
   }
 
-  fetch(
+  apiFetch(
 
-    "https://payroll-management-system-three.vercel.app/api/outsourced-employees",
+    `${API_BASE}/api/outsourced-employees`,
 
     {
 
@@ -101,7 +82,7 @@ const addEmployee = () => {
       body: JSON.stringify({
 
         client_id:
-          clientId,
+          clientName,
 
         name,
 
@@ -119,7 +100,7 @@ const addEmployee = () => {
 
     .then(() => {
 
-      setClientId("")
+      setClientName("")
 
       setName("")
 
@@ -140,14 +121,12 @@ useEffect(() => {
 
   fetchEmployees();
 
-  fetchClients();
-
 }, []);
 const deleteEmployee = () => {
 
-  fetch(
+  apiFetch(
 
-    `https://payroll-management-system-three.vercel.app/api/outsourced-employees/${employeeToDelete}`,
+    `${API_BASE}/api/outsourced-employees/${employeeToDelete}`,
 
     {
 
@@ -208,29 +187,15 @@ const deleteEmployee = () => {
 
     <div style={formContainer}>
 
-  <select
-    value={clientId}
+  <input
+    type="text"
+    placeholder="Client Company Name"
+    value={clientName}
     onChange={(e) =>
-      setClientId(e.target.value)
+      setClientName(e.target.value)
     }
     style={inputStyle}
-  >
-    <option value="">
-      Select Client Company
-    </option>
-
-    {clients.map((client) => (
-
-      <option
-        key={client.id}
-        value={client.id}
-      >
-        {client.company_name}
-      </option>
-
-    ))}
-
-  </select>
+  />
 
   <input
     type="text"
@@ -319,7 +284,7 @@ const deleteEmployee = () => {
           </td>
 
           <td style={tdStyle}>
-            {employee.company_name}
+            {employee.client_id}
           </td>
 
           <td style={tdStyle}>

@@ -1,6 +1,6 @@
 import "./LoginAnimation.css";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import Sky from "./Sky";
 
 function LoginAnimation() {
@@ -13,6 +13,8 @@ const [bgClass, setBgClass] = useState("");
 const [fadeOut, setFadeOut] = useState(false);
 const [blur, setBlur] = useState(false);
 const [zoom, setZoom] = useState(false);
+const [searchParams] = useSearchParams();
+const targetRoute = searchParams.get("to") || "/dashboard";
 
 useEffect(() => {
   const hour = new Date().getHours();
@@ -80,7 +82,7 @@ const t6 = setTimeout(() => {
 
 const t7 = setTimeout(() => {
 
-    navigate("/dashboard");
+    navigate(targetRoute, { replace: true });
 
 }, 14000);
 
@@ -95,7 +97,7 @@ const t7 = setTimeout(() => {
     clearTimeout(t7);
   };
 
-}, [navigate]);
+}, [navigate, targetRoute]);
 
 
   return (

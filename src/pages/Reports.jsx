@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect } from 'react'
 
 
@@ -18,20 +19,20 @@ function Reports() {
       leaveRes
     ] = await Promise.all([
 
-      fetch(
-        'https://payroll-management-system-three.vercel.app/api/employees'
+      apiFetch(
+        `${API_BASE}/api/employees`
       ),
 
-      fetch(
-        'https://payroll-management-system-three.vercel.app/api/attendance'
+      apiFetch(
+        `${API_BASE}/api/attendance`
       ),
 
-      fetch(
-        'https://payroll-management-system-three.vercel.app/api/payroll'
+      apiFetch(
+        `${API_BASE}/api/payroll`
       ),
 
-      fetch(
-        'https://payroll-management-system-three.vercel.app/api/leaves'
+      apiFetch(
+        `${API_BASE}/api/leaves`
       )
 
     ])
@@ -122,8 +123,9 @@ function Reports() {
     margin: '0 auto',
     width: '100%',
     minHeight: '100vh',
-    background: '#0f172a'
+    background: 'var(--bg-page, #0f172a)'
   }}
+  className="hr-page-light"
 >
       <div style={{ marginBottom: '30px' }}>
         <h1 style={{ fontSize: '32px', fontWeight: '700', color: "#f8fafc", margin: '0 0 4px 0' }}>
@@ -225,16 +227,16 @@ const cardContainer = {
 }
 
 const cardStyle = {
-  background: '#1e293b',
+  background: 'var(--bg-card-solid, #1e293b)',
   padding: '28px',
   borderRadius: '20px',
-  border: '1px solid #334155',
+  border: 'var(--border-card, 1px solid #334155)',
   boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)',
+    'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
   transition: 'all 0.3s ease'
 }
 const cardTitle = {
-  color: '#94a3b8',
+  color: 'var(--text-secondary, #94a3b8)',
   fontSize: '14px',
   fontWeight: '600',
   textTransform: 'uppercase',
@@ -250,12 +252,12 @@ const cardValue = {
 }
 
 const reportSection = {
-  background: '#1e293b',
+  background: 'var(--bg-card-solid, #1e293b)',
   padding: '30px',
   borderRadius: '20px',
   boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)',
-  border: '1px solid #334155'
+    'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
+  border: 'var(--border-card, 1px solid #334155)'
 }
 
 const tableContainer = {
@@ -270,39 +272,39 @@ const tableStyle = {
 }
 
 const theadRow = {
-  borderBottom: '1px solid #334155',
-  background: '#0f172a'
+  borderBottom: '1px solid var(--border-default, #334155)',
+  background: 'var(--bg-input, #0f172a)'
 }
 
 const thStyle = {
   padding: '16px',
   fontSize: '14px',
   fontWeight: '600',
-  color: '#cbd5e1'
+  color: 'var(--text-secondary, #cbd5e1)'
 }
 
 const thStyleRight = {
   padding: '16px',
   fontSize: '14px',
   fontWeight: '600',
-  color: '#cbd5e1',
+  color: 'var(--text-secondary, #cbd5e1)',
   textAlign: 'right'
 }
 
 const rowStyle = {
-  borderBottom: '1px solid #334155'
+  borderBottom: '1px solid var(--border-default, #334155)'
 }
 const tdStyle = {
   padding: '16px',
   fontSize: '14px',
-  color: '#f8fafc'
+  color: 'var(--text-primary, #f8fafc)'
 }
   
 
 const tdStyleRight = {
   padding: '16px',
   fontSize: '14px',
-  color: "#f8fafc",
+  color: "var(--text-primary, #f8fafc)",
   fontWeight: '600',
   textAlign: 'right'
 }

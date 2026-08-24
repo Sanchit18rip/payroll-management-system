@@ -65,19 +65,13 @@ const Icon = icons[icon];
   {Icon && <Icon size={26} color={color} />}
 </div>
         <h3
+  className="stat-title"
   style={{
-    color: "rgba(255,255,255,.58)",
-
     fontSize: "12px",
-
     fontWeight: 600,
-
     textTransform: "uppercase",
-
     letterSpacing: "2px",
-
     marginBottom: "12px",
-
     userSelect: "none"
   }}
 >
@@ -106,13 +100,10 @@ const Icon = icons[icon];
 
         {subtitle && (
           <p
+    className="stat-subtitle"
     style={{
         marginTop:"12px",
-
-        color:"rgba(255,255,255,.45)",
-
         fontSize:"13px",
-
         fontWeight:500
     }}
 >

@@ -1,290 +1,243 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../supabaseClient'
-import { apiFetch } from '../api'
+import { apiFetch, API_BASE } from "../api"
+import { useTheme } from '../context/ThemeContext'
+import ThemeToggle from '../components/ThemeToggle'
+
 function Login() {
   const navigate = useNavigate()
+  const { theme, isDark } = useTheme()
+
   useEffect(() => {
 
-  const checkSavedSession = async () => {
+    const checkSavedSession = async () => {
 
-    const keepSignedIn =
-      localStorage.getItem("payroll_keep_signed_in") === "true"
+      const keepSignedIn =
+        localStorage.getItem("payroll_keep_signed_in") === "true"
 
-    // No "Keep Me Signed In"
-    if (!keepSignedIn) {
-      return
-    }
-
-    try {
-
-      const response = await apiFetch(
-        "http://localhost:5000/api/test-auth"
-      )
-
-      const result = await response.json()
-
-      if (!response.ok) {
+      if (!keepSignedIn) {
         return
       }
 
-      console.log(
-        "SAVED SESSION:",
-        result
-      )
+      try {
 
-      if (result.role === "employee") {
-
-        navigate(
-          "/employee-dashboard",
-          { replace: true }
+        const response = await apiFetch(
+          `${API_BASE}/api/test-auth`
         )
 
-      } else if (result.role === "hr") {
+        const result = await response.json()
 
-        navigate(
-          "/login-animation",
-          { replace: true }
-        )
+        if (!response.ok) {
+          return
+        }
 
+        if (result.role === "employee") {
+          navigate("/employee-dashboard", { replace: true })
+        } else if (result.role === "hr") {
+          navigate("/login-animation", { replace: true })
+        }
+
+      } catch (error) {
+        console.error("Saved session check failed:", error)
       }
-
-    } catch (error) {
-
-      console.error(
-        "Saved session check failed:",
-        error
-      )
 
     }
 
-  }
+    checkSavedSession()
 
-  checkSavedSession()
+    // Session-only mode: clear Supabase session on tab close
+    const handleTabClose = () => {
+      const sessionOnly = sessionStorage.getItem("payroll_session_only") === "true"
+      if (sessionOnly) {
+        supabase.auth.signOut()
+      }
+    }
+    window.addEventListener("beforeunload", handleTabClose)
+    return () => window.removeEventListener("beforeunload", handleTabClose)
 
-}, [navigate])
+  }, [navigate])
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
- const [loading, setLoading] = useState(false)
-const [loginMethod, setLoginMethod] = useState('email') 
-const [role, setRole] = useState('employee')       // CHANGE 1 - new state
-const [otp, setOtp] = useState('')
-const [otpSent, setOtpSent] = useState(false)
-const [keepSignedIn, setKeepSignedIn] = useState(false)
-const [phone, setPhone] = useState('')
-const [phoneOtpSent, setPhoneOtpSent] = useState(false)
-const [phoneOtp, setPhoneOtp] = useState('')
-const [authenticatorStarted, setAuthenticatorStarted] = useState(false)
-const [authenticatorQr, setAuthenticatorQr] = useState('')
-const [authenticatorCode, setAuthenticatorCode] = useState('')
-
+  const [loading, setLoading] = useState(false)
+  const [role, setRole] = useState('employee')
+  const [otp, setOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [keepSignedIn, setKeepSignedIn] = useState(false)
 
   const handleLogin = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
 
-if (loginMethod === 'authenticator') {
-
-  if (!email) {
-    alert('Please enter your email address')
-    return
-  }
-
-} else if (loginMethod === 'otp') {
-
-  if (!phone) {
-    alert('Please enter your phone number')
-    return
-  }
-
-} else {
-
-  if (!email || !password) {
-    alert('Please fill all fields')
-    return
-  }
-
-}
-
-setLoading(true)
-
-try {
-  if (loginMethod === 'otp') {
-
-  if (!phoneOtpSent) {
-
-    alert(
-      "Phone OTP sending will be connected next."
-    )
-
-    setLoading(false)
-
-    return
-  }
-
-}
-      if (loginMethod === 'authenticator') {
-
-  if (!email) {
-    throw new Error('Please enter your email address.')
-  }
-
-  navigate('/authenticator-login', {
-    state: {
-      email,
-      role
+    if (!email || !password) {
+      alert("Please fill all fields");
+      return;
     }
-  })
 
-  return
-}
+    setLoading(true);
 
-// ==============================
-  // GOOGLE AUTHENTICATOR LOGIN
-  // ==============================
+    try {
 
-  if (loginMethod === 'authenticator') {
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: email,
+          password: password,
+        });
 
-    navigate('/authenticator-login', {
-      state: {
-        email,
-        role
+      if (error) {
+        throw error;
       }
-    })
 
-    return
-  }
+      if (keepSignedIn) {
+        localStorage.setItem("payroll_keep_signed_in", "true");
+        sessionStorage.removeItem("payroll_session_only");
+      } else {
+        localStorage.removeItem("payroll_keep_signed_in");
+        sessionStorage.setItem("payroll_session_only", "true");
+      }
 
-  // ==============================
-  // NORMAL EMAIL/PASSWORD LOGIN
-  // ==============================
+      if (role === "hr") {
+        navigate("/login-animation", { replace: true });
+        return;
+      }
 
-  const { data, error } =
-    await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
-    })
+      if (role === "employee" && !otpSent) {
+        const response = await apiFetch(
+          `${API_BASE}/api/login/send-email-otp`,
+          { method: "POST" }
+        );
 
-  if (error) throw error
-console.log("LOGIN SUCCESS:", {
-  userId: data.user?.id,
-  email: data.user?.email,
-  keepSignedIn
-})
-      if (loginMethod === 'email' && !otpSent) {
+        const result = await response.json();
 
-  const response = await apiFetch(
-    "http://localhost:5000/api/login/send-email-otp",
-    {
-      method: "POST",
-    }
-  )
+        if (!response.ok) {
+          throw new Error(result.message || "Unable to send OTP");
+        }
 
-  const result = await response.json()
+        setOtpSent(true);
+        return;
+      }
 
-  if (!response.ok) {
-    throw new Error(
-      result.message || "Unable to send OTP"
-    )
-  }
+      if (role === "employee" && otpSent) {
 
-  setOtpSent(true)
+        if (!otp || otp.length !== 6) {
+          throw new Error("Please enter the 6-digit OTP.");
+        }
 
-  alert(
-    "A verification OTP has been sent to your email."
-  )
+        const response = await apiFetch(
+          `${API_BASE}/api/login/verify-email-otp`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ otp }),
+          }
+        );
 
-  return
-}
+        const result = await response.json();
 
-if (loginMethod === 'email' && otpSent) {
+        if (!response.ok) {
+          throw new Error(result.message || "Invalid OTP");
+        }
 
-  if (!otp || otp.length !== 6) {
-    throw new Error("Please enter the 6-digit OTP.")
-  }
-
-  const response = await apiFetch(
-    "http://localhost:5000/api/login/verify-email-otp",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        otp,
-      }),
-    }
-  )
-
-  const result = await response.json()
-
-  if (!response.ok) {
-    throw new Error(
-      result.message || "Invalid OTP"
-    )
-  }
-
-  console.log(
-    "Email OTP verification successful:",
-    result
-  )
-  if (keepSignedIn) {
-
-  localStorage.setItem(
-    "payroll_keep_signed_in",
-    "true"
-  )
-
-  sessionStorage.removeItem(
-    "payroll_session_only"
-  )
-
-} else {
-
-  localStorage.removeItem(
-    "payroll_keep_signed_in"
-  )
-
-  sessionStorage.setItem(
-    "payroll_session_only",
-    "true"
-  )
-
-}
-  if (role === 'employee') {
-
-  navigate('/employee-dashboard')
-
-} else {
-
-  navigate('/login-animation')
-
-}
-
-return
-}
-
+        navigate("/login-animation?to=/employee-dashboard", { replace: true });
+        return;
+      }
 
     } catch (error) {
-      alert(error.message || 'Invalid Email or Password')
+      console.error("Login failed:", error);
+      alert(error.message || "Invalid Email or Password");
     } finally {
-      setLoading(false)
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    try {
+      const response = await apiFetch(
+        `${API_BASE}/api/login/send-email-otp`,
+        { method: "POST" }
+      )
+      const result = await response.json()
+      if (!response.ok) {
+        throw new Error(result.message || "Unable to resend OTP")
+      }
+      setOtp('')
+      alert("A new OTP has been sent to your email.")
+    } catch (error) {
+      alert(error.message || "Unable to resend OTP")
     }
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: '#0f172a',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px'
-      }}
-    >
-      <div style={loginCard}>
-        <div style={{ marginBottom: '25px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: '700', color: '#f8fafc', margin: '0 0 8px 0' }}>
+    <div style={{
+      minHeight: '100vh',
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      position: 'relative',
+      overflow: 'hidden',
+      background: isDark
+        ? 'radial-gradient(circle at 12% 8%, rgba(56,189,248,0.12), transparent 40%), radial-gradient(circle at 88% 12%, rgba(167,139,250,0.14), transparent 42%), radial-gradient(circle at 50% 95%, rgba(34,211,238,0.10), transparent 45%), linear-gradient(160deg, #020617 0%, #0f172a 55%, #172554 100%)'
+        : 'radial-gradient(circle at 12% 8%, rgba(56,189,248,0.06), transparent 40%), radial-gradient(circle at 88% 12%, rgba(167,139,250,0.06), transparent 42%), radial-gradient(circle at 50% 95%, rgba(34,211,238,0.05), transparent 45%), linear-gradient(160deg, #f1f5f9 0%, #e2e8f0 55%, #cbd5e1 100%)'
+    }}>
+
+      {/* Aurora gradient backdrop */}
+      <div style={auroraLayer} />
+
+      {/* Theme toggle - top right on login page */}
+      <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999 }}>
+        <ThemeToggle />
+      </div>
+
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        background: isDark
+          ? 'linear-gradient(160deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.5))'
+          : 'linear-gradient(160deg, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.7))',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        padding: '40px',
+        borderRadius: '24px',
+        width: '100%',
+        maxWidth: '440px',
+        border: isDark
+          ? '1px solid rgba(148, 163, 184, 0.18)'
+          : '1px solid rgba(0,0,0,0.08)',
+        boxShadow: isDark
+          ? '0 10px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)'
+          : '0 10px 40px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.9)',
+        animation: 'fadeInUp 0.6s ease both'
+      }}>
+
+        {/* Logo chip */}
+        <div style={{
+          width: '64px',
+          height: '64px',
+          margin: '0 auto 20px',
+          borderRadius: '20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '30px',
+          background: 'linear-gradient(135deg, rgba(56,189,248,0.25), rgba(139,92,246,0.25))',
+          border: '1px solid rgba(148,163,184,0.2)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.4)'
+        }}>💼</div>
+
+        <div style={{ marginBottom: '28px', textAlign: 'center' }}>
+          <h1 style={{
+            fontSize: '30px',
+            fontWeight: '700',
+            margin: '0 0 8px 0',
+            background: 'linear-gradient(120deg, #38bdf8 0%, #818cf8 45%, #e879f9 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
             Welcome Back
           </h1>
           <p style={{ color: '#94a3b8', margin: 0, fontSize: '14px' }}>
@@ -292,382 +245,266 @@ return
           </p>
         </div>
 
-        {/* CHANGE 3 - role radio buttons */}
-        {/* Login method selector */}
-{/* Role selector */}
-<div style={{ display: 'flex', gap: '12px', marginBottom: '18px' }}>
-  {['employee', 'hr'].map((r) => (
-    <label
-      key={r}
-      style={{
-        flex: 1,
-        padding: '12px',
-        borderRadius: '12px',
-        cursor: 'pointer',
-        textAlign: 'center',
-        fontWeight: '600',
-        fontSize: '14px',
-        background: role === r ? '#1d4ed8' : '#0f172a',
-        border:
-          role === r
-            ? '2px solid #3b82f6'
-            : '2px solid #334155',
-        color: role === r ? '#fff' : '#94a3b8',
-      }}
-    >
-      <input
-        type="radio"
-        name="role"
-        value={r}
-        checked={role === r}
-        onChange={() => setRole(r)}
-        style={{ display: 'none' }}
-      />
-
-      {r === 'employee'
-        ? '👤 Employee'
-        : '🏢 HR / Admin'}
-    </label>
-  ))}
-</div>
-
-{/* Authentication method selector */}
-
+        {/* Role selector — frosted glass pills */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+          {['employee', 'hr'].map((r) => (
+            <label
+              key={r}
+              style={{
+                flex: 1,
+                padding: '14px',
+                borderRadius: '14px',
+                cursor: 'pointer',
+                textAlign: 'center',
+                fontWeight: '600',
+                fontSize: '14px',
+                background: role === r
+                  ? 'linear-gradient(135deg, rgba(56,189,248,0.3), rgba(99,102,241,0.3))'
+                  : 'rgba(15, 23, 42, 0.6)',
+                border: role === r
+                  ? '1px solid rgba(56,189,248,0.5)'
+                  : '1px solid rgba(148,163,184,0.18)',
+                color: role === r ? '#f8fafc' : '#94a3b8',
+                transition: 'all 0.2s ease',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: role === r ? '0 4px 20px rgba(56,189,248,0.2)' : 'none'
+              }}
+            >
+              <input
+                type="radio"
+                name="role"
+                value={r}
+                checked={role === r}
+                onChange={() => {
+                  setRole(r)
+                  setOtpSent(false)
+                  setOtp('')
+                }}
+                style={{ display: 'none' }}
+              />
+              {r === 'employee'
+                ? '👤 Employee'
+                : '🏢 HR / Admin'}
+            </label>
+          ))}
+        </div>
 
         <form onSubmit={handleLogin}>
-          {loginMethod !== 'otp' && (
-  <div style={{ marginBottom: '16px' }}>
-    <label style={labelStyle}>Email Address</label>
 
-    <input
-      type="email"
-      placeholder="name@company.com"
-      value={email}
-      onChange={(e) => setEmail(e.target.value)}
-      style={inputStyle}
-      required={loginMethod !== 'otp'}
-    />
-  </div>
-)}
+          <div style={{ marginBottom: '18px' }}>
+            <label style={labelStyle}>Email Address</label>
+            <input
+              type="email"
+              placeholder="name@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle}
+              disabled={otpSent}
+              required
+            />
+          </div>
 
-{loginMethod === 'otp' && (
-  <div style={{ marginBottom: '16px' }}>
-    <label style={labelStyle}>Phone Number</label>
-
-    <input
-      type="tel"
-      inputMode="numeric"
-      placeholder="+91 "
-      value={phone}
-      onChange={(e) =>
-        setPhone(e.target.value)
-      }
-      style={inputStyle}
-      required
-    />
-  </div>
-)}
-          
-          {loginMethod === 'email' && (
-  <div style={{ marginBottom: '24px' }}>
-    <label style={labelStyle}>Password</label>
-
-    <input
-      type="password"
-      placeholder="••••••••"
-      value={password}
-      onChange={(e) => setPassword(e.target.value)}
-      style={inputStyle}
-      required
-    />
-  </div>
-)}
-          
-          {otpSent && loginMethod === 'email' && (
-  <div style={{ marginBottom: '24px' }}>
-    <label style={labelStyle}>OTP</label>
-
-    <input
-      type="text"
-      inputMode="numeric"
-      maxLength="6"
-      placeholder="Enter 6-digit OTP"
-      value={otp}
-      onChange={(e) =>
-        setOtp(e.target.value.replace(/\D/g, ''))
-      }
-      style={inputStyle}
-    />
-
-    <p
-      style={{
-        color: '#94a3b8',
-        fontSize: '13px',
-        marginTop: '8px',
-        marginBottom: 0
-      }}
-    >
-      A verification code has been sent to your email.
-    </p>
-    
-    <button
-  type="button"
-  onClick={async () => {
-
-    try {
-
-      const response = await apiFetch(
-        "http://localhost:5000/api/login/send-email-otp",
-        {
-          method: "POST",
-        }
-      )
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(
-          result.message || "Unable to resend OTP"
-        )
-      }
-
-      setOtp('')
-
-      alert("A new OTP has been sent to your email.")
-
-    } catch (error) {
-
-      alert(
-        error.message || "Unable to resend OTP"
-      )
-
-    }
-
-  }}
-  style={{
-    marginTop: '12px',
-    background: 'transparent',
-    border: 'none',
-    color: '#60a5fa',
-    cursor: 'pointer',
-    fontSize: '13px',
-    fontWeight: '600',
-    padding: '0'
-  }}
->
-  Resend OTP
-</button>
-  </div>
-)}
-{loginMethod === 'otp' && phoneOtpSent && (
-  <div style={{ marginBottom: '24px' }}>
-
-    <label style={labelStyle}>
-      OTP
-    </label>
-
-    <input
-      type="text"
-      inputMode="numeric"
-      maxLength="6"
-      placeholder="Enter 6-digit OTP"
-      value={phoneOtp}
-      onChange={(e) =>
-        setPhoneOtp(
-          e.target.value.replace(/\D/g, '')
-        )
-      }
-      style={inputStyle}
-    />
-
-    <p
-      style={{
-        color: '#94a3b8',
-        fontSize: '13px',
-        marginTop: '8px',
-        marginBottom: 0
-      }}
-    >
-      A verification code has been sent to your phone.
-    </p>
-
-  </div>
-)}
           <div style={{ marginBottom: '24px' }}>
-  <p
-    style={{
-      color: '#cbd5e1',
-      fontSize: '14px',
-      fontWeight: '600',
-      margin: '0 0 12px 0'
-    }}
-  >
-    How would you like to sign in?
-  </p>
+            <label style={labelStyle}>Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle}
+              disabled={otpSent}
+              required
+            />
+          </div>
 
-  <div
-    style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '22px',
-      color: '#cbd5e1',
-      fontSize: '14px'
-    }}
-  >
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '7px',
-        cursor: 'pointer'
-      }}
-    >
-      <input
-        type="radio"
-        name="loginMethod"
-        value="email"
-        checked={loginMethod === 'email'}
-        onChange={() => setLoginMethod('email')}
-      />
-      Email
-    </label>
+          {role === 'employee' && otpSent && (
+            <div style={{ marginBottom: '24px' }}>
+              <label style={labelStyle}>Email OTP</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength="6"
+                placeholder="• • • • • •"
+                value={otp}
+                onChange={(e) =>
+                  setOtp(e.target.value.replace(/\D/g, ''))
+                }
+                style={{
+                  ...inputStyle,
+                  textAlign: 'center',
+                  fontSize: '22px',
+                  letterSpacing: '8px',
+                  fontWeight: '700'
+                }}
+                autoFocus
+              />
+              <p style={{ color: '#94a3b8', fontSize: '13px', marginTop: '10px', marginBottom: 0 }}>
+                ✉️ Verification code sent to your email
+              </p>
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                style={{
+                  marginTop: '12px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#38bdf8',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  padding: '0'
+                }}
+              >
+                ↻ Resend OTP
+              </button>
+            </div>
+          )}
 
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '7px',
-        cursor: 'pointer'
-      }}
-    >
-      <input
-        type="radio"
-        name="loginMethod"
-        value="otp"
-        checked={loginMethod === 'otp'}
-        onChange={() => setLoginMethod('otp')}
-      />
-      OTP
-    </label>
-
-    <label
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '7px',
-        cursor: 'pointer'
-      }}
-    >
-      <input
-        type="radio"
-        name="loginMethod"
-        value="authenticator"
-        checked={loginMethod === 'authenticator'}
-        onChange={() => setLoginMethod('authenticator')}
-      />
-      Authenticator
-    </label>
-  </div>
-  <div
-  style={{
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginTop: '18px',
-marginBottom: '24px',
-    color: '#cbd5e1',
-    fontSize: '14px'
-  }}
->
-  <input
-    type="checkbox"
-    checked={keepSignedIn}
-    onChange={(e) =>
-      setKeepSignedIn(e.target.checked)
-    }
-    style={{
-      width: '16px',
-      height: '16px',
-      cursor: 'pointer'
-    }}
-  />
-
-  <label
-    style={{
-      cursor: 'pointer'
-    }}
-    onClick={() =>
-      setKeepSignedIn(prev => !prev)
-    }
-  >
-    Keep me signed in
-  </label>
-</div>
-</div>
+          <div style={{ marginBottom: '24px' }}>
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                color: isDark ? '#cbd5e1' : '#64748b',
+                fontSize: '14px',
+                cursor: 'pointer'
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={keepSignedIn}
+                onChange={(e) =>
+                  setKeepSignedIn(e.target.checked)
+                }
+                style={{
+                  width: '18px',
+                  height: '18px',
+                  cursor: 'pointer',
+                  accentColor: '#38bdf8'
+                }}
+              />
+              Keep me signed in
+            </label>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
             style={{
-              ...buttonStyle,
-              background: loading ? '#93c5fd' : '#2563eb',
-              cursor: loading ? 'not-allowed' : 'pointer'
+              width: '100%',
+              padding: '14px',
+              background: loading
+                ? 'rgba(56,189,248,0.4)'
+                : 'linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #8b5cf6 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontWeight: '600',
+              fontSize: '15px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
+              transition: 'all 0.2s ease'
             }}
           >
             {loading
-  ? (otpSent ? 'Verifying OTP...' : 'Sending OTP...')
-  : (otpSent ? 'Verify OTP' : 'Sign In')
-}
+              ? (otpSent ? '⏳ Verifying OTP...' : '⏳ Signing In...')
+              : (otpSent ? '🔐 Verify OTP' : '🚀 Sign In')
+            }
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '14px', marginTop: '20px' }}>
-          New employee? <Link to="/signup" style={{ color: '#60a5fa', fontWeight: '600' }}>Create an account</Link>
+        <p style={{
+          textAlign: 'center',
+          color: '#94a3b8',
+          fontSize: '14px',
+          marginTop: '24px',
+          marginBottom: 0
+        }}>
+          New employee?{' '}
+          <Link
+            to="/signup"
+            style={{
+              color: '#38bdf8',
+              fontWeight: '600',
+              textDecoration: 'none'
+            }}
+          >
+            Create an account →
+          </Link>
         </p>
       </div>
     </div>
   )
 }
 
+/* ── STYLES ── */
+
+const pageStyle = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '20px',
+  position: 'relative',
+  overflow: 'hidden',
+  background:
+    'radial-gradient(circle at 12% 8%, rgba(56,189,248,0.12), transparent 40%),' +
+    'radial-gradient(circle at 88% 12%, rgba(167,139,250,0.14), transparent 42%),' +
+    'radial-gradient(circle at 50% 95%, rgba(34,211,238,0.10), transparent 45%),' +
+    'linear-gradient(160deg, #020617 0%, #0f172a 55%, #172554 100%)'
+}
+
+const auroraLayer = {
+  position: 'absolute',
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  pointerEvents: 'none',
+  background:
+    'radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.08), transparent 60%),' +
+    'radial-gradient(ellipse at 70% 80%, rgba(139,92,246,0.08), transparent 60%)'
+}
+
 const loginCard = {
-  background: '#1e293b',
+  position: 'relative',
+  zIndex: 1,
+  background: 'linear-gradient(160deg, rgba(30, 41, 59, 0.65), rgba(15, 23, 42, 0.5))',
+  backdropFilter: 'blur(24px)',
+  WebkitBackdropFilter: 'blur(24px)',
   padding: '40px',
   borderRadius: '24px',
   width: '100%',
-  maxWidth: '450px',
-  border: '1px solid #334155',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
+  maxWidth: '440px',
+  border: '1px solid rgba(148, 163, 184, 0.18)',
+  boxShadow: '0 10px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.06)'
 }
 
 const labelStyle = {
   display: 'block',
   marginBottom: '8px',
-  fontSize: '14px',
+  fontSize: '13px',
   fontWeight: '600',
-  color: '#cbd5e1'
+  color: 'var(--text-secondary)',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px'
 }
 
 const inputStyle = {
   width: '100%',
   padding: '14px 16px',
   borderRadius: '12px',
-  border: '1px solid #475569',
+  border: '1px solid var(--border-input)',
   fontSize: '14px',
   outline: 'none',
-  background: '#0f172a',
-  color: '#f8fafc',
-  boxSizing: 'border-box'
-}
-
-const buttonStyle = {
-  width: '100%',
-  padding: '14px',
-  color: '#ffffff',
-  border: 'none',
-  borderRadius: '12px',
-  fontWeight: '600',
-  fontSize: '15px',
-  boxShadow: '0 4px 20px rgba(37,99,235,0.3)'
+  background: 'var(--bg-input)',
+  color: 'var(--text-primary)',
+  boxSizing: 'border-box',
+  transition: 'border-color 0.2s ease',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)'
 }
 
 export default Login

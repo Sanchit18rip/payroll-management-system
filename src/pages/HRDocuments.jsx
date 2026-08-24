@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect } from "react";
 function HRDocuments() {
 
@@ -21,8 +22,8 @@ setStatusFilter] =
 useState("All");
   useEffect(() => {
 
-    fetch(
-      "https://payroll-management-system-three.vercel.app/api/employees"
+    apiFetch(
+      `${API_BASE}/api/employees`
     )
       .then(res => res.json())
       .then(data =>
@@ -55,8 +56,8 @@ useState("All");
     async () => {
 
       const response =
-        await fetch(
-          "https://payroll-management-system-three.vercel.app/api/hr-documents"
+        await apiFetch(
+          `${API_BASE}/api/hr-documents`
         );
 
       const data =
@@ -83,9 +84,9 @@ async () => {
 
   try {
 
-    const response =await fetch(
+    const response =await apiFetch(
 
-      "https://payroll-management-system-three.vercel.app/api/hr-documents",
+      `${API_BASE}/api/hr-documents`,
 
       {
 
@@ -147,9 +148,9 @@ async (id) => {
 
   try {
 
-    await fetch(
+    await apiFetch(
 
-      `https://payroll-management-system-three.vercel.app/api/hr-documents/${id}`,
+      `${API_BASE}/api/hr-documents/${id}`,
 
       {
         method:"DELETE"
@@ -224,9 +225,9 @@ async (
 
       : "Uploaded";
 
-    await fetch(
+    await apiFetch(
 
-      `https://payroll-management-system-three.vercel.app/api/hr-documents/${id}`,
+      `${API_BASE}/api/hr-documents/${id}`,
 
       {
 
@@ -352,9 +353,10 @@ percentage
   return (
 
     <div
+      className="hr-page-light"
       style={{
         padding: "30px",
-        background: "#0f172a",
+        background: "var(--bg-page, #0f172a)",
         minHeight: "100vh"
       }}
     >
@@ -362,7 +364,7 @@ percentage
       
 <h1
 style={{
-color:"#f8fafc",
+color:"var(--text-primary, #f8fafc)",
 marginBottom:"25px"
 }}
 >
@@ -501,7 +503,7 @@ Add Document
 
 <h2
 style={{
-color:"#f8fafc"
+color:"var(--text-primary, #f8fafc)"
 }}
 >
 Documents
@@ -605,9 +607,12 @@ padding:"6px 12px",
 borderRadius:"20px",
 background:
 doc.status === "Uploaded"
-? "#14532d"
-: "#7f1d1d",
-color:"#fff"
+? "rgba(34,197,94,0.15)"
+: "rgba(239,68,68,0.15)",
+color:
+doc.status === "Uploaded"
+? "#16a34a"
+: "#dc2626"
 }}
 >
 {doc.status}
@@ -682,16 +687,16 @@ doc.status ===
 <div
 style={{
 marginTop:"25px",
-background:"#1e293b",
+background:"var(--bg-card-solid, #1e293b)",
 padding:"25px",
 borderRadius:"20px",
-border:"1px solid #334155"
+border:"1px solid rgba(148,163,184,0.12)"
 }}
 >
 
 <h2
 style={{
-color:"#f8fafc"
+color:"var(--text-primary, #f8fafc)"
 }}
 >
 📊 Employee Document Completion
@@ -761,7 +766,7 @@ gap:"10px"
 style={{
 width:"120px",
 height:"10px",
-background:"#334155",
+background:"var(--bg-input-solid, #334155)",
 borderRadius:"20px",
 overflow:"hidden"
 }}
@@ -813,10 +818,10 @@ employee.percentage
 
 }
 const formContainer = {
-  background:"#1e293b",
+  background:"var(--bg-card-solid, #1e293b)",
   padding:"25px",
   borderRadius:"20px",
-  border:"1px solid #334155",
+  border:"var(--border-card, 1px solid #334155)",
   display:"grid",
   gap:"15px",
   marginBottom:"25px"
@@ -825,9 +830,9 @@ const formContainer = {
 const inputStyle = {
   padding:"12px",
   borderRadius:"10px",
-  border:"1px solid #334155",
-  background:"#0f172a",
-  color:"#f8fafc"
+  border:"1px solid var(--border-default, #334155)",
+  background:"var(--bg-input, #0f172a)",
+  color:"var(--text-primary, #f8fafc)"
 }
 
 const addButton = {
@@ -840,29 +845,35 @@ const addButton = {
 }
 
 const tableContainer = {
-  background:"#1e293b",
+  background:"var(--bg-card-solid, #1e293b)",
   padding:"25px",
   borderRadius:"20px",
-  border:"1px solid #334155"
+  border:"var(--border-card, 1px solid #334155)"
 }
 
 const tableStyle = {
   width:"100%",
   borderCollapse:"collapse",
-  color:"#f8fafc"
+  color:"var(--text-primary, #f8fafc)"
 }
 
 const headerStyle = {
   padding:"14px",
   borderBottom:
-  "1px solid #334155",
-  textAlign:"left"
-}
+  "1px solid var(--border-default, rgba(148,163,184,0.12))",
+  textAlign:"left",
+  background: "var(--bg-input, rgba(2,6,23,0.4))",
+  color: "var(--text-secondary, #94a3b8)",
+  fontWeight: 600,
+  textTransform: "uppercase",
+  fontSize: "12px"
+};
 
 const tdStyle = {
   padding:"14px",
   borderBottom:
-  "1px solid #334155"
+  "1px solid var(--border-default, rgba(148,163,184,0.06))",
+  color: "var(--text-primary, #f8fafc)"
 }
 const deleteButton = {
   background:"#ef4444",
@@ -921,18 +932,11 @@ marginBottom:"25px"
 };
 
 const cardStyle = {
-
-background:"#1e293b",
-
+background:"var(--bg-card-solid, rgba(15,23,42,0.72))",
 padding:"20px",
-
 borderRadius:"20px",
-
-border:"1px solid #334155",
-
-color:"#f8fafc",
-
+border:"var(--border-card, 1px solid rgba(148,163,184,0.12))",
+color:"var(--text-primary, #f8fafc)",
 textAlign:"center"
-
 };
 export default HRDocuments;

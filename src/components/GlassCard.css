@@ -281,3 +281,39 @@
     }
 
 }
+
+/* ===== LIGHT MODE OVERRIDES ===== */
+[data-theme="light"] .glass-card {
+    background: rgba(255,255,255,0.85) !important;
+    border: 1px solid rgba(0,0,0,0.08) !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04) !important;
+    color: #0f172a !important;
+}
+[data-theme="light"] .glass-card::before {
+    background: linear-gradient(90deg, transparent, rgba(0,0,0,0.03), transparent) !important;
+}
+[data-theme="light"] .glass-hover:hover {
+    border-color: rgba(37,99,235,0.2) !important;
+    box-shadow: 0 25px 70px rgba(0,0,0,0.08), 0 0 40px rgba(37,99,235,0.06) !important;
+}
+[data-theme="light"] .stat-card h3,
+[data-theme="light"] .stat-card h1,
+[data-theme="light"] .stat-card p {
+    color: #0f172a !important;
+}
+[data-theme="light"] .stat-card h3 {
+    color: #64748b !important;
+}
+[data-theme="light"] .stat-card::after {
+    box-shadow: 0 0 8px var(--accent), 0 0 15px var(--accent) !important;
+}
+[data-theme="light"] .stat-icon {
+    background: rgba(0,0,0,0.04) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 0 20px color-mix(in srgb, var(--accent) 10%, transparent) !important;
+}
+[data-theme="light"] .stat-title {
+    color: #64748b !important;
+}
+[data-theme="light"] .stat-subtitle {
+    color: #94a3b8 !important;
+}

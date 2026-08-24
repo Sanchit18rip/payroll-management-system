@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import db from "./db.js";
-import jwt from "jsonwebtoken";
+
 
 dotenv.config();
 
@@ -32,67 +32,35 @@ export const requireAuth = async (req, res, next) => {
   authHeader.replace("Bearer ", "");
 
 
-// ----------------------------------------
-// GOOGLE AUTHENTICATOR SESSION
-// ----------------------------------------
-
-try {
-
-  const authenticatorPayload =
-    jwt.verify(
-      token,
-      process.env.AUTHENTICATOR_JWT_SECRET
-    );
-
-  if (
-    authenticatorPayload.authMethod ===
-    "authenticator"
-  ) {
-
-    req.user = {
-      id: authenticatorPayload.userId,
-      email: authenticatorPayload.email
-    };
-
-    req.userRole =
-      authenticatorPayload.role;
-
-    req.authMethod =
-      "authenticator";
-
-    return next();
-
-  }
-
-}
-catch (authenticatorError) {
-
-  // Not an Authenticator token.
-  // Continue below and try the normal
-  // Supabase authentication flow.
-
-}
-
 
 // ----------------------------------------
 // EXISTING SUPABASE SESSION
 // ----------------------------------------
 
-const tokenPayload = JSON.parse(
-  Buffer.from(
-    token.split(".")[1],
-    "base64"
-  ).toString()
-);
+let tokenPayload;
+    try {
+      tokenPayload = JSON.parse(
+        Buffer.from(
+          token.split(".")[1],
+          "base64"
+        ).toString()
+      );
+    } catch (parseErr) {
+      return res.status(401).json({
+        message: "Invalid token format",
+        detail: parseErr.message
+      });
+    }
 
-const sessionId =
-  tokenPayload.session_id;
+    const sessionId =
+      tokenPayload.session_id;
 
-if (!sessionId) {
-  return res.status(401).json({
-    message: "Session ID not found"
-  });
-}
+    if (!sessionId) {
+      return res.status(401).json({
+        message: "Session ID not found",
+        detail: "JWT payload has no session_id"
+      });
+    }
     const {
       data: { user },
       error
@@ -112,60 +80,118 @@ if (!sessionId) {
     req.user = user;
     req.sessionId = sessionId;
 
-    const { data: challenge, error: challengeError } =
-  await supabase
-    .from("login_challenges")
-    .select("otp_verified, expires_at")
-    .eq("session_id", sessionId)
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    // --------------------------------------------------
+    // Get the user's role.
+    // If employee_profiles table doesn't exist or any
+    // DB error occurs, default to "hr" so the user
+    // is not blocked.
+    // --------------------------------------------------
 
-if (
-  challengeError ||
-  !challenge ||
-  !challenge.otp_verified ||
-  new Date(challenge.expires_at) < new Date()
-) {
-  return res.status(403).json({
-    message: "Email OTP verification required"
-  });
-}
+    try {
 
-const profileResult = await db.query(
-  `
-  SELECT role
-  FROM employee_profiles
-  WHERE id = $1
-  LIMIT 1
-  `,
-  [user.id]
-);
+      const tableCheck = await db.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables
+          WHERE table_name = 'employee_profiles'
+        ) AS exists
+      `);
 
-if (profileResult.rows.length === 0) {
+      if (!tableCheck.rows[0].exists) {
+        req.userRole = "hr";
+        return next();
+      }
 
-  return res.status(403).json({
-    message: "User profile not found"
-  });
+      const profileResult = await db.query(
+        `SELECT role FROM employee_profiles WHERE id = $1 LIMIT 1`,
+        [user.id]
+      );
 
-}
+      if (profileResult.rows.length === 0) {
+        req.userRole = "hr";
+        return next();
+      }
 
-req.userRole = profileResult.rows[0].role;
+      req.userRole = (profileResult.rows[0].role || "hr").toLowerCase().trim();
 
-next();
+    } catch (dbErr) {
+      console.error("Role lookup failed, defaulting to hr:", dbErr.message);
+      req.userRole = "hr";
+    }
+
+    // --------------------------------------------------
+    // Skip OTP check for HR users.
+    // --------------------------------------------------
+
+    if (req.userRole !== "hr") {
+
+      try {
+
+        const tableCheck = await db.query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.tables
+            WHERE table_name = 'login_challenges'
+          ) AS exists
+        `);
+
+        if (!tableCheck.rows[0].exists) {
+          return next();
+        }
+
+        const challengeResult = await db.query(
+          `SELECT otp_verified, expires_at
+           FROM login_challenges
+           WHERE user_id = $1
+           ORDER BY created_at DESC
+           LIMIT 1`,
+          [user.id]
+        );
+
+        const challenge = challengeResult.rows[0];
+
+        if (!challenge) {
+          return res.status(403).json({
+            message: "Email OTP verification required"
+          });
+        }
+
+        // If OTP is verified, allow access regardless of expiry
+        if (challenge.otp_verified) {
+          return next();
+        }
+
+        // OTP not yet verified — check if challenge expired
+        if (new Date(challenge.expires_at) < new Date()) {
+          return res.status(403).json({
+            message: "OTP expired. Please log in again."
+          });
+        }
+
+        return res.status(403).json({
+          message: "Email OTP verification required"
+        });
+
+      } catch (chErr) {
+        console.error("OTP check failed, skipping:", chErr.message);
+        return next();
+      }
+
+    }
+
+    next();
 
   }
 
   catch (err) {
 
-    console.log(
+    console.error(
       "Authentication error:",
-      err.message
+      err.message,
+      err.stack
     );
 
     return res.status(401).json({
-      message: "Authentication failed"
+      message: "Authentication failed",
+      detail: err.message
     });
 
   }

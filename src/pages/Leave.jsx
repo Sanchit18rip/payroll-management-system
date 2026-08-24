@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect } from 'react' 
 
 function Leave() {
@@ -28,8 +29,8 @@ alert(
 return;
 
 }
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/leaves"
+  apiFetch(
+    `${API_BASE}/api/leaves`
   )
     .then(res => res.json())
     .then(data => setLeaves(data))
@@ -48,8 +49,8 @@ return;
 
     }
 
-    fetch(
-        "https://payroll-management-system-three.vercel.app/api/leave-balance"
+    apiFetch(
+        `${API_BASE}/api/leave-balance`
     )
 
         .then(res => res.json())
@@ -74,8 +75,8 @@ return;
                     employee.total_leaves_earned -
                     employee.available_leaves
                 )
-                fetch(
-  `https://payroll-management-system-three.vercel.app/api/employees/${id}`
+                apiFetch(
+  `${API_BASE}/api/employees/${id}`
 )
   .then(res => res.json())
   .then(data =>
@@ -141,8 +142,8 @@ return;
 
     }
 
-    fetch(
-        "https://payroll-management-system-three.vercel.app/api/leaves",
+    apiFetch(
+        `${API_BASE}/api/leaves`,
         {
             method: "POST",
 
@@ -201,8 +202,8 @@ reason
     newStatus
 ) => {
 
-    fetch(
-        `https://payroll-management-system-three.vercel.app/api/leaves/${id}`,
+    apiFetch(
+        `${API_BASE}/api/leaves/${id}`,
         {
 
             method: "PUT",
@@ -250,8 +251,8 @@ useEffect(() => {
 
     fetchLeaves()
 
-    fetch(
-        "https://payroll-management-system-three.vercel.app/api/employees"
+    apiFetch(
+        `${API_BASE}/api/employees`
     )
         .then(res => res.json())
         .then(data => setEmployees(data))
@@ -260,10 +261,11 @@ useEffect(() => {
 }, [])
     return (
         <div
+  className="hr-page-light"
   style={{
     padding: '30px',
     fontFamily: 'sans-serif',
-    background: '#0f172a',
+    background: 'var(--bg-page, #0f172a)',
     minHeight: '100vh'
   }}
 >
@@ -324,7 +326,7 @@ Leave Management
 
     <table style={tableStyle}>
                 <thead>
-                    <tr style={{ background: '#f8fafc', textAlign: 'left' }}>
+                    <tr style={{ background: 'var(--bg-input, #0f172a)', textAlign: 'left' }}>
                         <th style={thStyle}>Employee</th>
                         <th style={thStyle}>Leave Type</th>
                         <th style={thStyle}>Duration</th>
@@ -347,9 +349,9 @@ background:
 
 index % 2 === 0
 
-? "#1e293b"
+? "var(--bg-card-hover, rgba(0,0,0,0.02))"
 
-: "#172033"
+: "transparent"
 
 }}
 
@@ -398,7 +400,7 @@ index % 2 === 0
           fontSize: "12px"
         }}
       >
-        Employee
+        {leave.employee_code || "Employee"}
       </div>
 
     </div>
@@ -446,7 +448,16 @@ fontWeight:"700"
 
 </td>
                             <td style={tdStyle}>
-                                {leave.start_date && leave.end_date ? `${leave.start_date} to ${leave.end_date}` : 'N/A'}
+                                {(() => {
+                                    const fmt = (d) => {
+                                        if (!d) return 'N/A';
+                                        try {
+                                            const dt = new Date(d);
+                                            return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                        } catch { return d; }
+                                    };
+                                    return `${fmt(leave.start_date)} to ${fmt(leave.end_date)}`;
+                                })()}
                             </td>
                             <td style={tdStyle}>{leave.reason}</td>
                             <td style={tdStyle}>
@@ -704,8 +715,8 @@ const tableStyle = {
 }
 const thStyle = {
   padding: "18px 20px",
-  color: "#94a3b8",
-  background: "#0f172a",
+  color: "var(--text-secondary, #94a3b8)",
+  background: "var(--bg-input, #0f172a)",
   fontSize: "13px",
   fontWeight: "700",
   textTransform: "uppercase",
@@ -715,15 +726,15 @@ const thStyle = {
 }
 const tdStyle = {
   padding: "18px 20px",
-  color: "#f8fafc",
+  color: "var(--text-primary, #f8fafc)",
   fontSize: "14px",
   verticalAlign: "middle"
 }
 const tableCard = {
-  background: "#1e293b",
+  background: "var(--bg-card-solid, #1e293b)",
   borderRadius: "20px",
-  border: "1px solid #334155",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+  border: "var(--border-card, 1px solid #334155)",
+  boxShadow: "var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))",
   padding: "20px",
   marginTop: "30px"
 }
@@ -731,9 +742,9 @@ const searchInput = {
   width: "300px",
   padding: "12px 18px",
   borderRadius: "12px",
-  border: "1px solid #334155",
-  background: "#0f172a",
-  color: "#f8fafc",
+  border: "1px solid var(--border-default, #334155)",
+  background: "var(--bg-input, #0f172a)",
+  color: "var(--text-primary, #f8fafc)",
   outline: "none",
   fontSize: "14px"
 }

@@ -1,11 +1,9 @@
+import { apiFetch, API_BASE } from "../api";
 import {
   useState,
   useEffect
 } from 'react'
 function ThirdPartyPayroll() {
-  const [clients, setClients] =
-  useState([])
-
 const [employees, setEmployees] =
   useState([])
 const [searchTerm, setSearchTerm] =
@@ -13,19 +11,8 @@ const [searchTerm, setSearchTerm] =
 
 useEffect(() => {
 
-  fetch(
-    'https://payroll-management-system-three.vercel.app/api/clients'
-  )
-    .then(res => res.json())
-    .then(data =>
-      setClients(data)
-    )
-    .catch(err =>
-      console.log(err)
-    )
-
-  fetch(
-    'https://payroll-management-system-three.vercel.app/api/outsourced-employees'
+  apiFetch(
+    `${API_BASE}/api/outsourced-employees`
   )
     .then(res => res.json())
     .then(data =>
@@ -37,12 +24,6 @@ useEffect(() => {
 
 }, [])
 const payrollData = employees.map(employee => {
-
-  const client =
-    clients.find(
-      c =>
-        c.id === employee.client_id
-    )
 
   const basic =
     Number(employee.salary)
@@ -65,13 +46,7 @@ const payrollData = employees.map(employee => {
   const pf =
     basic * 0.12
 
-  const serviceFee =
-    gross *
-    (
-      Number(
-        client?.service_fee_percent || 0
-      ) / 100
-    )
+  const serviceFee = 0
 
   const totalBilling =
     gross +
@@ -82,7 +57,7 @@ const payrollData = employees.map(employee => {
     id: employee.id,
 
     company_name:
-      client?.company_name ||
+      employee.client_id ||
       "No Company",
 
     employee_name:

@@ -53,9 +53,10 @@ const width = Math.max(
     60
 );
 
-const left =
-    (scrollLeft / (totalWidth - visibleWidth)) *
-    (visibleWidth - width);
+const left = totalWidth > visibleWidth
+    ? (scrollLeft / (totalWidth - visibleWidth)) *
+    (visibleWidth - width)
+    : 0;
 
 setThumbWidth(width);
 
@@ -67,9 +68,10 @@ setThumbLeft(left);
             50
         );
 
-    const top =
-        (scrollTop / (total - visible))
-        * (visible - height);
+    const top = (total > visible)
+        ? (scrollTop / (total - visible))
+        * (visible - height)
+        : 0;
 
     setThumbHeight(height);
 
@@ -159,7 +161,8 @@ return () => {
         style={{
             position: "relative",
             borderRadius: "24px",
-            overflow: "hidden",
+            overflowY: "hidden",
+            overflowX: "auto",
             background:
                 "linear-gradient(180deg,#1e293b,#172033)",
             border:

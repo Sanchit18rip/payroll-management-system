@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,6 +10,22 @@ import {
   BarChart,
   Bar,
   XAxis,
+  Wallet,
+  CalendarDays,
+  Plane,
+  BarChart3,
+  ClipboardList,
+  FileText,
+  Briefcase,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  CalendarX,
+  Star,
+  Search,
+  XCircle,
+  LogOut,
+} from 'lucide-react';
   YAxis,
   CartesianGrid
 } from 'recharts'
@@ -18,7 +35,6 @@ import * as faceapi from 'face-api.js'
 import ChatbotWidget from '../components/ChatbotWidget'
 import NotificationBell from '../components/NotificationBell'
 
-const API_BASE = 'http://localhost:5000'
 
 const OFFICE_LAT = 19.0760
 const OFFICE_LNG = 72.8777
@@ -68,10 +84,10 @@ function getTimeGreeting() {
 
   const hour = new Date().getHours()
 
-  if (hour >= 5 && hour < 12) return { text: 'Good Morning', emoji: '🌅' }
-  if (hour >= 12 && hour < 17) return { text: 'Good Afternoon', emoji: '☀️' }
-  if (hour >= 17 && hour < 21) return { text: 'Good Evening', emoji: '🌆' }
-  return { text: 'Good Night', emoji: '🌙' }
+  if (hour >= 5 && hour < 12) return { text: 'Good Morning' }
+  if (hour >= 12 && hour < 17) return { text: 'Good Afternoon' }
+  if (hour >= 17 && hour < 21) return { text: 'Good Evening' }
+  return { text: 'Good Night' }
 
 }
 
@@ -168,6 +184,8 @@ const [showTerms, setShowTerms] = useState(false);
   const handleLogout = async () => {
 
   await supabase.auth.signOut();
+  localStorage.removeItem("payroll_keep_signed_in");
+  sessionStorage.removeItem("payroll_session_only");
 
   navigate("/login");
 
@@ -426,7 +444,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
         return
       }
 
-      const res = await fetch(`${API_BASE}/api/employees/${employee.id}/face-enroll`, {
+      const res = await apiFetch(`${API_BASE}/api/employees/${employee.id}/face-enroll`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -510,7 +528,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
             .getPublicUrl(fileName)
           console.log("Sending attendance request...");
           
-          const res = await fetch(`${API_BASE}/api/attendance/self-mark`, {
+          const res = await apiFetch(`${API_BASE}/api/attendance/self-mark`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -597,7 +615,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
           const { latitude, longitude } = position.coords
 
-          const res = await fetch(`${API_BASE}/api/attendance/self-mark-exit`, {
+          const res = await apiFetch(`${API_BASE}/api/attendance/self-mark-exit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -648,7 +666,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     try {
 
-      const res = await fetch(`${API_BASE}/api/work-logs/${employeeId}`)
+      const res = await apiFetch(`${API_BASE}/api/work-logs/${employeeId}`)
 
       if (!res.ok) return
 
@@ -744,7 +762,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
       }
 
-      const res = await fetch(`${API_BASE}/api/work-logs/${activeWorkLog.id}`, {
+      const res = await apiFetch(`${API_BASE}/api/work-logs/${activeWorkLog.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -799,7 +817,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     try {
 
-      const res = await fetch(
+      const res = await apiFetch(
         `${API_BASE}/api/employee-dashboard/${employeeId}`
       )
 
@@ -851,7 +869,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
       try {
 
-        const empRes = await fetch(
+        const empRes = await apiFetch(
           `${API_BASE}/api/employees/by-email/${encodeURIComponent(user.email)}`
         )
 
@@ -959,7 +977,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
       slotsGeneratedRef.current = true
 
-      fetch(`${API_BASE}/api/work-logs/generate-slots`, {
+      apiFetch(`${API_BASE}/api/work-logs/generate-slots`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1010,7 +1028,7 @@ await faceapi.nets.tinyFaceDetector.loadFromUri(
 
     missedSlots.forEach(log => {
 
-      fetch(`${API_BASE}/api/work-logs/${log.id}`, {
+      apiFetch(`${API_BASE}/api/work-logs/${log.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1111,7 +1129,7 @@ You requested ${requestedDays} day(s).`
 
     setApplying(true)
 
-    fetch(`${API_BASE}/api/leaves`, {
+    apiFetch(`${API_BASE}/api/leaves`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -1150,7 +1168,7 @@ You requested ${requestedDays} day(s).`
 
     setAcceptingTerms(true)
 
-    fetch(`${API_BASE}/api/employees/${employee.id}/accept-terms`, {
+    apiFetch(`${API_BASE}/api/employees/${employee.id}/accept-terms`, {
       method: 'PUT'
     })
       .then(res => res.json())
@@ -1187,9 +1205,9 @@ You requested ${requestedDays} day(s).`
             WebkitBackdropFilter: 'blur(16px)',
             boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
             animation: 'welcomePulse 1.6s ease-in-out infinite'
-          }}>💼</div>
+          }}><Briefcase size={38} color="#818cf8" /></div>
           <h1 style={{ fontSize: 26, margin: '0 0 10px 0', color: '#f8fafc', animation: 'fadeInUp 0.6s ease' }}>
-            {greet.text} {greet.emoji}
+            {greet.text}
           </h1>
           <p style={{ color: '#94a3b8', fontSize: 15, margin: '0 0 26px 0', animation: 'fadeInUp 0.6s ease 0.15s both' }}>
             Loading your workspace...
@@ -1214,7 +1232,7 @@ You requested ${requestedDays} day(s).`
     return (
       <div style={centerScreen}>
         <div style={errorCard}>
-          <div style={{ fontSize: '36px', marginBottom: '14px' }}>⚠️</div>
+          <AlertTriangle size={36} color="#f59e0b" style={{ marginBottom: '14px' }} />
           <h2 style={{ color: '#f8fafc', marginBottom: '10px' }}>Can't load your dashboard</h2>
           <p style={{ color: '#94a3b8', fontSize: '15px', lineHeight: '1.6' }}>{errorMsg}</p>
           {userEmail && (
@@ -1309,7 +1327,7 @@ console.log(increments);
     onClick={() => setShowLogoutModal(true)}
     style={logoutFloatingButton}
   >
-    🚪 Logout
+    Logout
   </button>
 </div>
       {(!termsAccepted || showTerms) && (
@@ -1489,12 +1507,12 @@ console.log(increments);
 
                 <div style={liveMatchBadge}>
                   {liveMatchFound ? (
-                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
-                      ✅ {liveDetectedName}, {liveDetectedCode}
+                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={14} color="#22c55e" /> {liveDetectedName}, {liveDetectedCode}
                     </span>
                   ) : (
-                    <span style={{ color: '#fbbf24', fontSize: '13px' }}>
-                      🔍 Detecting your face...
+                    <span style={{ color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Search size={14} color="#fbbf24" /> Detecting your face...
                     </span>
                   )}
                   {liveMatchFound && !blinkDetected && (
@@ -1626,6 +1644,8 @@ console.log(increments);
         gap: '16px',
         padding: '28px 30px',
         borderRadius: '24px',
+        position: 'relative',
+        zIndex: 10,
         background: getTimeHeroAccent(),
         backdropFilter: 'blur(18px)',
         WebkitBackdropFilter: 'blur(18px)',
@@ -1644,7 +1664,7 @@ console.log(increments);
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text'
           }}>
-            {greet.text}, {employee.name} {greet.emoji}
+            {greet.text}, {employee.name}
           </h1>
           
           <p style={{ color: '#cbd5e1', fontSize: '15px', margin: 0 }}>
@@ -1685,7 +1705,7 @@ console.log(increments);
     cursor: "pointer"
   }}
 >
-  📄 View Terms & Conditions
+  View Terms & Conditions
 </button>
       {/* EMPLOYMENT PROFILE */}
       <div style={sectionCard}>
@@ -1716,7 +1736,7 @@ console.log(increments);
             marginBottom: '14px',
             background: 'linear-gradient(135deg, rgba(34,197,94,0.25), rgba(34,197,94,0.08))',
             border: '1px solid rgba(34,197,94,0.35)'
-          }}>💰</div>
+          }}><Wallet size={20} color="#22c55e" /></div>
           <h3 style={cardLabel}>Net Payable Salary</h3>
           <h1 style={{ ...cardValue, color: '#22c55e' }}>₹{Number(payableSalary).toLocaleString()}</h1>
         </div>
@@ -1732,7 +1752,7 @@ console.log(increments);
             marginBottom: '14px',
             background: 'linear-gradient(135deg, rgba(6,182,212,0.25), rgba(6,182,212,0.08))',
             border: '1px solid rgba(6,182,212,0.35)'
-          }}>📅</div>
+          }}><CalendarDays size={20} color="#06b6d4" /></div>
           <h3 style={cardLabel}>Attendance</h3>
           <h1 style={{ ...cardValue, color: '#06b6d4' }}>{attendancePercentage}%</h1>
         </div>
@@ -1748,7 +1768,7 @@ console.log(increments);
             marginBottom: '14px',
             background: 'linear-gradient(135deg, rgba(168,85,247,0.25), rgba(168,85,247,0.08))',
             border: '1px solid rgba(168,85,247,0.35)'
-          }}>🌴</div>
+          }}><Plane size={20} color="#a855f7" /></div>
           <h3 style={cardLabel}>Leave Balance</h3>
           <h1 style={{ ...cardValue, color: '#a855f7' }}>{Number(leaveBalance.available_leaves).toFixed(1)}</h1>
           <p style={cardSub}>of {Number(leaveBalance.total_leaves_earned).toFixed(1)} earned</p>
@@ -1765,9 +1785,9 @@ console.log(increments);
             marginBottom: '14px',
             background: 'linear-gradient(135deg, rgba(245,158,11,0.25), rgba(245,158,11,0.08))',
             border: '1px solid rgba(245,158,11,0.35)'
-          }}>🚀</div>
+          }}><BarChart3 size={20} color="#f59e0b" /></div>
           <h3 style={cardLabel}>Performance</h3>
-          <h1 style={{ ...cardValue, color: '#f59e0b' }}>{averageRating} ⭐</h1>
+          <h1 style={{ ...cardValue, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 6 }}>{averageRating} <Star size={16} color="#f59e0b" fill="#f59e0b" /></h1>
           <p style={cardSub}>{performance.length} review(s)</p>
         </div>
       </div>
@@ -1842,8 +1862,8 @@ console.log(increments);
               </div>
             ) : isCheckedIn && isCheckedOut ? (
 
-              <p style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600' }}>
-                ✅ You have checked in and checked out for today.
+              <p style={{ color: '#22c55e', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <CheckCircle2 size={16} color="#22c55e" /> You have checked in and checked out for today.
               </p>
 
             ) : isCheckedIn && !isCheckedOut ? (
@@ -1857,13 +1877,12 @@ console.log(increments);
                   <video ref={videoRef} autoPlay muted style={cameraPreview} />
 
                   <div style={liveMatchBadge}>
-                    {liveMatchFound ? (
-                      <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
-                        ✅ {liveDetectedName}, {liveDetectedCode}
-                      </span>
-                    ) : (
-                      <span style={{ color: '#fbbf24', fontSize: '13px' }}>
-                        🔍 Detecting your face...
+                    {liveMatchFound ? (                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={14} color="#22c55e" /> {liveDetectedName}, {liveDetectedCode}
+                    </span>
+                  ) : (
+                      <span style={{ color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Search size={14} color="#fbbf24" /> Detecting your face...
                       </span>
                     )}
                     {liveMatchFound && !blinkDetected && (
@@ -1932,12 +1951,12 @@ console.log(increments);
 
                 <div style={liveMatchBadge}>
                   {liveMatchFound ? (
-                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px' }}>
-                      ✅ {liveDetectedName}, {liveDetectedCode}
+                    <span style={{ color: '#22c55e', fontWeight: '700', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <CheckCircle2 size={14} color="#22c55e" /> {liveDetectedName}, {liveDetectedCode}
                     </span>
                   ) : (
-                    <span style={{ color: '#fbbf24', fontSize: '13px' }}>
-                      🔍 Detecting your face...
+                    <span style={{ color: '#fbbf24', fontSize: '13px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Search size={14} color="#fbbf24" /> Detecting your face...
                     </span>
                   )}
                   {liveMatchFound && !blinkDetected && (
@@ -2011,32 +2030,35 @@ console.log(increments);
             </PieChart>
           </div>
 
+
           {/* RECENT ATTENDANCE */}
           <div style={sectionCard}>
             <h2 style={sectionTitle}>Recent Attendance</h2>
             {attendance.length === 0 ? (
               <p style={{ color: '#94a3b8' }}>No attendance records yet.</p>
             ) : (
-              <table style={tableStyle}>
-                <thead>
-                  <tr>
-                    <th style={thStyle}>Date</th>
-                    <th style={thStyle}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendance.map((row, i) => (
-                    <tr key={i}>
-                      <td style={tdStyle}>{row.attendance_date}</td>
-                      <td style={tdStyle}>
-                        <span style={statusStyle(row.status === 'Present' ? 'Approved' : row.status === 'Absent' ? 'Rejected' : 'Pending')}>
-                          {row.status}
-                        </span>
-                      </td>
+              <div style={scrollableTableWrapper}>
+                <table style={tableStyle}>
+                  <thead>
+                    <tr>
+                      <th style={{ ...thStyle, ...stickyThStyle }}>Date</th>
+                      <th style={{ ...thStyle, ...stickyThStyle }}>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {attendance.map((row, i) => (
+                      <tr key={i}>
+                        <td style={tdStyle}>{row.attendance_date}</td>
+                        <td style={tdStyle}>
+                          <span style={statusStyle(row.status === 'Present' ? 'Approved' : row.status === 'Absent' ? 'Rejected' : 'Pending')}>
+                            {row.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
 
@@ -2594,6 +2616,19 @@ const cameraPreview = {
   border: '1px solid rgba(148, 163, 184, 0.2)',
   background: '#000',
   boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+}
+
+const scrollableTableWrapper = {
+  maxHeight: '340px',
+  overflowY: 'auto',
+  borderRadius: '10px'
+}
+
+const stickyThStyle = {
+  position: 'sticky',
+  top: 0,
+  background: '#0f172a',
+  zIndex: 1
 }
 
 const tableStyle = {

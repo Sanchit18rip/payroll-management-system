@@ -158,3 +158,32 @@
         transform:translateY(0) scale(1);
     }
 }
+
+/* Light theme overrides */
+[data-theme="light"] .dropdown-trigger {
+    border: 1px solid rgba(0,0,0,0.1);
+    background: rgba(255,255,255,0.85);
+    color: #0f172a;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+}
+[data-theme="light"] .dropdown-trigger:hover,
+[data-theme="light"] .dropdown-trigger.active {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(59,130,246,0.1), 0 8px 20px rgba(0,0,0,0.08);
+}
+[data-theme="light"] .dropdown-menu {
+    background: rgba(255,255,255,0.97);
+    border: 1px solid rgba(0,0,0,0.1);
+    box-shadow: 0 15px 40px rgba(0,0,0,0.12);
+}
+[data-theme="light"] .dropdown-item {
+    color: #0f172a;
+}
+[data-theme="light"] .dropdown-item:hover,
+[data-theme="light"] .dropdown-item.selected {
+    background: rgba(59,130,246,0.08);
+    color: #2563eb;
+}
+[data-theme="light"] .check {
+    color: #2563eb;
+}

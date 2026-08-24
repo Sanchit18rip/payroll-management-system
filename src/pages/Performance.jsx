@@ -1,3 +1,4 @@
+import { apiFetch, API_BASE } from "../api";
 import { useState, useEffect } from 'react'
 
 
@@ -39,9 +40,9 @@ useState(null)
   try {
 
     const response =
-      await fetch(
+      await apiFetch(
 
-        "https://payroll-management-system-three.vercel.app/api/performance-reviews"
+        `${API_BASE}/api/performance-reviews`
 
       )
 
@@ -63,8 +64,8 @@ useState(null)
   useEffect(() => {
     loadPerformances()
 
-fetch(
-  "https://payroll-management-system-three.vercel.app/api/employees"
+apiFetch(
+  `${API_BASE}/api/employees`
 )
 .then(res => res.json())
 .then(data =>
@@ -98,9 +99,9 @@ async () => {
   try {
 
     const response =
-      await fetch(
+      await apiFetch(
 
-        "https://payroll-management-system-three.vercel.app/api/performance-reviews",
+        `${API_BASE}/api/performance-reviews`,
 
         {
 
@@ -224,9 +225,9 @@ async () => {
 
 try {
 
-await fetch(
+await apiFetch(
 
-`https://payroll-management-system-three.vercel.app/api/performance-reviews/${selectedReview.id}`,
+`${API_BASE}/api/performance-reviews/${selectedReview.id}`,
 
 {
 
@@ -274,9 +275,9 @@ async () => {
 
   try {
 
-    await fetch(
+    await apiFetch(
 
-      `https://payroll-management-system-three.vercel.app/api/performance-reviews/${reviewToDelete}`,
+      `${API_BASE}/api/performance-reviews/${reviewToDelete}`,
 
       {
         method: "DELETE"
@@ -320,9 +321,9 @@ async (reviewId) => {
   try {
 
     const response =
-      await fetch(
+      await apiFetch(
 
-        `https://payroll-management-system-three.vercel.app/api/apply-increment/${reviewId}`,
+        `${API_BASE}/api/apply-increment/${reviewId}`,
 
         {
           method: "PUT"
@@ -348,9 +349,10 @@ async (reviewId) => {
 };
   return (
     <div
+  className="hr-page-light"
   style={{
     padding: '30px',
-    background: '#0f172a',
+    background: 'var(--bg-page, #0f172a)',
     minHeight: '100vh'
   }}
 >
@@ -557,8 +559,8 @@ async (reviewId) => {
     ...rowStyle,
     background:
       performances.indexOf(item) % 2 === 0
-        ? "#1e293b"
-        : "#172033"
+        ? "var(--bg-card-hover, rgba(0,0,0,0.02))"
+        : "transparent"
   }}
 >
                   <td style={tdStyle}>
@@ -928,8 +930,8 @@ Cancel
 
 }
 const formContainer = {
-  background: '#1e293b',
-  border: '1px solid #334155',
+  background: 'var(--bg-card-solid, #1e293b)',
+  border: 'var(--border-card, 1px solid #334155)',
   padding: '28px',
   borderRadius: '20px',
   boxShadow:
@@ -940,9 +942,9 @@ const inputStyle = {
   padding: '12px 14px',
   marginBottom: '18px',
   borderRadius: '10px',
-  border: '1px solid #475569',
-  background: '#0f172a',
-  color: '#f8fafc',
+  border: '1px solid var(--border-default, #475569)',
+  background: 'var(--bg-input, #0f172a)',
+  color: 'var(--text-primary, #f8fafc)',
   fontSize: '15px',
   boxSizing: 'border-box'
 }
@@ -951,9 +953,9 @@ const textareaStyle = {
   width: '100%',
   padding: '12px 14px',
   borderRadius: '10px',
-  border: '1px solid #475569',
-  background: '#0f172a',
-  color: '#f8fafc',
+  border: '1px solid var(--border-default, #475569)',
+  background: 'var(--bg-input, #0f172a)',
+  color: 'var(--text-primary, #f8fafc)',
   height: '120px',
   fontSize: '15px',
   boxSizing: 'border-box',
@@ -975,10 +977,10 @@ const buttonStyle = {
     '0 4px 20px rgba(37,99,235,0.3)'
 }
 const tableCard = {
-  background: "#1e293b",
+  background: "var(--bg-card-solid, #1e293b)",
   borderRadius: "20px",
-  border: "1px solid #334155",
-  boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
+  border: "var(--border-card, 1px solid #334155)",
+  boxShadow: "var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))",
   overflow: "hidden",
   padding: "20px",
   marginTop: "30px"
@@ -986,7 +988,7 @@ const tableCard = {
 
 const tableStyle = {
   width: '100%',
-  background: '#1e293b',
+  background: 'var(--bg-card-solid, #1e293b)',
   borderCollapse: 'collapse',
   borderRadius: '20px',
   overflow: 'hidden',
@@ -997,13 +999,13 @@ const tableStyle = {
 }
 
 const theadRow = {
-  background: "#0f172a",
-  borderBottom: "1px solid #334155"
+  background: "var(--bg-input, #0f172a)",
+  borderBottom: "1px solid var(--border-default, #334155)"
 }
 
 const thStyle = {
   padding: "18px",
-  color: "#94a3b8",
+  color: "var(--text-secondary, #94a3b8)",
   fontSize: "13px",
   fontWeight: "700",
   textTransform: "uppercase",
@@ -1017,7 +1019,7 @@ const rowStyle = {
 const tdStyle = {
   padding: '16px',
   fontSize: '14px',
-  color: '#f8fafc'
+  color: 'var(--text-primary, #f8fafc)'
 }
 
 const badgeBase = {
@@ -1044,13 +1046,13 @@ const cardsContainer = {
 
 const dashboardCard = {
   background:
-    "linear-gradient(135deg,#1e293b,#0f172a)",
+    "var(--bg-card-solid, linear-gradient(135deg,#1e293b,#0f172a))",
   borderRadius: "20px",
   padding: "30px",
   textAlign: "center",
   border:
-    "1px solid #334155",
-  color: "#f8fafc",
+    "var(--border-card, 1px solid #334155)",
+  color: "var(--text-primary, #f8fafc)",
   boxShadow:
     "0 10px 35px rgba(0,0,0,0.35)"
 }

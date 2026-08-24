@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import DashboardHeader from "../components/Dashboard/DashboardHeader";
 import TermsModal from "../components/Dashboard/TermsModal";
 import StatCard from "../components/Dashboard/StatCard";
+import NotificationBell from "../components/NotificationBell";
+import { apiFetch, API_BASE } from "../api";
 import {
   PieChart,
   Pie,
@@ -36,43 +38,31 @@ const [todayDate, setTodayDate] =
     new Date()
       .toLocaleDateString('en-CA')
   )  
-const loadDashboardData = () => {
+const loadDashboardData = async () => {
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/employees"
-  )
-    .then(res => res.json())
-    .then(data => setEmployees(data))
+  try {
+    const [empRes, payRes, sumRes, attRes, lbRes, actRes] = await Promise.all([
+      apiFetch(`${API_BASE}/api/employees`),
+      apiFetch(`${API_BASE}/api/payroll`),
+      apiFetch(`${API_BASE}/api/monthly-attendance-summary`),
+      apiFetch(`${API_BASE}/api/attendance/${todayDate}`),
+      apiFetch(`${API_BASE}/api/leave-balance`),
+      apiFetch(`${API_BASE}/api/recent-activities`)
+    ]);
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/payroll"
-  )
-    .then(res => res.json())
-    .then(data => setPayroll(data))
+    const [empData, payData, sumData, attData, lbData, actData] = await Promise.all([
+      empRes.json(), payRes.json(), sumRes.json(), attRes.json(), lbRes.json(), actRes.json()
+    ]);
 
-  fetch(
-    "https://payroll-management-system-three.vercel.app/api/monthly-attendance-summary"
-  )
-    .then(res => res.json())
-    .then(data => setMonthlySummary(data))
-
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/attendance/${todayDate}`
-  )
-    .then(res => res.json())
-    .then(data => setAttendance(data))
-  fetch(
-  "https://payroll-management-system-three.vercel.app/api/leave-balance"
-)
-  .then(res => res.json())
-  .then(data => setLeaveBalances(data))
-  fetch(
-  "https://payroll-management-system-three.vercel.app/api/recent-activities"
-)
-  .then(res => res.json())
-  .then(data =>
-    setRecentActivities(data)
-  )
+    if (Array.isArray(empData)) setEmployees(empData);
+    if (Array.isArray(payData)) setPayroll(payData);
+    if (Array.isArray(sumData)) setMonthlySummary(sumData);
+    if (Array.isArray(attData)) setAttendance(attData);
+    if (Array.isArray(lbData)) setLeaveBalances(lbData);
+    if (Array.isArray(actData)) setRecentActivities(actData);
+  } catch (err) {
+    console.error('Dashboard load error:', err);
+  }
 }
 useEffect(() => {
 
@@ -108,7 +98,7 @@ useEffect(() => {
   const interval =
     setInterval(
       loadDashboardData,
-      5000
+      30000
     )
 
   return () =>
@@ -119,11 +109,9 @@ useEffect(() => {
 
 useEffect(() => {
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/attendance/${todayDate}`
-  )
+  apiFetch(`${API_BASE}/api/attendance/${todayDate}`)
     .then(res => res.json())
-    .then(data => setAttendance(data))
+    .then(data => { if (Array.isArray(data)) setAttendance(data); })
     .catch(err => console.log(err))
 
 }, [])
@@ -308,6 +296,7 @@ duration:.8
   onClose={() => setShowTerms(false)}
 
 />
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
     <DashboardHeader
 
   greeting="Good Morning"
@@ -318,6 +307,8 @@ duration:.8
   
 
 />
+      <NotificationBell role="hr" />
+    </div>
 
 
       {/* SUMMARY CARDS */}
@@ -400,7 +391,7 @@ duration:.8
   <div>
     <h2
       style={{
-        color: "#f8fafc",
+        color: "var(--text-primary, #f8fafc)",
         margin: 0,
         fontSize: "28px",
         fontWeight: 700
@@ -412,7 +403,7 @@ duration:.8
     <p
       style={{
         marginTop: "6px",
-        color: "rgba(255,255,255,.55)",
+        color: "var(--text-secondary, rgba(255,255,255,.55))",
         fontSize: "14px"
       }}
     >
@@ -425,11 +416,11 @@ duration:.8
       padding: "8px 16px",
       borderRadius: "999px",
 
-      background: "rgba(255,255,255,.05)",
+      background: "var(--bg-hover, rgba(255,255,255,.05))",
 
-      border: "1px solid rgba(255,255,255,.08)",
+      border: "1px solid var(--border-card, rgba(255,255,255,.08))",
 
-      color: "#37FFD7",
+      color: "var(--text-accent, #37FFD7)",
 
       fontWeight: 600,
 
@@ -534,9 +525,9 @@ cornerRadius={8}
 
                 borderRadius:"16px",
 
-                background:"rgba(255,255,255,.04)",
+                background:"var(--bg-hover, rgba(255,255,255,.04))",
 
-                border:"1px solid rgba(255,255,255,.05)"
+                border:"1px solid var(--border-card, rgba(255,255,255,.05))"
             }}
         >
 
@@ -560,7 +551,7 @@ cornerRadius={8}
 
                 <span
                     style={{
-                        color:"#cbd5e1",
+                        color:"var(--text-secondary, #cbd5e1)",
                         fontSize:"14px"
                     }}
                 >
@@ -626,7 +617,7 @@ cornerRadius={8}
   <div>
     <h2
       style={{
-        color: "#f8fafc",
+        color: "var(--text-primary, #f8fafc)",
         margin: 0,
         fontSize: "28px",
         fontWeight: 700
@@ -638,7 +629,7 @@ cornerRadius={8}
     <p
       style={{
         marginTop: "6px",
-        color: "rgba(255,255,255,.55)",
+        color: "var(--text-secondary, rgba(255,255,255,.55))",
         fontSize: "14px"
       }}
     >
@@ -647,12 +638,11 @@ cornerRadius={8}
   </div>
 
   <div
-    style={{
-      padding: "8px 16px",
+    style={{      padding: "8px 16px",
       borderRadius: "999px",
-      background: "rgba(255,255,255,.05)",
-      border: "1px solid rgba(255,255,255,.08)",
-      color: "#60A5FA",
+      background: "var(--bg-hover, rgba(255,255,255,.05))",
+      border: "1px solid var(--border-card, rgba(255,255,255,.08))",
+      color: "var(--accent-blue, #60A5FA)",
       fontWeight: 600,
       fontSize: "13px"
     }}
@@ -660,7 +650,8 @@ cornerRadius={8}
     {new Date().toLocaleDateString("en-US", {
       month: "short",
       year: "numeric"
-    })}
+    })
+  }
   </div>
 </div>
           <ResponsiveContainer
@@ -753,7 +744,7 @@ cornerRadius={8}
   >
     <div
       style={{
-        color: "rgba(255,255,255,.55)",
+        color: "var(--text-secondary, rgba(255,255,255,.55))",
         fontSize: "12px"
       }}
     >
@@ -783,7 +774,7 @@ cornerRadius={8}
   >
     <div
       style={{
-        color: "rgba(255,255,255,.55)",
+        color: "var(--text-secondary, rgba(255,255,255,.55))",
         fontSize: "12px"
       }}
     >
@@ -844,7 +835,7 @@ style={{
 fontSize:"30px",
 fontWeight:700,
 margin:0,
-color:"#f8fafc"
+color:"var(--text-primary, #f8fafc)"
 }}
 >
 Recent Activities
@@ -853,7 +844,7 @@ Recent Activities
 <p
 style={{
 marginTop:"6px",
-color:"rgba(255,255,255,.55)",
+color:"var(--text-secondary, rgba(255,255,255,.55))",
 fontSize:"14px"
 }}
 >
@@ -863,12 +854,11 @@ Latest workforce updates
 </div>
 
 <div
-style={{
-padding:"8px 16px",
+style={{      padding:"8px 16px",
 borderRadius:"999px",
-background:"rgba(255,255,255,.05)",
-border:"1px solid rgba(255,255,255,.08)",
-color:"#37FFD7",
+background:"var(--bg-hover, rgba(255,255,255,.05))",
+border:"1px solid var(--border-card, rgba(255,255,255,.08))",
+color:"var(--text-accent, #37FFD7)",
 fontWeight:600,
 fontSize:"13px"
 }}
@@ -941,11 +931,11 @@ onMouseLeave={(e)=>{
     height: "48px",
     borderRadius: "16px",
 
-    background: "rgba(255,255,255,.08)",
+    background: "var(--bg-hover, rgba(255,255,255,.08))",
 
-    border: "1px solid rgba(255,255,255,.08)",
+    border: "1px solid var(--border-card, rgba(255,255,255,.08))",
 
-    boxShadow: "0 0 20px rgba(55,255,215,.18)",
+    boxShadow: "0 0 15px rgba(55,255,215,.1)",
 
     display: "flex",
     alignItems: "center",
@@ -974,7 +964,7 @@ onMouseLeave={(e)=>{
             style={{
     fontWeight: 700,
     fontSize: "16px",
-    color: "#f8fafc",
+    color: "var(--text-primary, #f8fafc)",
     letterSpacing: ".3px"
 }}
           >
@@ -985,7 +975,7 @@ onMouseLeave={(e)=>{
           <div
             style={{
     fontSize: "13px",
-    color: "rgba(255,255,255,.65)",
+    color: "var(--text-secondary, rgba(255,255,255,.65))",
     lineHeight: "1.6"
 }}
           >
@@ -1005,7 +995,7 @@ onMouseLeave={(e)=>{
           <div
             style={{
     fontSize: "12px",
-    color: "rgba(255,255,255,.40)",
+    color: "var(--text-muted, rgba(255,255,255,.40))",
     marginTop: "6px",
     letterSpacing: ".4px"
 }}
@@ -1039,11 +1029,11 @@ onMouseLeave={(e)=>{
 
     borderRadius: "999px",
 
-    background: "rgba(255,255,255,.06)",
+    background: "var(--bg-hover, rgba(255,255,255,.06))",
 
-    border: "1px solid rgba(255,255,255,.08)",
+    border: "1px solid var(--border-card, rgba(255,255,255,.08))",
 
-    color: "#37FFD7",
+    color: "var(--text-accent, #37FFD7)",
 
     fontSize: "12px",
 
@@ -1073,7 +1063,7 @@ onMouseLeave={(e)=>{
     style={{
       textAlign: 'center',
       padding: '40px 0',
-      color: '#cbd5e1'
+      color: 'var(--text-muted, #cbd5e1)'
     }}
   >
 
@@ -1128,13 +1118,13 @@ const cardContainer = {
   alignItems: 'stretch'
 }
 const card = {
-  background: '#1e293b',
+  background: 'var(--bg-card-solid, #1e293b)',
   borderRadius: '20px',
   padding: '28px',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)',
-  transition: 'all 0.3s ease'
+  border: 'var(--border-card, 1px solid #334155)',
+  boxShadow: 'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
+  transition: 'all 0.3s ease',
+  color: 'var(--text-primary, #f8fafc)'
 }
 const chartContainer = {
   display: 'grid',
@@ -1146,43 +1136,25 @@ const chartContainer = {
 const chartCard = {
   position: "relative",
   overflow: "hidden",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
+  background: 'var(--bg-card, rgba(255,255,255,.06))',
   backdropFilter: "blur(28px)",
   WebkitBackdropFilter: "blur(28px)",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
+  border: 'var(--border-card, 1px solid rgba(255,255,255,.08))',
   borderRadius: "24px",
-
   padding: "26px",
-
-  color: "#fff",
-
-  boxShadow:
-    "0 20px 45px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)"
+  color: 'var(--text-primary, #fff)',
+  boxShadow: 'var(--shadow-card, 0 20px 45px rgba(0,0,0,.35))'
 }
 const activityCard = {
   position: "relative",
   overflow: "hidden",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
+  background: 'var(--bg-card, rgba(255,255,255,.06))',
   backdropFilter: "blur(28px)",
   WebkitBackdropFilter: "blur(28px)",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
+  border: 'var(--border-card, 1px solid rgba(255,255,255,.08))',
   borderRadius: "24px",
-
   padding: "28px",
-
-  color: "#fff",
-
-  boxShadow:
-    "0 20px 45px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05)"
+  color: 'var(--text-primary, #fff)',
+  boxShadow: 'var(--shadow-card, 0 20px 45px rgba(0,0,0,.35))'
 }
 export default Dashboard

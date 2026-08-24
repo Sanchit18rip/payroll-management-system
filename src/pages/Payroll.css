@@ -93,3 +93,26 @@ gap:18px;
     transform:translateY(-4px);
     box-shadow:0 0 30px rgba(0,212,255,.45);
 }
+
+/* Light theme overrides */
+[data-theme="light"] .heroBadge {
+    background: rgba(37,99,235,0.08);
+    border: 1px solid rgba(37,99,235,0.2);
+    color: #2563eb;
+}
+[data-theme="light"] .heroTitle {
+    color: #0f172a;
+}
+[data-theme="light"] .heroSubtitle {
+    color: #475569;
+}
+[data-theme="light"] .exportButton {
+    background: rgba(0,0,0,0.04);
+    border: 1px solid rgba(0,0,0,0.1);
+    color: #0f172a;
+}
+[data-theme="light"] .exportButton:hover {
+    background: #2563eb;
+    color: #ffffff;
+    box-shadow: 0 0 15px rgba(37,99,235,0.2);
+}

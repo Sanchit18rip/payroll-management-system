@@ -74,9 +74,7 @@ border-radius:16px;
 
 min-width:280px;
 
-}
-
-.search-box input{
+}.search-box input{
 
 background:transparent;
 
@@ -89,5 +87,23 @@ color:white;
 width:100%;
 
 font-size:15px;
+}
 
+/* Light theme overrides */
+[data-theme="light"] .dashboard-header h1 {
+  color: #0f172a;
+}
+[data-theme="light"] .dashboard-header p {
+  color: #475569;
+}
+[data-theme="light"] .dashboard-header span {
+  color: #94a3b8;
+}
+[data-theme="light"] .search-box {
+  background: rgba(255,255,255,0.85);
+  border: 1px solid rgba(0,0,0,0.1);
+  border-radius: 16px;
+}
+[data-theme="light"] .search-box input {
+  color: #0f172a;
 }

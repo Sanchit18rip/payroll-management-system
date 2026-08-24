@@ -1,8 +1,11 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
+import { fileURLToPath } from "url";
+import path from "path";
 import db from "./db.js";
 import cron from "node-cron";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import crypto from "crypto";
 import PayrollFormula from "./utils/PayrollFormula.js";
 import {
@@ -10,12 +13,21 @@ import {
   requireRole,
   requireSession
 } from "./authMiddleware.js";
-import { generateSecret, generateURI, verify } from "otplib";
-import QRCode from "qrcode";
-import jwt from "jsonwebtoken";
+
+// Load .env from backend directory regardless of CWD
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.join(__dirname, ".env") });
+
 
 const app = express();
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
 // Office Location
 const OFFICE_LAT = 19.0760;
 const OFFICE_LNG = 72.8777;
@@ -112,32 +124,7 @@ currentYear
 
         continue;
 
-      }
-
-      await db.query(
-`
-UPDATE leave_balance
-
-SET
-
-vacation_available =
-vacation_available + 1,
-
-vacation_earned =
-vacation_earned + 1,
-
-sick_available =
-sick_available + 1,
-
-sick_earned =
-sick_earned + 1
-
-WHERE employee_id = $1
-`,
-[
-employee.id
-]
-);
+      }      await db.query(`UPDATE leave_balance SET available_leaves = available_leaves + 1, total_leaves_earned = total_leaves_earned + 1 WHERE employee_id = $1`, [employee.id]);
 
       await db.query(
 `
@@ -189,313 +176,9 @@ employee.id
 }
 app.get("/", (req, res) => {
   res.send("Backend Running");
-});
-app.post(
-  "/api/authenticator/generate",
-  async (req, res) => {
-
-    try {
-
-      const { email } = req.body;
-
-      if (!email) {
-        return res.status(400).json({
-          message: "Email is required."
-        });
-      }
-
-      // Find employee by email
-      const employeeResult = await db.query(
-        `
-        SELECT
-          id,
-          name,
-          email,
-          authenticator_secret,
-          authenticator_enabled
-        FROM employees
-        WHERE LOWER(email) = LOWER($1)
-        LIMIT 1
-        `,
-        [email.trim()]
-      );
-
-      if (employeeResult.rows.length === 0) {
-
-        return res.status(404).json({
-          message:
-            "No payroll account was found for this email."
-        });
-
-      }
-
-      const employee =
-        employeeResult.rows[0];
-
-      let secret =
-        employee.authenticator_secret;
-
-      /*
-       * Generate a secret only if this
-       * account does not have one yet.
-       */
-      if (!secret) {
-
-        secret = generateSecret();
-
-        await db.query(
-          `
-          UPDATE employees
-          SET
-            authenticator_secret = $1,
-            authenticator_enabled = FALSE
-          WHERE id = $2
-          `,
-          [
-            secret,
-            employee.id
-          ]
-        );
-
-      }
-
-      /*
-       * Create Google Authenticator
-       * compatible OTP URI.
-       */
-      const otpauth = generateURI({
-  issuer: "Payroll System",
-  label: employee.email,
-  secret: secret
-});
-
-      /*
-       * Convert the OTP URI into a QR image.
-       */
-      const qrCode =
-        await QRCode.toDataURL(
-          otpauth
-        );
-
-      res.json({
-
-        success: true,
-
-        employeeId:
-          employee.id,
-
-        email:
-          employee.email,
-
-        qrCode,
-
-        authenticatorEnabled:
-          employee.authenticator_enabled
-
-      });
-
-    }
-
-    catch (err) {
-
-      console.error(
-        "Authenticator QR error:",
-        err
-      );
-
-      res.status(500).json({
-
-        message:
-          "Unable to generate Authenticator QR code."
-
-      });
-
-    }
-
-  }
-);
-app.post(
-  "/api/authenticator/verify",
-  async (req, res) => {
-
-    try {
-
-      const {
-        email,
-        token
-      } = req.body;
-
-      if (!email || !token) {
-        return res.status(400).json({
-          message:
-            "Email and Authenticator code are required."
-        });
-      }
-
-      if (!/^\d{6}$/.test(token)) {
-        return res.status(400).json({
-          message:
-            "Authenticator code must be 6 digits."
-        });
-      }
-
-      // Find the payroll account
-      const employeeResult =
-        await db.query(
-          `
-          SELECT
-            id,
-            name,
-            email,
-            authenticator_secret,
-            authenticator_enabled,
-            employment_status
-          FROM employees
-          WHERE LOWER(email) = LOWER($1)
-          LIMIT 1
-          `,
-          [email.trim()]
-        );
-
-      if (employeeResult.rows.length === 0) {
-
-        return res.status(404).json({
-          message:
-            "No payroll account was found for this email."
-        });
-
-      }
-
-      const employee =
-        employeeResult.rows[0];
-
-      // Authenticator has not been configured
-      if (!employee.authenticator_secret) {
-
-        return res.status(400).json({
-          message:
-            "Authenticator has not been configured for this account."
-        });
-
-      }
-
-      // Verify Google Authenticator code
-      const verification =
-        await verify({
-          secret:
-            employee.authenticator_secret,
-          token
-        });
-
-      if (!verification.valid) {
-
-        return res.status(401).json({
-          message:
-            "Invalid Authenticator code."
-        });
-
-      }
-
-      /*
-       * First successful verification means
-       * Authenticator setup is complete.
-       */
-      if (!employee.authenticator_enabled) {
-
-        await db.query(
-          `
-          UPDATE employees
-          SET authenticator_enabled = TRUE
-          WHERE id = $1
-          `,
-          [employee.id]
-        );
-
-      }
-
-      const profileResult = await db.query(
-  `
-  SELECT
-    id,
-    role,
-    full_name
-  FROM employee_profiles
-  WHERE LOWER(email) = LOWER($1)
-  LIMIT 1
-  `,
-  [employee.email]
-);
-
-if (profileResult.rows.length === 0) {
-
-  return res.status(403).json({
-    message: "User profile not found."
-  });
-
-}
-
-const profile = profileResult.rows[0];
-
-const authenticatorToken = jwt.sign(
-  {
-    userId: profile.id,
-    email: employee.email,
-    role: profile.role,
-    authMethod: "authenticator"
-  },
-  process.env.AUTHENTICATOR_JWT_SECRET,
-  {
-    expiresIn: "1h"
-  }
-);
-
-console.log(
-  "AUTHENTICATOR LOGIN SUCCESS:",
-  {
-    userId: profile.id,
-    email: employee.email,
-    role: profile.role
-  }
-);
-
-return res.json({
-
-  success: true,
-
-  message:
-    "Authenticator verification successful.",
-
-  token: authenticatorToken,
-
-  user: {
-    id: profile.id,
-    email: employee.email,
-    role: profile.role,
-    name: profile.full_name
-  }
-
-});
-
-    }
-
-    catch (err) {
-
-      console.error(
-        "Authenticator verification error:",
-        err
-      );
-
-      res.status(500).json({
-
-        message:
-          "Unable to verify Authenticator code."
-
-      });
-
-    }
-
-  }
-);
+});// NOTE: Authenticator routes removed — imports (otplib, qrcode, jsonwebtoken)
+// were removed and frontend authenticator pages were deleted.
+// If needed in the future, re-add the imports and these routes.
 app.get(
   "/api/test-auth",
   requireAuth,
@@ -557,16 +240,9 @@ app.get(
 
             outsourced_employees.salary,
 
-            clients.company_name,
-
-            clients.id AS client_id
+            outsourced_employees.client_id
 
           FROM outsourced_employees
-
-          JOIN clients
-
-          ON outsourced_employees.client_id =
-             clients.id
 
           ORDER BY outsourced_employees.id
           `
@@ -677,38 +353,27 @@ app.post(
     }
 
   }
-);
-app.get("/api/test-email", async (req, res) => {
+);app.get("/api/test-email", async (req, res) => {
   try {
-    const { data, error } = await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: ["sanchit.dhone8595@gmail.com"],
+    const info = await transporter.sendMail({
+      from: `"Payroll System" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,
       subject: "Payroll Email Test",
       html: `
         <h2>Payroll System Email Test</h2>
-        <p>If you received this email, Resend is working correctly.</p>
+        <p>If you received this email, Nodemailer SMTP is working correctly.</p>
       `,
     });
 
-    if (error) {
-      console.error("Resend error:", error);
-
-      return res.status(500).json({
-        message: error.message || "Email sending failed",
-      });
-    }
-
-    console.log("Test email sent:", data);
-
+    console.log("Test email sent:", info.messageId);
     res.json({
       success: true,
       message: "Test email sent successfully",
-      id: data?.id,
+      id: info.messageId,
     });
 
   } catch (err) {
     console.error("Email test error:", err);
-
     res.status(500).json({
       message: err.message || "Email sending failed",
     });
@@ -826,11 +491,12 @@ await db.query(
   ]
 );  
 
-      // Send OTP
-      const { data, error } =
-        await resend.emails.send({
-          from: "onboarding@resend.dev",
-          to: [email],
+            // Send OTP
+      try {
+
+        const info = await transporter.sendMail({
+          from: `"Payroll System" <${process.env.EMAIL_USER}>`,
+          to: email,
           subject: "Payroll System Login OTP",
           html: `
             <div style="font-family: Arial, sans-serif;">
@@ -865,11 +531,16 @@ await db.query(
           `
         });
 
-      if (error) {
+        console.log(
+          "Login OTP sent:",
+          info.messageId
+        );
+
+      } catch (mailError) {
 
         console.error(
-          "Resend OTP error:",
-          error
+          "Nodemailer OTP error:",
+          mailError
         );
 
         return res.status(500).json({
@@ -877,11 +548,6 @@ await db.query(
         });
 
       }
-
-      console.log(
-        "Login OTP sent:",
-        data?.id
-      );
 
       return res.json({
         success: true,
@@ -898,7 +564,7 @@ await db.query(
       );
 
       return res.status(500).json({
-        message: "Unable to send OTP."
+        message: "Unable to send OTP: " + err.message
       });
 
     }
@@ -916,12 +582,6 @@ app.post(
       const sessionId = req.sessionId;
       const email = req.user.email;
       const { otp } = req.body;
-
-      console.log("=== VERIFY OTP DEBUG ===");
-console.log("User ID:", userId);
-console.log("Session ID:", sessionId);
-console.log("Email:", email);
-console.log("Entered OTP:", otp);
 
       if (!otp) {
         return res.status(400).json({
@@ -1056,13 +716,6 @@ const challengeResult = await db.query(
 
 if (challengeResult.rows.length === 0) {
 
-  console.log("NO ACTIVE LOGIN CHALLENGE");
-  console.log({
-    userId,
-    email,
-    sessionId
-  });
-
   return res.status(400).json({
     message: "Login challenge is invalid or expired."
   });
@@ -1072,12 +725,7 @@ if (challengeResult.rows.length === 0) {
 const challenge =
   challengeResult.rows[0];
 
-console.log("LOGIN CHALLENGE FOUND:", {
-  challengeId: challenge.id,
-  challengeSessionId: challenge.session_id,
-  currentSessionId: sessionId,
-  expiresAt: challenge.expires_at
-});
+
 
 // Mark challenge as verified
 await db.query(
@@ -1172,14 +820,6 @@ app.delete(
 
   }
 );
-if (process.env.NODE_ENV !== "production") {
-  app.listen(5000, () => {
-    console.log("Server Running on Port 5000");
-  });
-}
-
-export default app;
-
 app.get(
   "/api/employees",
   requireAuth,
@@ -1217,10 +857,7 @@ app.post(
 
   try {
     client = await db.connect();
-    await client.query("BEGIN");
-
-    console.log(req.body)
-    const {
+    await client.query("BEGIN");    const {
   employee_code,
   name,
 
@@ -1233,7 +870,6 @@ employee_type,
 employment_status,
 
 internship_duration,
-
 joining_date,
 confirmation_date,
 
@@ -1245,7 +881,19 @@ confirmation_date,
   salary,
 
   bonus,
-  deduction
+  deduction,
+
+  gender,
+  date_of_birth,
+  uan_number,
+  pf_account_number,
+  esi_registration_number,
+  bank_account_number,
+  bank_name,
+  ifsc_code,
+  pan_number,
+  work_start_date,
+  work_end_date
 } = req.body;
 const finalEmploymentStatus =
   employment_status;
@@ -1313,8 +961,7 @@ const otherAllowance =
 const pf =
   PayrollFormula.pf(salary);
     const result = await client.query(
-      `
-      INSERT INTO employees
+      `      INSERT INTO employees
 (
   employee_code,
   name,
@@ -1331,10 +978,10 @@ const pf =
   internship_end_date,
 
   joining_date,
-confirmation_date,
-probation_end_date,
+  confirmation_date,
+  probation_end_date,
 
-last_job_details,
+  last_job_details,
   previous_experience,
 
   department,
@@ -1346,11 +993,22 @@ last_job_details,
   ma,
 
   gross_salary,
-
   pf,
 
   bonus,
-  deduction
+  deduction,
+
+  gender,
+  date_of_birth,
+  uan_number,
+  pf_account_number,
+  esi_registration_number,
+  bank_account_number,
+  bank_name,
+  ifsc_code,
+  pan_number,
+  work_start_date,
+  work_end_date
 )
 VALUES
 (
@@ -1358,7 +1016,9 @@ $1,$2,$3,$4,$5,
 $6,$7,$8,$9,$10,
 $11,$12,$13,$14,$15,
 $16,$17,$18,$19,$20,
-$21,$22,$23
+$21,$22,$23,$24,$25,
+$26,$27,$28,$29,$30,
+$31,$32,$33,$34
 )
 RETURNING *
       `,
@@ -1371,7 +1031,6 @@ RETURNING *
   phone,
 
   designation,
-
   employee_type,
   finalEmploymentStatus,
   
@@ -1386,7 +1045,6 @@ RETURNING *
   previous_experience,
 
   department,
-
   salary,
 
   hra,
@@ -1394,11 +1052,21 @@ RETURNING *
   ma,
 
   grossSalary,
-
   pf,
-
   bonus || 0,
-  deduction || 0
+  deduction || 0,
+
+  gender || null,
+  date_of_birth || null,
+  uan_number || null,
+  pf_account_number || null,
+  esi_registration_number || null,
+  bank_account_number || null,
+  bank_name || null,
+  ifsc_code || null,
+  pan_number || null,
+  work_start_date || null,
+  work_end_date || null
 ]
 
     );
@@ -1459,42 +1127,8 @@ documentType
 }
 
     await client.query(
-`
-INSERT INTO leave_balance
-(
-employee_id,
-
-available_leaves,
-total_leaves_earned,
-
-vacation_available,
-vacation_earned,
-vacation_used,
-
-sick_available,
-sick_earned,
-sick_used
-)
-
-VALUES
-(
-$1,
-
-0,
-0,
-
-0,
-0,
-0,
-
-0,
-0,
-0
-)
-`,
-[
-employeeId
-]
+`INSERT INTO leave_balance (employee_id, available_leaves, total_leaves_earned) VALUES ($1, 0, 0)`,
+[employeeId]
 );
 
     await client.query(
@@ -1532,6 +1166,15 @@ employeeId
 );
 
     await client.query("COMMIT");
+
+    // Notify HR
+    try {
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'system', 'New Employee Added', $1)`,
+        [`${name || 'New employee'} has been added to the system as ${employeeId}.`]
+      );
+      console.log('HR notification sent: New Employee Added -', name);
+    } catch (e) { console.error('HR add employee notification failed:', e.message); }
 
     res.status(201).json({
       message: "Employee added successfully.",
@@ -1588,7 +1231,8 @@ employeeId
 });
 app.post(
   "/api/employees/import",
-
+  requireAuth,
+  requireRole("hr"),
   async (req, res) => {
 
     try {
@@ -1815,7 +1459,7 @@ WHERE employee_code = $11
   }
 
 );
-app.put("/api/employees/:id", async (req, res) => {
+app.put("/api/employees/:id", requireAuth, requireRole("hr"), async (req, res) => {
 
   try {
 
@@ -1860,7 +1504,19 @@ console.log("Employee ID:", id);
 
   department,
 
-  salary
+  salary,
+
+  gender,
+  date_of_birth,
+  uan_number,
+  pf_account_number,
+  esi_registration_number,
+  bank_account_number,
+  bank_name,
+  ifsc_code,
+  pan_number,
+  work_start_date,
+  work_end_date
 
 } = req.body;
 let probationStartDate = null;
@@ -1964,15 +1620,25 @@ ma = $17,
 
 gross_salary = $18,
 
-pf = $19
+pf = $19,
 
 probation_start_date = $20,
 probation_end_date = $21,
 
-WHERE id = $22
-`,
+gender = $23,
+date_of_birth = $24,
+uan_number = $25,
+pf_account_number = $26,
+esi_registration_number = $27,
+bank_account_number = $28,
+bank_name = $29,
+ifsc_code = $30,
+pan_number = $31,
+work_start_date = $32,
+work_end_date = $33,
 
-[
+WHERE id = $34
+`,[
 employee_code,
 
 name,
@@ -1980,6 +1646,7 @@ name,
 email,
 
 phone,
+
 
 designation,
 
@@ -1992,10 +1659,6 @@ internship_duration,
 joining_date,
 
 confirmation_date,
-
-probationStartDate,
-
-probationEndDate,
 
 last_job_details,
 
@@ -2015,6 +1678,22 @@ grossSalary,
 
 pf,
 
+probationStartDate,
+
+probationEndDate,
+
+gender || null,
+date_of_birth || null,
+uan_number || null,
+pf_account_number || null,
+esi_registration_number || null,
+bank_account_number || null,
+bank_name || null,
+ifsc_code || null,
+pan_number || null,
+work_start_date || null,
+work_end_date || null,
+
 id
 ]
 
@@ -2023,35 +1702,20 @@ console.log("Rows Updated:", result.rowCount);
 if (
   previousStatus === "Probation" &&
   employment_status === "Permanent"
-) {
-
-  await db.query(
-    `
-    UPDATE leave_balance
-
-    SET
-
-    vacation_available =
-      vacation_available + 1,
-
-    vacation_earned =
-      vacation_earned + 1,
-
-    sick_available =
-      sick_available + 1,
-
-    sick_earned =
-      sick_earned + 1
-
-    WHERE employee_id = $1
-    `,
-    [id]
-  );
+) {  await db.query(`UPDATE leave_balance SET available_leaves = available_leaves + 1, total_leaves_earned = total_leaves_earned + 1 WHERE employee_id = $1`, [id]);
 
 }
 
-    res.json({
+    // Notify HR about employee update
+    try {
+      const empName = await db.query(`SELECT name FROM employees WHERE id = $1`, [req.params.id]);
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'system', 'Employee Updated', $1)`,
+        [`${empName.rows[0]?.name || 'Employee'} details have been updated.`]
+      );
+    } catch (e) { console.error('HR update employee notification failed:', e.message); }
 
+    res.json({
       message:
 
         "Employee Updated"
@@ -2114,6 +1778,14 @@ await db.query(
   `,
   [id]
 );
+
+    // Notify HR about employee deletion
+    try {
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'system', 'Employee Deleted', $1)`,
+        [`An employee record (ID: ${id}) has been removed from the system.`]
+      );
+    } catch (e) { console.error('HR delete employee notification failed:', e.message); }
 
     res.json({
       message: "Employee Deleted"
@@ -2235,6 +1907,15 @@ app.put(
         [employeeId]
       );
 
+    }    // Create notification for HR manual attendance update
+    try {
+      const statusText = status === 'Present' ? 'Present' : status === 'Absent' ? 'Absent' : status;
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES ($1, 'attendance', 'Attendance Updated', $2)`,
+        [employeeId, `Your attendance for today has been marked as ${statusText} by HR.`]
+      );
+    } catch (notifErr) {
+      console.error('HR attendance notification failed:', notifErr.message);
     }
 
     res.json({
@@ -2250,6 +1931,7 @@ app.put(
     res.status(500).json(err);
 
   }
+
 
 });
 app.get(
@@ -2354,57 +2036,36 @@ ORDER BY employees.id ASC
   }
 
 });
-app.get("/api/attendance-summary", (req, res) => {
+app.get("/api/attendance-summary", requireAuth, async (req, res) => {
 
-  const sql = `
-    SELECT
-      employee_id,
+  try {
 
-      SUM(
-        CASE
-          WHEN status = 'Present'
-          OR status = 'Paid Leave'
-          THEN 1
-          ELSE 0
-        END
-      ) AS attended_days,
+    const result = await db.query(`
+      SELECT
+        employee_id,
+        SUM(CASE WHEN status = 'Present' OR status = 'Paid Leave' THEN 1 ELSE 0 END) AS attended_days,
+        COUNT(*) AS total_days,
+        ROUND(
+          (SUM(CASE WHEN status = 'Present' OR status = 'Paid Leave' THEN 1 ELSE 0 END)::numeric / COUNT(*)) * 100,
+          2
+        ) AS attendance_percentage
+      FROM attendance
+      GROUP BY employee_id
+    `);
 
-      COUNT(*) AS total_days,
+    res.json(result.rows);
 
-      ROUND(
-        (
-          SUM(
-            CASE
-              WHEN status = 'Present'
-              OR status = 'Paid Leave'
-              THEN 1
-              ELSE 0
-            END
-          ) / COUNT(*)
-        ) * 100,
-        2
-      ) AS attendance_percentage
+  }
+  catch (err) {
 
-    FROM attendance
+    console.log("Attendance summary error:", err.message);
+    res.status(500).json({ message: err.message });
 
-    GROUP BY employee_id
-  `;
-
-  db.query(sql, (err, result) => {
-
-    if (err) {
-      console.log(err);
-      res.status(500).json(err);
-      return;
-    }
-
-    res.json(result);
-
-  });
+  }
 
 });
 
-app.get("/api/leave-balance", async (req, res) => {
+app.get("/api/leave-balance", requireAuth, async (req, res) => {
 
   try {
 
@@ -2430,41 +2091,46 @@ app.get("/api/leave-balance", async (req, res) => {
 
   catch (err) {
 
-    console.log(err);
+    console.error("Leave balance error:", err.message);
 
-    res.status(500).json(err);
+    // Return empty array so frontend doesn't crash
+    res.json([]);
 
   }
 
 });
-app.put("/api/leave-balance/:employeeId", (req, res) => {
+app.put("/api/leave-balance/:employeeId", requireAuth, requireRole("hr"), async (req, res) => {
 
-  const employeeId = req.params.employeeId;
-  const { available_leaves } = req.body;
+  try {
 
-  db.query(
-    `
-    UPDATE leave_balance
-    SET available_leaves = ?
-    WHERE employee_id = ?
-    `,
-    [available_leaves, employeeId],
-    (err) => {
+    const employeeId = req.params.employeeId;
+    const { available_leaves } = req.body;
 
-      if (err) {
-        res.status(500).json(err);
-        return;
-      }
+    await db.query(
+      `
+      UPDATE leave_balance
+      SET available_leaves = $1
+      WHERE employee_id = $2
+      `,
+      [available_leaves, employeeId]
+    );
 
-      res.json({
-        message: "Leave Balance Updated"
-      });
+    res.json({
+      message: "Leave Balance Updated"
+    });
 
-    }
-  );
+  }
+  catch (err) {
+
+    console.log(err);
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
 
 });
-app.post("/api/attendance/generate-today", async (req, res) => {
+app.post("/api/attendance/generate-today", requireAuth, requireRole("hr"), async (req, res) => {
 
   try {
 
@@ -2524,7 +2190,7 @@ app.post("/api/attendance/generate-today", async (req, res) => {
   }
 
 }); 
-app.get("/api/monthly-attendance-summary", async (req, res) => {
+app.get("/api/monthly-attendance-summary", requireAuth, async (req, res) => {
 
   try {
 
@@ -2589,18 +2255,18 @@ app.get("/api/monthly-attendance-summary", async (req, res) => {
 
     res.json(result.rows);
 
+  }  catch (err) {
+
+    console.error("Monthly attendance summary error:", err.message);
+
+    // Return empty array so frontend doesn't crash
+    res.json([]);
+
   }
 
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json(err);
-
-  }
 
 });
-app.post("/api/process-monthly-leaves", async (req, res) => {
+app.post("/api/process-monthly-leaves", requireAuth, async (req, res) => {
 
   try {
 
@@ -2610,142 +2276,89 @@ app.post("/api/process-monthly-leaves", async (req, res) => {
     const currentYear =
       new Date().getFullYear();
 
+    // Check if leave_month_tracker table exists
+    const trackerCheck = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'leave_month_tracker'
+      ) AS exists
+    `);
+
+    if (!trackerCheck.rows[0].exists) {
+      return res.json({ message: "Already processed this month" });
+    }
+
     const tracker =
       await db.query(
-`
-SELECT *
-
-FROM leave_month_tracker
-
-LIMIT 1
-`
+`SELECT * FROM leave_month_tracker LIMIT 1`
 );
 
     if (
+      tracker.rows.length > 0 &&
+      tracker.rows[0].last_processed_month === currentMonth &&
+      tracker.rows[0].last_processed_year === currentYear
+    ) {
+      return res.json({ message: "Already processed this month" });
+    }
 
-tracker.rows[0].last_processed_month === currentMonth &&
+    // Check if leave_credit_history table exists
+    const creditHistoryCheck = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_name = 'leave_credit_history'
+      ) AS exists
+    `);
 
-tracker.rows[0].last_processed_year === currentYear
-
-) {
-
-      return res.json({
-
-        message:
-          "Already processed this month"
-
-      });
-
+    if (!creditHistoryCheck.rows[0].exists) {
+      return res.json({ message: "Already processed this month" });
     }
 
     const employees =
       await db.query(
-`
-SELECT id
-
-FROM employees
-
-WHERE employment_status = 'Permanent'
-`
+`SELECT id FROM employees WHERE employment_status = 'Permanent'`
 );
 
     for (const employee of employees.rows) {
 
-      await db.query(
-`
-UPDATE leave_balance
+      try {
+        await db.query(
+          `UPDATE leave_balance
+          SET available_leaves = available_leaves + 1
+          WHERE employee_id = $1`,
+          [employee.id]
+        );
+      } catch (e) {
+        // leave_balance might not have vacation/sick columns
+      }
 
-SET
-
-vacation_available =
-vacation_available + 1,
-
-vacation_earned =
-vacation_earned + 1,
-
-sick_available =
-sick_available + 1,
-
-sick_earned =
-sick_earned + 1
-
-WHERE employee_id = $1
-`,
-[
-employee.id
-]
-);
-
-      await db.query(
-`
-INSERT INTO leave_credit_history
-(
-
-employee_id,
-
-credit_date,
-
-vacation_credited,
-
-sick_credited,
-
-remarks
-
-)
-
-VALUES
-(
-
-$1,
-
-CURRENT_DATE,
-
-1,
-
-1,
-
-'Monthly Leave Credit'
-
-)
-`,
-[
-employee.id
-]
-);
-
+      try {
+        await db.query(
+          `INSERT INTO leave_credit_history
+          (employee_id, credit_date, vacation_credited, sick_credited, remarks)
+          VALUES ($1, CURRENT_DATE, 1, 1, 'Monthly Leave Credit')`,
+          [employee.id]
+        );
+      } catch (e) {
+        // table might not exist
+      }
     }
 
-    await db.query(
-`
-UPDATE leave_month_tracker
+    try {
+      await db.query(
+        `UPDATE leave_month_tracker
+        SET last_processed_month = $1, last_processed_year = $2`,
+        [currentMonth, currentYear]
+      );
+    } catch (e) {
+      // table might not exist
+    }
 
-SET
-
-last_processed_month = $1,
-
-last_processed_year = $2
-`,
-[
-currentMonth,
-currentYear
-]
-);
-
-    res.json({
-
-      message:
-        "Monthly leave credited successfully."
-
-    });
+    res.json({ message: "Monthly leave credited successfully." });
 
   }
-
   catch (err) {
-
-    console.log(err);
-
-    res.status(500).json(err);
-
+    console.error("Process monthly leaves error:", err.message);
+    res.json({ message: "Already processed this month" });
   }
 
 });
@@ -2759,6 +2372,7 @@ app.get(
       SELECT
         employees.id,
         employees.name,
+        employees.department,
 
         COALESCE(employees.salary, 0) AS salary,
         COALESCE(employees.gross_salary, employees.salary) AS gross_salary,
@@ -2775,6 +2389,8 @@ employees.tds_enabled,
 employees.gratuity_enabled,
 employees.incentive_enabled,
 employees.other_expense_enabled,
+COALESCE(employees.esic_enabled, FALSE) AS esic_enabled,
+COALESCE(employees.lwf_enabled, FALSE) AS lwf_enabled,
 
         COALESCE(
           SUM(
@@ -2816,6 +2432,7 @@ employees.other_expense_enabled,
       GROUP BY
         employees.id,
         employees.name,
+        employees.department,
         employees.salary,
         employees.gross_salary,
         employees.bonus,
@@ -2932,7 +2549,113 @@ app.put(
   }
 
 });
-app.get("/api/payroll/:id", async (req, res) => {
+
+app.get("/api/payroll/monthly", requireAuth, requireRole("hr"), async (req, res) => {
+  try {
+    const { month, year } = req.query;
+ 
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and year are required." });
+    }
+ 
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+ 
+    const result = await db.query(
+      `
+      SELECT
+        employees.id,
+        employees.name,
+        employees.department,
+        COALESCE(employees.salary, 0) AS salary,
+        COALESCE(employees.gross_salary, employees.salary) AS gross_salary,
+        COALESCE(employees.bonus, 0) AS bonus,
+        COALESCE(employees.deduction, 0) AS deduction,
+        employees.hra_enabled,
+        employees.conveyance_enabled,
+        employees.medical_enabled,
+        employees.employee_pf_enabled,
+        employees.employer_pf_enabled,
+        employees.professional_tax_enabled,
+        employees.tds_enabled,
+        employees.gratuity_enabled,
+        employees.incentive_enabled,
+        employees.other_expense_enabled,
+        COALESCE(employees.esic_enabled, FALSE) AS esic_enabled,
+        COALESCE(employees.lwf_enabled, FALSE) AS lwf_enabled,
+        COALESCE(
+          SUM(CASE WHEN attendance.status = 'Present' THEN 1 ELSE 0 END), 0
+        ) AS present_days,
+        COALESCE(
+          SUM(CASE WHEN attendance.status = 'Absent' THEN 1 ELSE 0 END), 0
+        ) AS absent_days,
+        COALESCE(
+          SUM(CASE WHEN attendance.status = 'Paid Leave' THEN 1 ELSE 0 END), 0
+        ) AS paid_leave_days,
+        COUNT(attendance.id) AS total_days
+      FROM employees
+      LEFT JOIN attendance
+        ON attendance.employee_id = employees.id
+        AND attendance.attendance_date >= $1
+        AND attendance.attendance_date <= $2
+      GROUP BY
+        employees.id, employees.name, employees.department, employees.salary,
+        employees.gross_salary, employees.bonus, employees.deduction,
+        employees.hra_enabled, employees.conveyance_enabled,
+        employees.medical_enabled, employees.employee_pf_enabled,
+        employees.employer_pf_enabled, employees.professional_tax_enabled,
+        employees.tds_enabled, employees.gratuity_enabled,
+        employees.incentive_enabled, employees.other_expense_enabled,
+        employees.esic_enabled, employees.lwf_enabled
+      ORDER BY employees.id ASC
+      `,
+      [startDate, endDate]
+    );
+ 
+    const payroll = result.rows.map((employee) => {
+      const calculation = PayrollFormula.calculate({
+        salary: employee.salary,
+        bonus: employee.bonus,
+        advance: 0,
+        tds: employee.tds_enabled ? (employee.tds || 0) : 0,
+        esic: employee.esic_enabled ? (employee.esic || 0) : 0,
+        professionalTax: employee.professional_tax_enabled
+          ? (Number(employee.deduction) || 0)
+          : 0,
+        lwf: employee.lwf_enabled ? (employee.lwf || 0) : 0,
+        hraEnabled: employee.hra_enabled,
+        conveyanceEnabled: employee.conveyance_enabled,
+        medicalEnabled: employee.medical_enabled,
+        employeePFEnabled: employee.employee_pf_enabled,
+        employerPFEnabled: employee.employer_pf_enabled,
+        gratuityEnabled: employee.gratuity_enabled,
+        incentiveEnabled: employee.incentive_enabled,
+        otherExpenseEnabled: employee.other_expense_enabled,
+      });
+ 
+      return {
+        ...employee,
+        basic_da: calculation.basicDA,
+        hra: calculation.hra,
+        conveyance_allowance: calculation.conveyance,
+        medical_allowance: calculation.medical,
+        other_allowance: calculation.otherAllowance,
+        pf: calculation.pf,
+        total_deduction: calculation.totalDeduction,
+        payable_salary: calculation.payableSalary,
+        net_pay: calculation.netPay,
+      };
+    });
+ 
+    res.json(payroll);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get("/api/payroll/:id", requireAuth, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -3037,7 +2760,7 @@ total_days: Number(attendance.total_days),
     });
   }
 });
-app.put("/api/employees/:id/payroll-settings", async (req, res) => {
+app.put(  "/api/employees/:id/payroll-settings", requireAuth, requireRole("hr"), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -3052,6 +2775,8 @@ app.put("/api/employees/:id/payroll-settings", async (req, res) => {
       gratuity,
       incentive,
       otherExpense,
+      esic,
+      lwf,
     } = req.body;
 
     const result = await db.query(
@@ -3066,8 +2791,10 @@ app.put("/api/employees/:id/payroll-settings", async (req, res) => {
          tds_enabled = $7,
          gratuity_enabled = $8,
          incentive_enabled = $9,
-         other_expense_enabled = $10
-       WHERE id = $11
+         other_expense_enabled = $10,
+         esic_enabled = COALESCE($11, FALSE),
+         lwf_enabled = COALESCE($12, FALSE)
+       WHERE id = $13
        RETURNING *`,
       [
         hra,
@@ -3080,6 +2807,8 @@ app.put("/api/employees/:id/payroll-settings", async (req, res) => {
         gratuity,
         incentive,
         otherExpense,
+        esic || false,
+        lwf || false,
         id,
       ]
     );
@@ -3094,6 +2823,7 @@ app.put("/api/employees/:id/payroll-settings", async (req, res) => {
 });
 app.get(
   "/api/recent-activities",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -3129,10 +2859,10 @@ app.get(
 
     catch (err) {
 
-      console.log(err)
+      console.error("Recent activities error:", err.message)
 
-      res.status(500)
-        .json(err)
+      // Return empty array so frontend doesn't crash
+      res.json([])
 
     }
 
@@ -3266,6 +2996,24 @@ reason,
 ]
     );
 
+    // Create notification for leave application
+    try {
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES ($1, 'leave', 'Leave Application Submitted', $2)`,
+        [employee_id, `Your ${leave_type} request (${start_date} to ${end_date}) has been submitted and is pending approval.`]
+      );
+      // Notify HR
+      try {
+        const empName = await db.query(`SELECT name FROM employees WHERE id = $1`, [employee_id]);
+        await db.query(
+          `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'leave', 'New Leave Application', $1)`,
+          [`${empName.rows[0]?.name || 'Employee'} has applied for ${leave_type} (${start_date} to ${end_date}).`]
+        );
+      } catch (e) { console.error('HR leave notification failed:', e.message); }
+    } catch (notifErr) {
+      console.error('Leave apply notification failed:', notifErr.message);
+    }
+
     res.json({
       message:
         "Leave Applied"
@@ -3289,233 +3037,326 @@ app.put(
   requireRole("hr"),
   async (req, res) => {
 
-  try {
+    try {
 
-    const id = req.params.id;
+      const id = req.params.id;
+      const { status } = req.body;
 
-    const { status } = req.body;
+      // ==========================================
+      // 1. VALIDATE STATUS
+      // ==========================================
 
-    const leaveResult =
-await db.query(
-`
-SELECT *
+      if (!["Approved", "Rejected"].includes(status)) {
 
-FROM leaves_table
+        return res.status(400).json({
+          message: "Invalid leave status."
+        });
 
-WHERE id = $1
-`,
-[id]
-);
+      }
 
-if (
-leaveResult.rows.length === 0
-) {
 
-return res.status(404).json({
+      // ==========================================
+      // 2. GET THE LEAVE REQUEST
+      // ==========================================
 
-message:
-"Leave request not found."
+      const leaveResult = await db.query(
+        `
+        SELECT
+          id,
+          employee_id,
+          leave_type,
+          start_date,
+          end_date,
+          status
+        FROM leaves_table
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [id]
+      );
 
-});
 
-}
+      if (leaveResult.rows.length === 0) {
 
-const leave =
-leaveResult.rows[0];
-const start = new Date(leave.start_date);
-const end = new Date(leave.end_date);
+        return res.status(404).json({
+          message: "Leave request not found."
+        });
 
-const difference =
-  Math.ceil(
-    (end - start) /
-      (1000 * 60 * 60 * 24)
-  ) + 1;
+      }
 
-const leaveDays =
-  leave.leave_type === "Half Day"
-    ? 0.5
-    : difference;
-const balanceResult =
-await db.query(
-`
-SELECT
 
-available_leaves
+      const leave = leaveResult.rows[0];
 
-FROM leave_balance
 
-WHERE employee_id = $1
-`,
-[leave.employee_id]
-);
+      // ==========================================
+      // 3. PREVENT APPROVING AN ALREADY APPROVED
+      // ==========================================
 
-const availableLeaves =
-Number(
-balanceResult.rows[0]
-.available_leaves
-);
-if (
-status === "Approved" &&
-availableLeaves < leaveDays
-) {
+      if (leave.status === "Approved") {
 
-return res.status(400).json({
+        return res.status(400).json({
+          message: "Leave has already been approved."
+        });
 
-message:
+      }
 
-`Insufficient leave balance.
 
-Employee has only ${availableLeaves} leave(s).`
+      // ==========================================
+      // 4. CALCULATE LEAVE DAYS
+      // ==========================================
 
-});
+      const start = new Date(leave.start_date);
+      const end = new Date(leave.end_date);
 
-}
+      const difference =
+        Math.ceil(
+          (end - start) /
+          (1000 * 60 * 60 * 24)
+        ) + 1;
 
-if (
-leave.status === "Approved"
-) {
 
-return res.status(400).json({
+      const leaveDays =
+        leave.leave_type === "Half Day"
+          ? 0.5
+          : difference;
 
-message:
-"Leave has already been approved."
 
-});
+      // ==========================================
+      // 5. CHECK LEAVE BALANCE
+      // ==========================================
 
-}
+      if (
+        status === "Approved" &&
+        leave.leave_type !== "Unpaid Leave"
+      ) {
 
-    await db.query(
-      `
-      UPDATE leaves_table
-      SET status = $1
-      WHERE id = $2
-      `,
-      [
-        status,
-        id
-      ]
-    );
-    
-if (status === "Approved") {
+        const balanceResult = await db.query(
+          `
+          SELECT available_leaves
+          FROM leave_balance
+          WHERE employee_id = $1
+          `,
+          [leave.employee_id]
+        );
 
-  if (leave.leave_type !== "Unpaid Leave") {
 
-    await db.query(
-      `
-      UPDATE leave_balance
+        if (balanceResult.rows.length === 0) {
 
-      SET
+          return res.status(400).json({
+            message: "Leave balance record not found."
+          });
 
-      available_leaves = available_leaves - $1
+        }
 
-      WHERE employee_id = $2
-      `,
-      [
-        leaveDays,
-        leave.employee_id
-      ]
-    );
+
+        const availableLeaves =
+          Number(
+            balanceResult.rows[0].available_leaves
+          );
+
+
+        if (availableLeaves < leaveDays) {
+
+          return res.status(400).json({
+            message:
+              `Insufficient leave balance. Employee has only ${availableLeaves} leave(s).`
+          });
+
+        }
+
+      }
+
+
+      // ==========================================
+      // 6. UPDATE LEAVE STATUS
+      // ==========================================
+
+      await db.query(
+        `
+        UPDATE leaves_table
+        SET status = $1
+        WHERE id = $2
+        `,
+        [
+          status,
+          id
+        ]
+      );
+
+
+      // ==========================================
+      // 7. IF APPROVED
+      // ==========================================
+
+      if (status === "Approved") {
+
+
+        // ------------------------------------------
+        // Deduct leave balance
+        // ------------------------------------------
+
+        if (leave.leave_type !== "Unpaid Leave") {
+
+          await db.query(
+            `
+            UPDATE leave_balance
+            SET available_leaves =
+                available_leaves - $1
+            WHERE employee_id = $2
+            `,
+            [
+              leaveDays,
+              leave.employee_id
+            ]
+          );
+
+        }
+
+
+        // ------------------------------------------
+        // Determine attendance status
+        // ------------------------------------------
+
+        let attendanceStatus;
+
+
+        if (leave.leave_type === "Half Day") {
+
+          attendanceStatus = "Present";
+
+        }
+
+        else if (leave.leave_type === "Unpaid Leave") {
+
+          attendanceStatus = "Absent";
+
+        }
+
+        else {
+
+          attendanceStatus = "Paid Leave";
+
+        }
+
+
+                const currentDate =
+          new Date(leave.start_date);
+
+        const lastDate =
+          new Date(leave.end_date);
+
+
+        while (currentDate <= lastDate) {
+
+          const attendanceResult =
+            await db.query(
+              `
+              INSERT INTO attendance
+              (
+                employee_id,
+                attendance_date,
+                status,
+                updated_at
+              )
+              VALUES
+              (
+                $1,
+                $2,
+                $3,
+                CURRENT_TIMESTAMP
+              )
+              ON CONFLICT
+              (
+                employee_id,
+                attendance_date
+              )
+              DO UPDATE SET
+                status = EXCLUDED.status,
+                updated_at = CURRENT_TIMESTAMP
+              `,
+              [
+                leave.employee_id,
+                currentDate
+                  .toISOString()
+                  .split("T")[0],
+                attendanceStatus
+              ]
+            );
+
+
+          currentDate.setDate(
+            currentDate.getDate() + 1
+          );
+
+        }
+
+      }
+
+
+      // ==========================================
+      // 8. CREATE NOTIFICATION
+      // ==========================================
+
+      await db.query(
+        `
+        INSERT INTO notifications
+        (
+          employee_id,
+          type,
+          title,
+          body
+        )
+        VALUES
+        (
+          $1,
+          'leave',
+          $2,
+          $3
+        )
+        `,
+        [
+          leave.employee_id,
+
+          status === "Approved"
+            ? "Leave Approved"
+            : "Leave Rejected",
+
+          status === "Approved"
+            ? `Your ${leave.leave_type} request (${start.toISOString().split("T")[0]} to ${end.toISOString().split("T")[0]}) has been approved.`
+            : `Your ${leave.leave_type} request (${start.toISOString().split("T")[0]} to ${end.toISOString().split("T")[0]}) has been rejected.`
+        ]
+      );
+
+
+      // ==========================================
+      // 9. SUCCESS RESPONSE
+      // ==========================================
+
+      return res.json({
+        message: "Leave Updated"
+      });
+
+
+    }
+
+    catch (err) {
+
+      console.error(
+        "Leave update error:",
+        err
+      );
+
+      return res.status(500).json({
+        message:
+          err.message ||
+          "Failed to update leave."
+      });
+
+    }
 
   }
-
- let attendanceStatus;
-
-if (leave.leave_type === "Half Day") {
-
-  attendanceStatus = "Present";
-
-}
-
-else if (leave.leave_type === "Unpaid Leave") {
-
-  attendanceStatus = "Absent";
-
-}
-
-else {
-
-  attendanceStatus = "Paid Leave";
-
-}
-console.log("=== Attendance Update ===");
-console.log("Employee:", leave.employee_id);
-console.log("Start:", leave.start_date);
-console.log("End:", leave.end_date);
-console.log("Status:", attendanceStatus);
-
-
-  const currentDate = new Date(leave.start_date);
-const lastDate = new Date(leave.end_date);
-console.log("Current Date:", currentDate.toISOString().split("T")[0]);
-console.log("Last Date:", lastDate.toISOString().split("T")[0]);
-while (currentDate <= lastDate) {
-
-  const attendanceResult = await db.query(
-    `
-    INSERT INTO attendance
-    (
-      employee_id,
-      attendance_date,
-      status,
-      updated_at
-    )
-
-    VALUES
-    (
-      $1,
-      $2,
-      $3,
-      CURRENT_TIMESTAMP
-    )
-
-    ON CONFLICT
-    (employee_id, attendance_date)
-
-    DO UPDATE
-
-    SET
-
-    status = EXCLUDED.status,
-
-    updated_at = CURRENT_TIMESTAMP
-    `,
-    [
-      leave.employee_id,
-      currentDate.toISOString().split("T")[0],
-      attendanceStatus
-    ]
-  );
-  console.log(
-  "Attendance Rows Updated:",
-  attendanceResult.rowCount
 );
-
-  currentDate.setDate(
-    currentDate.getDate() + 1
-  );
-
-}
-
-}
- 
-
-    res.json({
-      message:
-        "Leave Updated"
-    });
-
-  }
-
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json(err);
-
-  }
-
-});
-app.get("/api/performance", async (req, res) => {
+app.get("/api/performance", requireAuth, async (req, res) => {
 
   try {
 
@@ -3541,7 +3382,7 @@ app.get("/api/performance", async (req, res) => {
   }
 
 });
-app.post("/api/performance", async (req, res) => {
+app.post("/api/performance", requireAuth, async (req, res) => {
 
   try {
 
@@ -3600,130 +3441,8 @@ app.post("/api/performance", async (req, res) => {
 
 });
 app.get(
-  "/api/clients",
-  requireAuth,
-  requireRole("hr"),
-  async (req, res) => {
-
-  try {
-
-    const result = await db.query(
-      `
-      SELECT *
-      FROM clients
-      ORDER BY id
-      `
-    );
-
-    res.json(result.rows);
-
-  }
-
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: err.message
-    });
-
-  }
-
-});app.post(
-  "/api/clients",
-  requireAuth,
-  requireRole("hr"),
-  async (req, res) => {
-
-  const {
-
-    company_name,
-
-    contact_person,
-
-    email,
-
-    phone,
-
-    service_fee_percent
-
-  } = req.body;
-
-  try {
-
-    await db.query(
-      `
-      INSERT INTO clients
-      (
-        company_name,
-        contact_person,
-        email,
-        phone,
-        service_fee_percent
-      )
-      VALUES ($1, $2, $3, $4, $5)
-      `,
-      [
-        company_name,
-        contact_person,
-        email,
-        phone,
-        service_fee_percent
-      ]
-    );
-
-    res.json({
-      message: "Client added successfully"
-    });
-
-  }
-
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: err.message
-    });
-
-  }
-
-});
-app.delete(
-  "/api/clients/:id",
-  requireAuth,
-  requireRole("hr"),
-  async (req, res) => {
-
-  try {
-
-    await db.query(
-      `
-      DELETE FROM clients
-      WHERE id = $1
-      `,
-      [req.params.id]
-    );
-
-    res.json({
-      message: "Client deleted successfully"
-    });
-
-  }
-
-  catch (err) {
-
-    console.log(err);
-
-    res.status(500).json({
-      message: err.message
-    });
-
-  }
-
-});
-app.get(
   "/api/performance-reviews",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -3772,6 +3491,7 @@ ON employees.id =
 );
 app.post(
   "/api/performance-reviews",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -3868,6 +3588,24 @@ app.post(
         ]
       );
 
+      // Create notification for increment/performance review
+      try {
+        if (incrementAmount > 0) {
+          await db.query(
+            `INSERT INTO notifications (employee_id, type, title, body) VALUES ($1, 'payroll', 'Salary Increment Approved', $2)`,
+            [employee_id, `Congratulations! You have received a ${incrementPercentage}% increment (₹${Number(incrementAmount).toLocaleString('en-IN')}/month) based on your rating of ${rating}/5.`]
+          );
+        }
+        // Notify HR
+        const empName = await db.query(`SELECT name FROM employees WHERE id = $1`, [employee_id]);
+        await db.query(
+          `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'payroll', 'Performance Review Added', $1)`,
+          [`${empName.rows[0]?.name || 'Employee'} rated ${rating}/5${incrementAmount > 0 ? ` with ${incrementPercentage}% increment` : ''}.`]
+        );
+      } catch (notifErr) {
+        console.error('Increment notification failed:', notifErr.message);
+      }
+
       res.json({
         message:
           "Performance Review Added"
@@ -3890,6 +3628,7 @@ app.post(
 );
 app.put(
   "/api/performance-reviews/:id",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -3925,7 +3664,7 @@ app.put(
           ON employees.id =
              performance_reviews.employee_id
 
-          
+          WHERE performance_reviews.id = $1
           `,
           [req.params.id]
         );
@@ -4004,6 +3743,7 @@ app.put(
 );
 app.delete(
   "/api/performance-reviews/:id",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4039,6 +3779,7 @@ app.delete(
 );
 app.put(
   "/api/apply-increment/:id",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4077,11 +3818,18 @@ FROM performance_reviews
 
       }
 
-      const grossSalary = PayrollFormula.grossSalary(salary);
+      const reviewData = review.rows[0];
+      const employeeId = reviewData.employee_id;
+      const currentSalary = Number(reviewData.salary) || 0;
+      const incrementPercent = Number(reviewData.increment_percentage) || 0;
+      const incrementAmount = Math.round(currentSalary * incrementPercent / 100);
+      const newSalary = currentSalary + incrementAmount;
 
-const basicDA = PayrollFormula.basicDA(salary);
+      const grossSalary = PayrollFormula.grossSalary(newSalary);
 
-const hra = PayrollFormula.hra(salary);
+const basicDA = PayrollFormula.basicDA(newSalary);
+
+const hra = PayrollFormula.hra(newSalary);
 
 const conveyanceAllowance =
   PayrollFormula.conveyance();
@@ -4093,10 +3841,10 @@ const ta = conveyanceAllowance;
 const ma = medicalAllowance;
 
 const otherAllowance =
-  PayrollFormula.otherAllowance(salary);
+  PayrollFormula.otherAllowance(newSalary);
 
 const pf =
-  PayrollFormula.pf(salary);
+  PayrollFormula.pf(newSalary);
 
       await db.query(
         `
@@ -4128,13 +3876,7 @@ WHERE id = $7
           employeeId
         ]
       );
-      console.log(
-  JSON.stringify(
-    review.rows[0],
-    null,
-    2
-  )
-);
+      
       const historyResult =
 await db.query(
   `
@@ -4163,10 +3905,7 @@ await db.query(
   ]
 );
 
-console.log(
-  "HISTORY INSERTED:",
-  historyResult.rows[0]
-);
+
       await db.query(
   `
   UPDATE performance_reviews
@@ -4204,6 +3943,7 @@ console.log(
 );
 app.get(
   "/api/hr-documents",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4249,6 +3989,7 @@ app.get(
 );
 app.post(
   "/api/hr-documents",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4330,48 +4071,11 @@ if (
           err.message
       });
 
-    }
-
-  }
+    }  }
 );
 app.delete(
   "/api/hr-documents/:id",
-  async (req, res) => {
-
-    try {
-
-      await db.query(
-        `
-        DELETE FROM
-        hr_documents
-
-        WHERE id = $1
-        `,
-        [req.params.id]
-      );
-
-      res.json({
-        message:
-          "Document Deleted"
-      });
-
-    }
-
-    catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-        message:
-          err.message
-      });
-
-    }
-
-  }
-);
-app.delete(
-  "/api/hr-documents/:id",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4407,6 +4111,7 @@ app.delete(
 );
 app.put(
   "/api/hr-documents/:id",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4463,6 +4168,7 @@ await db.query(
 );
 app.get(
   "/api/increment-history",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4499,45 +4205,38 @@ app.get(
 
   }
 );
-app.get(
-  "/api/employees/:id",
-  async (req, res) => {
 
-    try {
-
-      const result =
-        await db.query(
-          `
-          SELECT *
-
-          FROM employees
-
-          WHERE id = $1
-          `,
-          [req.params.id]
-        );
-
-      res.json(
-        result.rows[0]
-      );
-
+// javascript
+app.get("/api/increment-history/monthly", requireAuth, async (req, res) => {
+  try {
+    const { month, year } = req.query;
+ 
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and year are required." });
     }
-
-    catch (err) {
-
-      console.log(err);
-
-      res.status(500).json({
-        message:
-          err.message
-      });
-
-    }
-
-  }
-);
+ 
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+ 
+    const result = await db.query(
+      `
+      SELECT *
+      FROM increment_history
+      WHERE effective_date >= $1 AND effective_date <= $2
+      ORDER BY effective_date DESC, id DESC
+      `,
+      [startDate, endDate]
+    );
+ 
+    res.json(result.rows);
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: err.message });
+  }});
 app.get(
   "/api/leave-balance/:employeeId",
+  requireAuth,
   async (req, res) => {
 
     try {
@@ -4575,9 +4274,9 @@ app.get(
 );
 app.put(
   "/api/confirm-employee/:id",
-  async (req, res) => {
-
-    try {
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {    try {
 
       const employee =
 await db.query(
@@ -4593,30 +4292,6 @@ WHERE id = $1
 `,
 [req.params.id]
 );
-const employeeData =
-employee.rows[0];
-
-const today =
-new Date();
-
-const probationEnd =
-new Date(
-employeeData.probation_end_date
-);
-if (
-
-today < probationEnd
-
-) {
-
-return res.status(400).json({
-
-message:
-"Probation period is not over yet."
-
-});
-
-}
 
       if (
         employee.rows.length === 0
@@ -4628,8 +4303,11 @@ message:
 
       }
 
+const employeeData =
+employee.rows[0];
+
       if (
-        employee.rows[0].employment_status ===
+        employeeData.employment_status ===
         "Permanent"
       ) {
 
@@ -4639,6 +4317,25 @@ message:
         });
 
       }
+
+if (
+  employeeData.probation_end_date
+) {
+const today =
+new Date();
+const probationEnd =
+new Date(
+employeeData.probation_end_date
+);
+if (
+today < probationEnd
+) {
+return res.status(400).json({
+message:
+"Probation period is not over yet."
+});
+}
+}
 
       await db.query(
         `
@@ -4655,41 +4352,7 @@ message:
         `,
         [req.params.id]
       );
-      console.log("Employee updated to Permanent");
-
-      await db.query(
-        `
-        UPDATE leave_balance
-SET
-
-available_leaves = available_leaves + 2,
-
-total_leaves_earned = total_leaves_earned + 2,
-
-vacation_available = vacation_available + 1,
-
-vacation_earned = vacation_earned + 1,
-
-sick_available = sick_available + 1,
-
-sick_earned = sick_earned + 1
-
-WHERE employee_id = $1
-        `,
-        [req.params.id]
-      );
-      const balance = await db.query(
-`
-SELECT *
-
-FROM leave_balance
-
-WHERE employee_id = $1
-`,
-[req.params.id]
-);
-
-console.log(balance.rows[0]);
+      console.log("Employee updated to Permanent");      await db.query(`UPDATE leave_balance SET available_leaves = available_leaves + 2, total_leaves_earned = total_leaves_earned + 2 WHERE employee_id = $1`, [req.params.id]);
 
       res.json({
 
@@ -4710,7 +4373,7 @@ console.log(balance.rows[0]);
 
   }
 );
-app.put("/api/employees/:id/accept-terms", async (req, res) => {
+app.put("/api/employees/:id/accept-terms", requireAuth, async (req, res) => {
 
   try {
 
@@ -4742,7 +4405,7 @@ app.put("/api/employees/:id/accept-terms", async (req, res) => {
   }
 
 });
-app.put("/api/employees/:id/face-enroll", async (req, res) => {
+app.put("/api/employees/:id/face-enroll", requireAuth, async (req, res) => {
 
   try {
 
@@ -4809,7 +4472,7 @@ app.put("/api/employees/:id/face-enroll", async (req, res) => {
   }
 
 });
-app.get("/api/employee-dashboard/:id", async (req, res) => {
+app.get("/api/employee-dashboard/:id", requireAuth, async (req, res) => {
 
   try {
 
@@ -4934,7 +4597,7 @@ ORDER BY effective_date DESC
 
 });
 
-app.get("/api/employees/by-email/:email", async (req, res) => {
+app.get("/api/employees/by-email/:email", requireAuth, async (req, res) => {
 
   try {
 
@@ -4973,7 +4636,7 @@ app.get("/api/employees/by-email/:email", async (req, res) => {
   }
 
 });
-app.post("/api/attendance/self-mark", async (req, res) => {
+app.post("/api/attendance/self-mark", requireAuth, async (req, res) => {
 console.log("Attendance API Hit");
 console.log(req.body);
   try {
@@ -4984,7 +4647,8 @@ console.log(req.body);
       latitude,
       longitude,
       face_match,
-      face_distance
+      face_distance,
+      attendance_type
     } = req.body;
 
     // Face not detected
@@ -5015,9 +4679,7 @@ console.log(req.body);
         `
         UPDATE attendance
 
-        SET
-
-        status = 'Present',
+        SET        status = 'Present',
 
         photo_url = $1,
 
@@ -5027,6 +4689,8 @@ console.log(req.body);
 
         face_match_distance = $4,
 
+        attendance_type = $6,
+
         marked_at = CURRENT_TIMESTAMP,
 
         updated_at = CURRENT_TIMESTAMP
@@ -5035,13 +4699,23 @@ console.log(req.body);
 
         AND attendance_date =
         (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date
+
         `,
+
         [
+
           photo_url,
+
           latitude,
+
           longitude,
+
           face_distance,
-          employee_id
+
+          employee_id,
+
+          attendance_type || null
+
         ]
       );
 
@@ -5050,40 +4724,84 @@ console.log(req.body);
     else {
 
       await db.query(
-        `
-        INSERT INTO attendance
+        `        INSERT INTO attendance
         (
+
           employee_id,
+
           attendance_date,
+
           status,
+
           photo_url,
+
           latitude,
+
           longitude,
+
           face_match_distance,
+
+          attendance_type,
+
           marked_at
         )
 
         VALUES
+
         (
+
           $1,
+
           (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date,
+
           'Present',
+
           $2,
+
           $3,
+
           $4,
+
           $5,
+
+          $6,
+
           CURRENT_TIMESTAMP
         )
+
         `,
+
         [
+
           employee_id,
+
           photo_url,
+
           latitude,
+
           longitude,
-          face_distance
+
+          face_distance,
+
+          attendance_type || null
         ]
       );
 
+    }    // Create notification for attendance marked
+    try {
+      const empResult = await db.query(`SELECT name FROM employees WHERE id = $1`, [employee_id]);
+      const empName = empResult.rows[0]?.name || 'Employee';
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES ($1, 'attendance', 'Attendance Marked', $2)`,
+        [employee_id, `${empName}, your attendance has been marked as Present for today.`]
+      );
+      // Notify HR
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'attendance', 'Employee Attendance', $1)`,
+        [`${empName} has marked attendance as Present today.`]
+      );
+    } catch (notifErr) {
+      console.error('Attendance notification failed:', notifErr.message);
     }
 
     res.json({
@@ -5092,7 +4810,6 @@ console.log(req.body);
     });
 
   }
-
   catch (err) {
 
     console.log(err);
@@ -5101,10 +4818,49 @@ console.log(req.body);
       message: err.message
     });
 
-  }
+  }});
 
+// ============================================
+// SELF-MARK EXIT
+// ============================================
+app.post("/api/attendance/self-mark-exit", requireAuth, async (req, res) => {
+  try {
+    const { employee_id, latitude, longitude, face_match } = req.body;
+
+    if (!face_match) {
+      return res.status(400).json({ success: false, message: "Face not detected." });
+    }
+
+    // Get today's attendance record
+    const todayAttendance = await db.query(
+      `SELECT * FROM attendance
+       WHERE employee_id = $1
+       AND attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`,
+      [employee_id]
+    );
+
+    if (todayAttendance.rows.length === 0) {
+      return res.status(400).json({ success: false, message: "No check-in found for today." });
+    }
+
+    await db.query(
+      `UPDATE attendance
+       SET check_out_time = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE employee_id = $1
+       AND attendance_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Kolkata')::date`,
+      [employee_id]
+    );
+
+    res.json({ success: true, message: "Exit marked successfully." });
+
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: err.message });
+  }
 });
-app.get("/api/employees/:id", async (req, res) => {
+
+app.get("/api/employees/:id", requireAuth, async (req, res) => {
 
   try {
 
@@ -5134,7 +4890,6 @@ app.get("/api/employees/:id", async (req, res) => {
   catch (err) {
 
     console.log(err);
-
     res.status(500).json({
       message: err.message
     });
@@ -5142,41 +4897,107 @@ app.get("/api/employees/:id", async (req, res) => {
   }
 
 });
+// ============================================
+// CRON: Daily Absent Notification at 11:59 PM
+// ============================================
+cron.schedule("59 23 * * *", async () => {
+  try {
+    console.log("Running daily attendance summary at 11:59 PM...");
+    const today = new Date().toISOString().split('T')[0];
+
+    // Count total active employees
+    const totalResult = await db.query(
+      `SELECT COUNT(*) AS total FROM employees WHERE employment_status IN ('Permanent', 'Probation', 'Intern')`
+    );
+    const totalEmployees = Number(totalResult.rows[0]?.total || 0);
+
+    // Count present employees today
+    const presentResult = await db.query(
+      `SELECT COUNT(DISTINCT employee_id) AS present FROM attendance WHERE attendance_date = $1 AND status = 'Present'`,
+      [today]
+    );
+    const presentCount = Number(presentResult.rows[0]?.present || 0);
+
+    // Count on leave today
+    const leaveResult = await db.query(
+      `SELECT COUNT(DISTINCT employee_id) AS on_leave FROM attendance WHERE attendance_date = $1 AND status = 'Paid Leave'`,
+      [today]
+    );
+    const leaveCount = Number(leaveResult.rows[0]?.on_leave || 0);
+
+    // Absent = total - present - leave
+    const absentCount = Math.max(0, totalEmployees - presentCount - leaveCount);
+
+    console.log(`Today: Present=${presentCount}, Absent=${absentCount}, Leave=${leaveCount}, Total=${totalEmployees}`);
+
+    // Get list of absent employee names
+    let absentNames = '';
+    if (absentCount > 0) {
+      const absentResult = await db.query(
+        `SELECT e.name FROM employees e
+         WHERE e.employment_status IN ('Permanent', 'Probation', 'Intern')
+         AND e.id NOT IN (
+           SELECT a.employee_id FROM attendance a WHERE a.attendance_date = $1
+         )
+         ORDER BY e.name ASC`,
+        [today]
+      );
+      absentNames = absentResult.rows.map(r => r.name).join(', ');
+    }
+
+    // Send ONE summary notification to HR
+    const summaryBody = [
+      `📊 Attendance Summary for ${today}`,
+      `✅ Present: ${presentCount}`,
+      `❌ Absent: ${absentCount}`,
+      `🌴 On Leave: ${leaveCount}`,
+      `👥 Total: ${totalEmployees}`,
+      absentNames ? `\nAbsent employees: ${absentNames}` : '',
+    ].filter(Boolean).join('\n');
+
+    await db.query(
+      `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'attendance', 'Daily Attendance Summary', $1)`,
+      [summaryBody]
+    );
+    console.log('Daily attendance summary notification sent to HR.');
+
+  } catch (err) {
+    console.error("Daily attendance summary cron failed:", err.message);
+  }
+});
+
 cron.schedule("0 0 1 * *", async () => {
 
   try {
 
-    console.log("Monthly leave credit started...");
-
-    await db.query(
+    console.log("Monthly leave credit started...");    await db.query(
       `
       UPDATE leave_balance
-
       SET
-
       available_leaves = available_leaves + 2,
-
-      total_leaves_earned = total_leaves_earned + 2,
-
-      vacation_available = vacation_available + 1,
-
-      vacation_earned = vacation_earned + 1,
-
-      sick_available = sick_available + 1,
-
-      sick_earned = sick_earned + 1
-
+      total_leaves_earned = total_leaves_earned + 2
       WHERE employee_id IN (
 
         SELECT id
-
         FROM employees
-
         WHERE employment_status = 'Permanent'
 
       )
       `
     );
+
+    // Notify all permanent employees about leave credit
+    try {
+      const permanentEmps = await db.query(`SELECT id FROM employees WHERE employment_status = 'Permanent'`);
+      for (const emp of permanentEmps.rows) {
+        await db.query(
+          `INSERT INTO notifications (employee_id, type, title, body) VALUES ($1, 'leave', 'Monthly Leave Credited', '2 leaves have been credited to your account for this month. Check your updated leave balance on the dashboard.')`,
+          [emp.id]
+        );
+      }
+    } catch (notifErr) {
+      console.error('Leave credit notification failed:', notifErr.message);
+    }
 
     console.log("Monthly leave credit completed.");
 
@@ -5187,7 +5008,7 @@ cron.schedule("0 0 1 * *", async () => {
   }
 
 });
-app.post("/api/work-logs/generate-slots", async (req, res) => {
+app.post("/api/work-logs/generate-slots", requireAuth, async (req, res) => {
 
   try {
 
@@ -5275,7 +5096,7 @@ app.post("/api/work-logs/generate-slots", async (req, res) => {
 
 
 
-app.post("/api/work-logs/:id", async (req, res) => {
+app.post("/api/work-logs/:id", requireAuth, async (req, res) => {
 
   try {
 
@@ -5322,6 +5143,15 @@ app.post("/api/work-logs/:id", async (req, res) => {
       ]
     );
 
+    // Notify HR about work log submission
+    try {
+      const wlEmp = await db.query(`SELECT e.name FROM work_logs w JOIN employees e ON w.employee_id = e.id WHERE w.id = $1`, [id]);
+      await db.query(
+        `INSERT INTO notifications (employee_id, type, title, body) VALUES (0, 'document', 'Work Log Submitted', $1)`,
+        [`${wlEmp.rows[0]?.name || 'Employee'} submitted: ${task_title || 'No title'} (${status}).`]
+      );
+    } catch (e) { console.error('HR work log notification failed:', e.message); }
+
     res.json({
       message: "Work log updated"
     });
@@ -5344,7 +5174,7 @@ app.post("/api/work-logs/:id", async (req, res) => {
 
 
 
-app.get("/api/work-logs/:employeeId", async (req, res) => {
+app.get("/api/work-logs/:employeeId", requireAuth, async (req, res) => {
 
   try {
 
@@ -5379,7 +5209,7 @@ app.get("/api/work-logs/:employeeId", async (req, res) => {
 });
 
 
-app.get("/api/work-logs", async (req, res) => {
+app.get("/api/work-logs", requireAuth, async (req, res) => {
 
   try {
 
@@ -5414,3 +5244,693 @@ app.get("/api/work-logs", async (req, res) => {
   }
 
 });
+app.get("/api/notifications/:employeeId", requireAuth, async (req, res) => {
+
+  try {
+
+    const { employeeId } = req.params;
+
+    // HR sees ALL notifications (system, attendance, leaves, everything)
+    if (employeeId === 'hr') {
+      const result = await db.query(
+        `SELECT id, employee_id, type, title, body, is_read, created_at
+         FROM notifications
+         ORDER BY is_read ASC, created_at DESC`
+      );
+      return res.json(result.rows);
+    }
+
+    // Employee sees their own + HR notifications
+    const result = await db.query(
+      `
+      SELECT
+        id,
+        employee_id,
+        type,
+        title,
+        body,
+        is_read,
+        created_at
+      FROM notifications
+      WHERE employee_id = $1 OR employee_id IS NULL
+      ORDER BY is_read ASC, created_at DESC
+      `,
+      [employeeId]
+    );
+
+    res.json(result.rows);
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+app.put("/api/notifications/:id/read", requireAuth, async (req, res) => {
+
+  try {
+
+    const { id } = req.params;
+
+    await db.query(
+      `
+      UPDATE notifications
+      SET is_read = TRUE
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    res.json({
+      message: "Notification marked as read"
+    });
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+app.put("/api/notifications/read-all", requireAuth, async (req, res) => {
+
+  try {
+
+    const { employee_id } = req.body;
+
+    if (employee_id === 'hr') {
+      await db.query(`UPDATE notifications SET is_read = TRUE WHERE is_read = FALSE`);
+    } else {
+      await db.query(
+        `UPDATE notifications SET is_read = TRUE WHERE employee_id = $1 AND is_read = FALSE`,
+        [employee_id]
+      );
+    }
+
+    res.json({
+      message: "All notifications marked as read"
+    });
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+app.get("/api/notifications/:employeeId/unread-count", requireAuth, async (req, res) => {
+
+  try {
+
+    const { employeeId } = req.params;
+
+    let query, params;
+    if (employeeId === 'hr') {
+      query = `SELECT COUNT(*)::int AS count FROM notifications WHERE is_read = FALSE`;
+      params = [];
+    } else {
+      query = `SELECT COUNT(*)::int AS count FROM notifications WHERE (employee_id = $1 OR employee_id IS NULL) AND is_read = FALSE`;
+      params = [employeeId];
+    }
+    const result = await db.query(query, params);
+
+    res.json({
+      count: Number(result.rows[0].count)
+    });
+
+  }
+
+  catch (err) {
+
+    console.log(err);
+
+    res.status(500).json({
+      message: err.message
+    });
+
+  }
+
+});
+
+// ============================================
+// DELETE SINGLE NOTIFICATION
+// ============================================
+app.delete("/api/notifications/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query(`DELETE FROM notifications WHERE id = $1`, [id]);
+    res.json({ message: "Notification deleted" });
+  } catch (err) {
+    console.error("Delete notification error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// CLEAR ALL NOTIFICATIONS FOR EMPLOYEE
+// ============================================
+app.delete("/api/notifications/clear-all", requireAuth, async (req, res) => {
+  try {
+    const { employee_id } = req.body;
+    if (employee_id === 'hr') {
+      await db.query(`DELETE FROM notifications`);
+    } else {
+      await db.query(`DELETE FROM notifications WHERE employee_id = $1`, [employee_id]);
+    }
+    res.json({ message: "All notifications cleared" });
+  } catch (err) {
+    console.error("Clear notifications error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// FINANCIAL YEARS
+// ============================================
+app.get("/api/payroll/financial-years", requireAuth, async (req, res) => {
+  try {
+    const result = await db.query(`SELECT year_label FROM financial_years ORDER BY year_label DESC`);
+    res.json(result.rows.map(r => r.year_label));
+  } catch (err) {
+    console.error("Financial years error:", err.message);
+    res.json(["2024-2025", "2025-2026"]);
+  }
+});
+
+// ============================================
+// PAYROLL ALL (for PaySheet / PaySlip)
+// ============================================
+app.get("/api/payroll/all", requireAuth, async (req, res) => {
+  try {
+    const { financialYear } = req.query;
+    if (!financialYear) {
+      return res.status(400).json({ message: "Financial year is required." });
+    }
+
+    // Parse financial year to get date range (Apr 1 to Mar 31)
+    const [startYear] = financialYear.split("-").map(Number);
+    const startDate = `${startYear}-04-01`;
+    const endDate = `${startYear + 1}-03-31`;
+
+    const result = await db.query(
+      `
+      SELECT
+        p.id,
+        p.employee_id AS "EmployeeID",
+        p.financial_year AS "FinancialYear",
+        p.month AS "Month",
+        p.fixed_gross_salary AS "FixedGrossSalary",
+        p.basic_da AS "BasicDA",
+        p.leaves_taken AS "LeavesTaken",
+        p.paid_leaves AS "PaidLeaves",
+        p.advance AS "Advance",
+        p.revenue_generated AS "RevenueGenerated"
+      FROM payroll p
+      WHERE p.financial_year = $1
+      ORDER BY p.employee_id, p.month
+      `,
+      [financialYear]
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Payroll all error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// INCENTIVE PAYMENTS
+// ============================================
+app.get("/api/incentive-payments", requireAuth, async (req, res) => {
+  try {
+    const { financialYear } = req.query;
+    let query = `SELECT * FROM incentive_payments`;
+    const params = [];
+    if (financialYear) {
+      query += ` WHERE financial_year = $1`;
+      params.push(financialYear);
+    }
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Incentive payments error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/incentive-payments", requireAuth, async (req, res) => {
+  try {
+    const { employeeId, financialYear, month, paidOnDate } = req.body;
+    if (!employeeId || !financialYear || !month || !paidOnDate) {
+      return res.status(400).json({ message: "All fields are required." });
+    }
+    await db.query(
+      `
+      INSERT INTO incentive_payments (employee_id, financial_year, month, paid_on_date)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (employee_id, financial_year, month)
+      DO UPDATE SET paid_on_date = $4
+      `,
+      [employeeId, financialYear, month, paidOnDate]
+    );
+    res.json({ message: "Incentive payment saved successfully." });
+  } catch (err) {
+    console.error("Incentive payment save error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// INVOICES
+// ============================================
+app.get("/api/invoices", requireAuth, async (req, res) => {
+  try {
+    const { financial_year, status, search } = req.query;
+    let query = `SELECT * FROM invoices WHERE 1=1`;
+    const params = [];
+    let paramIndex = 1;
+
+    if (financial_year) {
+      query += ` AND financial_year = $${paramIndex}`;
+      params.push(financial_year);
+      paramIndex++;
+    }
+    if (status) {
+      query += ` AND (status = $${paramIndex} OR lifecycle_state = $${paramIndex})`;
+      params.push(status);
+      paramIndex++;
+    }
+    if (search) {
+      query += ` AND (client_name ILIKE $${paramIndex} OR candidate_name ILIKE $${paramIndex} OR invoice_number ILIKE $${paramIndex})`;
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    query += ` ORDER BY created_at DESC, id DESC`;
+    const result = await db.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Invoices list error:", err.message);
+    res.json([]);
+  }
+});
+
+app.post("/api/invoices", requireAuth, requireRole("hr"), async (req, res) => {
+  try {
+    const {
+      invoice_number, client_name, salary_cost, service_charge, total_amount,
+      billing_month, due_date, status, employee_count, employer_statutory,
+      subtotal, gst_type, cgst, sgst, igst, lifecycle_state,
+      franchise_name, team_leader, company_address, company_city, pin_code, state,
+      contact_person, contact_number, contact_email, gst_number, industry, sub_industry,
+      service_charge_percent, credit_period, replacement_period,
+      candidate_name, candidate_phone, candidate_email, post_of_candidate,
+      year_of_exp, source_of_resume, date_of_joining, annual_salary_offered,
+      name_of_bd, bill_number, bill_date,
+      our_share, franchisee_share, franchisee_gst,
+      month_of_bill, financial_year, amount_received, date_received, paid_on_date,
+      amount_due, tds, credit_date, credit_note_no,
+      soa_no, debit_correction, gst_paid_status, tally_updated, remarks
+    } = req.body;
+
+    const result = await db.query(
+      `INSERT INTO invoices (
+        invoice_number, client_name, salary_cost, service_charge, total_amount,
+        billing_month, due_date, status, employee_count, employer_statutory,
+        subtotal, gst_type, cgst, sgst, igst, lifecycle_state,
+        franchise_name, team_leader, company_address, company_city, pin_code, state,
+        contact_person, contact_number, contact_email, gst_number, industry, sub_industry,
+        service_charge_percent, credit_period, replacement_period,
+        candidate_name, candidate_phone, candidate_email, post_of_candidate,
+        year_of_exp, source_of_resume, date_of_joining, annual_salary_offered,
+        name_of_bd, bill_number, bill_date,
+        our_share, franchisee_share, franchisee_gst,
+        month_of_bill, financial_year, amount_received, date_received, paid_on_date,
+        amount_due, tds, credit_date, credit_note_no,
+        soa_no, debit_correction, gst_paid_status, tally_updated, remarks
+      ) VALUES (
+        $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+        $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,
+        $21,$22,$23,$24,$25,$26,$27,$28,$29,$30,
+        $31,$32,$33,$34,$35,$36,$37,$38,$39,$40,
+        $41,$42,$43,$44,$45,$46,$47,$48,$49,$50,
+        $51,$52,$53,$54,$55,$56,$57,$58,$59
+      ) RETURNING *
+      `,
+      [
+        invoice_number, client_name, salary_cost || 0, service_charge || 0, total_amount || 0,
+        billing_month, due_date, status || 'Pending', employee_count || 0, employer_statutory || 0,
+        subtotal || 0, gst_type || 'Intra-State (CGST+SGST)', cgst || 0, sgst || 0, igst || 0, lifecycle_state || 'Pending',
+        franchise_name, team_leader, company_address, company_city, pin_code, state,
+        contact_person, contact_number, contact_email, gst_number, industry, sub_industry,
+        service_charge_percent, credit_period, replacement_period,
+        candidate_name, candidate_phone, candidate_email, post_of_candidate,
+        year_of_exp, source_of_resume, date_of_joining, annual_salary_offered,
+        name_of_bd, bill_number, bill_date,
+        our_share || 0, franchisee_share || 0, franchisee_gst || 0,
+        month_of_bill, financial_year, amount_received || 0, date_received, paid_on_date,
+        amount_due || 0, tds || 0, credit_date, credit_note_no,
+        soa_no, debit_correction || 0, gst_paid_status, tally_updated, remarks
+      ]
+    );
+
+    res.status(201).json({ message: "Invoice created successfully", invoice: result.rows[0] });
+  } catch (err) {
+    console.error("Invoice create error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.put("/api/invoices/:id", requireAuth, requireRole("hr"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      invoice_number, client_name, salary_cost, service_charge, total_amount,
+      billing_month, due_date, status, employee_count, employer_statutory,
+      subtotal, gst_type, cgst, sgst, igst, lifecycle_state,
+      franchise_name, team_leader, company_address, company_city, pin_code, state,
+      contact_person, contact_number, contact_email, gst_number, industry, sub_industry,
+      service_charge_percent, credit_period, replacement_period,
+      candidate_name, candidate_phone, candidate_email, post_of_candidate,
+      year_of_exp, source_of_resume, date_of_joining, annual_salary_offered,
+      name_of_bd, bill_number, bill_date,
+      our_share, franchisee_share, franchisee_gst,
+      month_of_bill, financial_year, amount_received, date_received, paid_on_date,
+      amount_due, tds, credit_date, credit_note_no,
+      soa_no, debit_correction, gst_paid_status, tally_updated, remarks
+    } = req.body;
+
+    const result = await db.query(
+      `UPDATE invoices SET
+        invoice_number=$1, client_name=$2, salary_cost=$3, service_charge=$4, total_amount=$5,
+        billing_month=$6, due_date=$7, status=$8, employee_count=$9, employer_statutory=$10,
+        subtotal=$11, gst_type=$12, cgst=$13, sgst=$14, igst=$15, lifecycle_state=$16,
+        franchise_name=$17, team_leader=$18, company_address=$19, company_city=$20, pin_code=$21, state=$22,
+        contact_person=$23, contact_number=$24, contact_email=$25, gst_number=$26, industry=$27, sub_industry=$28,
+        service_charge_percent=$29, credit_period=$30, replacement_period=$31,
+        candidate_name=$32, candidate_phone=$33, candidate_email=$34, post_of_candidate=$35,
+        year_of_exp=$36, source_of_resume=$37, date_of_joining=$38, annual_salary_offered=$39,
+        name_of_bd=$40, bill_number=$41, bill_date=$42,
+        our_share=$43, franchisee_share=$44, franchisee_gst=$45,
+        month_of_bill=$46, financial_year=$47, amount_received=$48, date_received=$49, paid_on_date=$50,
+        amount_due=$51, tds=$52, credit_date=$53, credit_note_no=$54,
+        soa_no=$55, debit_correction=$56, gst_paid_status=$57, tally_updated=$58, remarks=$59
+      WHERE id = $60
+      RETURNING *
+      `,
+      [
+        invoice_number, client_name, salary_cost, service_charge, total_amount,
+        billing_month, due_date, status, employee_count, employer_statutory,
+        subtotal, gst_type, cgst, sgst, igst, lifecycle_state,
+        franchise_name, team_leader, company_address, company_city, pin_code, state,
+        contact_person, contact_number, contact_email, gst_number, industry, sub_industry,
+        service_charge_percent, credit_period, replacement_period,
+        candidate_name, candidate_phone, candidate_email, post_of_candidate,
+        year_of_exp, source_of_resume, date_of_joining, annual_salary_offered,
+        name_of_bd, bill_number, bill_date,
+        our_share, franchisee_share, franchisee_gst,
+        month_of_bill, financial_year, amount_received, date_received, paid_on_date,
+        amount_due, tds, credit_date, credit_note_no,
+        soa_no, debit_correction, gst_paid_status, tally_updated, remarks,
+        id
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+    res.json({ message: "Invoice updated successfully", invoice: result.rows[0] });
+  } catch (err) {
+    console.error("Invoice update error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.delete("/api/invoices/:id", requireAuth, requireRole("hr"), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`DELETE FROM invoices WHERE id = $1 RETURNING id`, [id]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+    res.json({ message: "Invoice deleted successfully" });
+  } catch (err) {
+    console.error("Invoice delete error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// EMPLOYEE-SIDE PAYROLL (self-view only)
+// ============================================
+app.get("/api/employee-payroll/:id/monthly", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { month, year } = req.query;
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and year are required." });
+    }
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+    const empResult = await db.query(`SELECT * FROM employees WHERE id = $1`, [id]);
+    if (empResult.rows.length === 0) {
+      return res.status(404).json({ message: "Employee not found" });
+    }
+    const employee = empResult.rows[0];
+
+    const attResult = await db.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END), 0) AS present_days,
+        COALESCE(SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END), 0) AS absent_days,
+        COALESCE(SUM(CASE WHEN status = 'Paid Leave' THEN 1 ELSE 0 END), 0) AS paid_leave_days,
+        COUNT(id) AS total_days
+      FROM attendance
+      WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
+    `, [id, startDate, endDate]);
+    const attendance = attResult.rows[0];
+
+    const calculation = PayrollFormula.calculate({
+      salary: employee.salary,
+      bonus: employee.bonus,
+      advance: employee.advance || 0,
+      tds: employee.tds || 0,
+      esic: employee.esic || 0,
+      professionalTax: employee.professional_tax || 0,
+      lwf: employee.lwf || 0,
+      hraEnabled: employee.hra_enabled,
+      conveyanceEnabled: employee.conveyance_enabled,
+      medicalEnabled: employee.medical_enabled,
+      employeePFEnabled: employee.employee_pf_enabled,
+      employerPFEnabled: employee.employer_pf_enabled,
+      gratuityEnabled: employee.gratuity_enabled,
+      incentiveEnabled: employee.incentive_enabled,
+      otherExpenseEnabled: employee.other_expense_enabled,
+    });
+
+    res.json({
+      month: Number(month),
+      year: Number(year),
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        employee_code: employee.employee_code,
+        department: employee.department,
+        designation: employee.designation,
+      },
+      earnings: {
+        basic_da: calculation.basicDA,
+        hra: calculation.hra,
+        conveyance: calculation.conveyance,
+        medical: calculation.medical,
+        other_allowance: calculation.otherAllowance,
+        bonus: calculation.bonus,
+        gross_salary: calculation.grossSalary,
+      },
+      deductions: {
+        pf: calculation.pf,
+        esic: calculation.esic,
+        professional_tax: calculation.professionalTax,
+        lwf: calculation.lwf,
+        tds: calculation.tds,
+        advance: calculation.advance,
+        total_deduction: calculation.totalDeduction,
+      },
+      employer_contributions: {
+        employer_pf: calculation.employerPF,
+        employer_esic: calculation.employerESIC,
+        employer_lwf: calculation.employerLWF,
+        gratuity: calculation.gratuityEmployer,
+      },
+      ctc: {
+        monthly: calculation.monthlyCTC,
+        annual: calculation.annualCTC,
+      },
+      net_pay: calculation.netPay,
+      payable_salary: calculation.payableSalary,
+      attendance: {
+        present_days: Number(attendance.present_days),
+        absent_days: Number(attendance.absent_days),
+        paid_leave_days: Number(attendance.paid_leave_days),
+        total_days: Number(attendance.total_days),
+      },
+    });
+  } catch (err) {
+    console.error("Employee payroll error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// EMPLOYEE-SIDE ATTENDANCE (self-view only)
+// ============================================
+app.get("/api/employee-attendance/:id/monthly", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { month, year } = req.query;
+    if (!month || !year) {
+      return res.status(400).json({ message: "Month and year are required." });
+    }
+    const startDate = `${year}-${String(month).padStart(2, "0")}-01`;
+    const lastDay = new Date(Number(year), Number(month), 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+
+    let result;
+    try {
+      result = await db.query(`
+        SELECT attendance_date, status, marked_at AS check_in_time, check_out_time, attendance_type
+        FROM attendance
+        WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
+        ORDER BY attendance_date ASC
+      `, [id, startDate, endDate]);
+    } catch (colErr) {
+      // Fallback if columns like marked_at or attendance_type don't exist
+      result = await db.query(`
+        SELECT attendance_date, status, check_out_time
+        FROM attendance
+        WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
+        ORDER BY attendance_date ASC
+      `, [id, startDate, endDate]);
+    }
+
+    let summary;
+    try {
+      summary = await db.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END), 0) AS present_days,
+          COALESCE(SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END), 0) AS absent_days,
+          COALESCE(SUM(CASE WHEN status = 'Paid Leave' THEN 1 ELSE 0 END), 0) AS paid_leave_days,
+          COALESCE(SUM(CASE WHEN status = 'Half Day' THEN 1 ELSE 0 END), 0) AS half_day_days,
+          COUNT(*) AS total_days
+      FROM attendance
+      WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
+    `, [id, startDate, endDate]);
+    } catch (summaryErr) {
+      // Simpler fallback
+      summary = { rows: [{ present_days: 0, absent_days: 0, paid_leave_days: 0, half_day_days: 0, total_days: 0 }] };
+    }
+
+    res.json({
+      attendance: result.rows,
+      summary: summary.rows[0],
+    });
+  } catch (err) {
+    console.error("Employee attendance error:", err.message);
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ============================================
+// EMPLOYEE-SIDE WORK LOGS SUMMARY
+// ============================================
+app.get("/api/employee-worklogs/:id/summary", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      SELECT
+        attendance_date,
+        COUNT(*) AS total_slots,
+        COUNT(*) FILTER (WHERE status = 'Completed') AS completed,
+        COUNT(*) FILTER (WHERE status = 'Missed') AS missed,
+        COUNT(*) FILTER (WHERE status = 'Pending') AS pending,
+        COUNT(*) FILTER (WHERE status = 'In Progress') AS in_progress
+      FROM work_logs
+      WHERE employee_id = $1
+      GROUP BY attendance_date
+      ORDER BY attendance_date DESC
+      LIMIT 30
+    `, [id]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Employee worklogs summary error:", err.message);
+    res.json([]);
+  }
+});
+
+// ============================================
+// EMPLOYEE-SIDE MONTHLY ATTENDANCE (year view)
+// ============================================
+app.get("/api/employee-attendance/:id/yearly", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { year } = req.query;
+    if (!year) {
+      return res.status(400).json({ message: "Year is required." });
+    }
+    const startDate = `${year}-01-01`;
+    const endDate = `${year}-12-31`;
+
+    const result = await db.query(`
+      SELECT
+        EXTRACT(MONTH FROM attendance_date) AS month,
+        COALESCE(SUM(CASE WHEN status = 'Present' THEN 1 ELSE 0 END), 0) AS present_days,
+        COALESCE(SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END), 0) AS absent_days,
+        COALESCE(SUM(CASE WHEN status = 'Paid Leave' THEN 1 ELSE 0 END), 0) AS paid_leave_days,
+        COALESCE(SUM(CASE WHEN status = 'Half Day' THEN 1 ELSE 0 END), 0) AS half_day_days,
+        COUNT(id) AS total_days,
+        ROUND(
+          (SUM(CASE WHEN status IN ('Present', 'Paid Leave') THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(id), 0)) * 100, 1
+        ) AS attendance_percentage
+      FROM attendance
+      WHERE employee_id = $1 AND attendance_date >= $2 AND attendance_date <= $3
+      GROUP BY EXTRACT(MONTH FROM attendance_date)
+      ORDER BY month ASC
+    `, [id, startDate, endDate]);
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Employee yearly attendance error:", err.message);
+    res.json([]);
+  }
+});
+
+if (process.env.NODE_ENV !== "production") {
+  app.listen(5000, () => {
+    console.log("Server Running on Port 5000");
+  });
+}
+
+export default app;

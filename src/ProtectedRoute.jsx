@@ -9,62 +9,6 @@ function ProtectedRoute({ children, allowedRoles = [] }) {
   useEffect(() => {
     const checkAccess = async () => {
       try {
-        const authenticatorToken =
-  localStorage.getItem(
-    "payroll_authenticator_token"
-  );
-
-
-// --------------------------------
-// Google Authenticator session
-// --------------------------------
-
-if (authenticatorToken) {
-
-  try {
-
-    const payload =
-      JSON.parse(
-        atob(
-          authenticatorToken.split(".")[1]
-        )
-      );
-
-    if (
-      payload.authMethod ===
-      "authenticator"
-    ) {
-
-      setUserRole(
-        payload.role
-      );
-
-      setLoading(false);
-
-      return;
-
-    }
-
-  } catch (error) {
-
-    console.error(
-      "Invalid Authenticator token:",
-      error
-    );
-
-    localStorage.removeItem(
-      "payroll_authenticator_token"
-    );
-
-    localStorage.removeItem(
-      "payroll_authenticator_user"
-    );
-
-  }
-
-}
-
-
 // --------------------------------
 // Existing Supabase session
 // --------------------------------

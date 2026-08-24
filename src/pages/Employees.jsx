@@ -7,12 +7,7 @@ import { FaCalendarAlt } from "react-icons/fa";
 import CustomDropdown from "../components/CustomDropdown";
 import toast from "react-hot-toast";
 import GlassScrollArea from "../components/GlassScrollArea";
-
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL ??
-  (import.meta.env.DEV
-    ? "http://localhost:5000"
-    : "https://payroll-management-system-three.vercel.app");
+import { apiFetch, API_BASE } from "../api";
 
 function Employees() {
 
@@ -63,6 +58,17 @@ useState('')
 
 const [previousExperience, setPreviousExperience] =
 useState('')
+const [gender, setGender] = useState('')
+const [dateOfBirth, setDateOfBirth] = useState('')
+const [uanNumber, setUanNumber] = useState('')
+const [pfAccountNumber, setPfAccountNumber] = useState('')
+const [esiRegistrationNumber, setEsiRegistrationNumber] = useState('')
+const [bankAccountNumber, setBankAccountNumber] = useState('')
+const [bankName, setBankName] = useState('')
+const [ifscCode, setIfscCode] = useState('')
+const [panNumber, setPanNumber] = useState('')
+const [workStartDate, setWorkStartDate] = useState('')
+const [workEndDate, setWorkEndDate] = useState('')
   const [editingId, setEditingId] = useState(null);
   const EMPLOYEE_CSV_HEADERS = [
   "employee_code",
@@ -292,8 +298,8 @@ const importCSV = (event) => {
         // --------------------------------
 
         for (const employee of rows) {
-          const response = await fetch(
-            "http://localhost:5000/api/employees/import",
+          const response = await apiFetch(
+            `${API_BASE}/api/employees/import`,
             {
               method: "POST",
 
@@ -405,7 +411,7 @@ useEffect(() => {
 }, [searchTerm, departmentFilter, statusFilter]);
 
   const fetchEmployees = async () => {
-    const response = await fetch(`${API_BASE}/api/employees`);
+    const response = await apiFetch(`${API_BASE}/api/employees`);
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
@@ -450,7 +456,7 @@ useEffect(() => {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_BASE}/api/employees`, {
+      const response = await apiFetch(`${API_BASE}/api/employees`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -490,13 +496,25 @@ useEffect(() => {
 
           bonus: 0,
 
-          deduction: 0
+          deduction: 0,
+
+          gender: gender || null,
+          date_of_birth: dateOfBirth || null,
+          uan_number: uanNumber || null,
+          pf_account_number: pfAccountNumber || null,
+          esi_registration_number: esiRegistrationNumber || null,
+          bank_account_number: bankAccountNumber || null,
+          bank_name: bankName || null,
+          ifsc_code: ifscCode || null,
+          pan_number: panNumber || null,
+          work_start_date: workStartDate || null,
+          work_end_date: workEndDate || null
         })
       });
 
       const data = await response.json().catch(() => null);
 
-      // fetch() only rejects on network failures.  Without this check, a
+      // apiFetch() only rejects on network failures.  Without this check, a
       // validation or database error still reached the success toast.
       if (!response.ok) {
         throw new Error(data?.message || "Unable to add the employee.");
@@ -523,6 +541,17 @@ useEffect(() => {
 
       setDepartment('')
       setSalary('')
+      setGender('');
+      setDateOfBirth('');
+      setUanNumber('');
+      setPfAccountNumber('');
+      setEsiRegistrationNumber('');
+      setBankAccountNumber('');
+      setBankName('');
+      setIfscCode('');
+      setPanNumber('');
+      setWorkStartDate('');
+      setWorkEndDate('');
       setShowEmployeeModal(false);
       setCurrentPage(1);
       toast.success("Employee added successfully!");
@@ -546,8 +575,8 @@ useEffect(() => {
 
   const deleteEmployee = () => {
 
-  fetch(
-    `https://payroll-management-system-three.vercel.app/api/employees/${employeeToDelete}`,
+  apiFetch(
+    `${API_BASE}/api/employees/${employeeToDelete}`,
     {
       method: "DELETE"
     }
@@ -648,12 +677,24 @@ setPreviousExperience(
   employee.salary
 );
 
+setGender(employee.gender || '');
+setDateOfBirth(employee.date_of_birth || '');
+setUanNumber(employee.uan_number || '');
+setPfAccountNumber(employee.pf_account_number || '');
+setEsiRegistrationNumber(employee.esi_registration_number || '');
+setBankAccountNumber(employee.bank_account_number || '');
+setBankName(employee.bank_name || '');
+setIfscCode(employee.ifsc_code || '');
+setPanNumber(employee.pan_number || '');
+setWorkStartDate(employee.work_start_date || '');
+setWorkEndDate(employee.work_end_date || '');
+
 setShowEmployeeModal(true);
 
 };
 const updateEmployee = () => {
 
-  fetch(`https://payroll-management-system-three.vercel.app/api/employees/${editingId}`, {
+  apiFetch(`${API_BASE}/api/employees/${editingId}`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json"
@@ -677,7 +718,18 @@ const updateEmployee = () => {
       last_job_details: lastJobDetails,
       previous_experience: previousExperience,
       department,
-      salary
+      salary,
+      gender: gender || null,
+      date_of_birth: dateOfBirth || null,
+      uan_number: uanNumber || null,
+      pf_account_number: pfAccountNumber || null,
+      esi_registration_number: esiRegistrationNumber || null,
+      bank_account_number: bankAccountNumber || null,
+      bank_name: bankName || null,
+      ifsc_code: ifscCode || null,
+      pan_number: panNumber || null,
+      work_start_date: workStartDate || null,
+      work_end_date: workEndDate || null
     })
   })
   .then(res => res.json())
@@ -701,6 +753,17 @@ const updateEmployee = () => {
     setPreviousExperience("");
     setDepartment("");
     setSalary("");
+    setGender("");
+    setDateOfBirth("");
+    setUanNumber("");
+    setPfAccountNumber("");
+    setEsiRegistrationNumber("");
+    setBankAccountNumber("");
+    setBankName("");
+    setIfscCode("");
+    setPanNumber("");
+    setWorkStartDate("");
+    setWorkEndDate("");
     setShowEmployeeModal(false);
   })
   .catch((err) => {
@@ -778,7 +841,7 @@ const totalPages = Math.ceil(
         margin: 0,
         fontSize: "42px",
         fontWeight: 800,
-        color: "#f8fafc",
+        color: "var(--text-primary, #f8fafc)",
       }}
     >
       👥 Employee Management
@@ -787,7 +850,7 @@ const totalPages = Math.ceil(
     <p
       style={{
         marginTop: "10px",
-        color: "rgba(255,255,255,.6)",
+        color: "var(--text-secondary, rgba(255,255,255,.6))",
         fontSize: "16px",
       }}
     >
@@ -1160,6 +1223,49 @@ const totalPages = Math.ceil(
           onChange={(e) => setSalary(e.target.value)}
           style={inputStyle}
         />
+<h3 style={sectionTitle}>
+  💼 Personal & Bank Details
+</h3>
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+  <div>
+    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Gender</label>
+    <select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}>
+      <option value="">Select</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+  <div>
+    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Date of Birth</label>
+    <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} />
+  </div>
+</div>
+<h3 style={sectionTitle}>
+  🏦 Bank & PF Details
+</h3>
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+  <input type="text" placeholder="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="Bank Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="IFSC Code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="PAN Number" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="UAN Number" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="PF Account Number" value={pfAccountNumber} onChange={(e) => setPfAccountNumber(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="ESI Registration Number" value={esiRegistrationNumber} onChange={(e) => setEsiRegistrationNumber(e.target.value)} style={inputStyle} />
+</div>
+<h3 style={sectionTitle}>
+  📅 Work Period
+</h3>
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+  <div>
+    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Work Start Date</label>
+    <input type="date" value={workStartDate} onChange={(e) => setWorkStartDate(e.target.value)} style={inputStyle} />
+  </div>
+  <div>
+    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Work End Date</label>
+    <input type="date" value={workEndDate} onChange={(e) => setWorkEndDate(e.target.value)} style={inputStyle} />
+  </div>
+</div>
         </div>
         <button
   onClick={

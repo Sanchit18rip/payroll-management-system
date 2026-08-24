@@ -5,80 +5,129 @@ export const HR_SUPPORT_CONTACT = {
 
 export const faqData = [
 
-  
+  // ─────────────── EMPLOYEE QUERIES ───────────────
 
   {
     id: 'emp-mark-attendance',
     audience: 'employee',
     keywords: ['mark my attendance', 'mark attendance', 'attendance camera', 'face attendance'],
     question: 'How do I mark my attendance?',
-    answer: 'On your Employee Dashboard, use the "Mark My Attendance" section. The first time, you\'ll enroll your face (one-time step). After that, just open the camera each day and capture - your attendance is marked Present automatically if your face and location match.'
+    answer: 'On your Employee Dashboard, go to "Mark My Attendance" section. First time — you\'ll enroll your face (one-time). After that, just open the camera, select Office or Work From Home, and capture. Your attendance is marked Present automatically if face + location match.'
   },
   {
     id: 'emp-apply-leave',
     audience: 'employee',
     keywords: ['apply for leave', 'apply leave', 'take leave', 'request leave'],
     question: 'How can I apply for leave?',
-    answer: 'Go to "Apply for Leave" on your dashboard, pick the leave type, From/Till dates and a reason, then click Submit Application. If you\'re on Probation or an Intern, only Unpaid Leave is available until you\'re confirmed as Permanent.'
+    answer: 'Go to "Apply for Leave" on your dashboard. Pick the leave type (Vacation, Sick, Half Day, or Unpaid), select From/Till dates, write a reason, and click Submit. Probation/Intern employees can only apply for Unpaid Leave.'
   },
   {
     id: 'emp-leave-balance',
     audience: 'employee',
-    keywords: ['leave balance', 'how many leaves', 'remaining leaves'],
+    keywords: ['leave balance', 'how many leaves', 'remaining leaves', 'available leaves'],
     question: 'How do I check my leave balance?',
-    answer: 'Your dashboard shows a "Leave Balance" summary card with the days available out of your total earned leaves.'
+    answer: 'Your dashboard shows a "Leave Balance" summary card with days available out of total earned leaves. You can also visit the Leave page for a detailed table of all your leave applications and their status.'
   },
   {
     id: 'emp-payslip',
     audience: 'employee',
-    keywords: ['download my payslip', 'download payslip', 'salary slip', 'payslip'],
+    keywords: ['download my payslip', 'download payslip', 'salary slip', 'payslip', 'view payslip'],
     question: 'How can I download my payslip?',
-    answer: 'Your "Salary Breakdown" card on the dashboard shows your full salary details for the current cycle. A downloadable PDF payslip isn\'t available yet - for an official copy, please contact HR.'
+    answer: 'Go to "Payslips" from the sidebar. Select the month and year, and your payslip will be displayed. Click "Download Payslip" to save it as an image. You can also view a Yearly Summary from the same page.'
+  },
+  {
+    id: 'emp-salary-breakdown',
+    audience: 'employee',
+    keywords: ['salary breakdown', 'salary details', 'my salary', 'earnings deductions', 'what is my salary'],
+    question: 'How can I see my salary breakdown?',
+    answer: 'Go to "My Payroll" from the sidebar. You\'ll see your Gross Salary, Basic + DA, HRA, TA, MA, Other Allowances, Bonus, and all deductions (PF, ESIC, Professional Tax, TDS, etc.) broken down clearly. Net Payable is shown at the bottom.'
   },
   {
     id: 'emp-update-profile',
     audience: 'employee',
-    keywords: ['update my profile', 'update profile', 'edit profile', 'change my details'],
+    keywords: ['update my profile', 'update profile', 'edit profile', 'change my details', 'my profile'],
     question: 'How do I update my profile?',
-    answer: 'Profile self-editing isn\'t available in the system yet. Please contact HR with the details you\'d like updated and they will make the change for you.'
+    answer: 'Go to "Profile" from the sidebar to view your personal details, bank details, statutory documents, and employment info. Profile self-editing isn\'t available yet — please contact HR with the details you\'d like updated.'
   },
   {
     id: 'emp-reset-password',
     audience: 'employee',
     keywords: ['reset my password', 'reset password', 'forgot password', 'change password'],
     question: 'How can I reset my password?',
-    answer: 'On the Login page, use the "Forgot Password" option (via your email) to reset it yourself. If you don\'t see that option yet, please contact HR to reset it for you.'
+    answer: 'On the Login page, use the "Forgot Password" option (via your email) to reset it yourself. If you don\'t see that option, please contact HR to reset it for you.'
   },
   {
     id: 'emp-company-policies',
     audience: 'employee',
     keywords: ['company policies', 'view policies', 'hr policy', 'policy document'],
     question: 'Where can I view company policies?',
-    answer: 'Company policy documents aren\'t published in the system yet. Please contact HR to get the latest policy documents.'
-  },
-  {
-    id: 'emp-overtime-policy',
-    audience: 'employee',
-    keywords: ['overtime policy', 'overtime pay', 'extra hours'],
-    question: 'What is the overtime policy?',
-    answer: 'Overtime rules aren\'t configured in the system yet. Please contact HR for the current overtime policy.'
+    answer: 'Company policy documents aren\'t published in the system yet. Please contact HR to get the latest policy documents. You can type your question here and I can send it to HR as a support ticket.'
   },
   {
     id: 'emp-attendance-history',
     audience: 'employee',
-    keywords: ['attendance history', 'check my attendance', 'past attendance'],
+    keywords: ['attendance history', 'check my attendance', 'past attendance', 'attendance record'],
     question: 'How do I check my attendance history?',
-    answer: 'The "Recent Attendance" table on your dashboard shows your last 30 days of attendance with status for each date.'
+    answer: 'Go to "Attendance" from the sidebar. You\'ll see three tabs — "Mark Attendance" for today, "Monthly View" with a calendar and daily records, and "Yearly Summary" with month-by-month stats and progress bars.'
+  },
+  {
+    id: 'emp-work-logs',
+    audience: 'employee',
+    keywords: ['work log', 'work logs', 'submit work log', 'task update', 'work update'],
+    question: 'How do I submit a work log update?',
+    answer: 'When you\'re checked in, work log slots are generated every 2 hours. A popup will appear automatically during an active slot. Describe your task (10+ characters), select the module, set status (In Progress/Completed), add a screenshot if needed, and submit.'
+  },
+  {
+    id: 'emp-performance',
+    audience: 'employee',
+    keywords: ['my performance', 'performance review', 'rating', 'performance score'],
+    question: 'How can I view my performance reviews?',
+    answer: 'Go to "Performance" from the sidebar. You\'ll see a bar chart of your rating trend, your average rating, best rating, and total reviews. Each review shows the rating (out of 5), feedback, and date.'
+  },
+  {
+    id: 'emp-increment',
+    audience: 'employee',
+    keywords: ['increment', 'salary increment', 'raise', 'increment history'],
+    question: 'Where can I see my increment history?',
+    answer: 'Go to "My Payroll" → click the "Increment History" tab. You\'ll see a table with Date, Previous Salary, Increment Amount (%), New Salary, Applicable From month, and Reason for each increment.'
   },
   {
     id: 'emp-contact-hr',
     audience: 'employee',
-    keywords: ['contact hr', 'talk to hr', 'hr support', 'hr helpline'],
+    keywords: ['contact hr', 'talk to hr', 'hr support', 'hr helpline', 'help'],
     question: 'How can I contact HR?',
-    answer: `You can reach HR Support at ${HR_SUPPORT_CONTACT.email} or call ${HR_SUPPORT_CONTACT.phone}. You can also type your question here and I can send it to HR directly.`
+    answer: `You can reach HR Support at ${HR_SUPPORT_CONTACT.email} or call ${HR_SUPPORT_CONTACT.phone}. You can also type your question here and I'll send it to HR directly as a support ticket.`
+  },
+  {
+    id: 'emp-half-day-leave',
+    audience: 'employee',
+    keywords: ['half day leave', 'half day', 'half-day'],
+    question: 'How do I apply for a half day leave?',
+    answer: 'Go to "Apply for Leave", select "Half Day" as the leave type. Choose the session (First Half or Second Half), and pick the date. Note — Half Day leave can only be applied for a single day, and both From and Till dates must be the same.'
+  },
+  {
+    id: 'emp-attendance-wfh',
+    audience: 'employee',
+    keywords: ['work from home', 'wfh', 'remote attendance'],
+    question: 'How do I mark Work From Home attendance?',
+    answer: 'When marking attendance, select "Work From Home" instead of Office, then open the camera. The geofence (location) check is skipped for WFH. Face verification is still required — show your live face and blink when prompted.'
+  },
+  {
+    id: 'emp-exit-attendance',
+    audience: 'employee',
+    keywords: ['mark exit', 'check out', 'exit attendance', 'clock out'],
+    question: 'How do I mark my exit / clock out?',
+    answer: 'After checking in, a "Mark My Exit" button will appear on your dashboard. Click it, show your face to the camera, blink for liveness check, and your exit time will be recorded automatically.'
+  },
+  {
+    id: 'emp-monthly-leaves',
+    audience: 'employee',
+    keywords: ['monthly leave credit', 'leave credit', 'leave earned'],
+    question: 'When do I get my monthly leave credit?',
+    answer: 'Permanent employees receive 1 leave credit per month, added automatically by the system. Probation/Intern employees do not receive leave credits until confirmed as Permanent. You can track your earned vs available leaves on the dashboard Leave Balance card.'
   },
 
-  // ---------------- HR QUERIES ----------------
+  // ─────────────── HR QUERIES ───────────────
 
   {
     id: 'hr-add-employee',
@@ -121,20 +170,6 @@ export const faqData = [
     keywords: ['payroll reports', 'generate reports', 'reports page'],
     question: 'How do I generate payroll reports?',
     answer: 'Go to the Reports page for a live company summary - total payroll, average compensation, attendance efficiency and leave stats. Click "Refresh Reports" to pull the latest numbers.'
-  },
-  {
-    id: 'hr-update-policies',
-    audience: 'hr',
-    keywords: ['update company policies', 'edit policies', 'manage policies'],
-    question: 'How do I update company policies?',
-    answer: 'A policy management page isn\'t built yet in the system. For now, policies are communicated to employees outside the system (email/notice).'
-  },
-  {
-    id: 'hr-manage-holidays',
-    audience: 'hr',
-    keywords: ['manage holidays', 'add holiday', 'holiday list'],
-    question: 'How do I manage holidays?',
-    answer: 'A holiday calendar isn\'t built yet in the system. Currently, attendance for non-working days needs to be handled manually on the Attendance page.'
   },
   {
     id: 'hr-salary-components',
