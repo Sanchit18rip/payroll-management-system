@@ -60,6 +60,7 @@ function Login() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [role, setRole] = useState('employee')
   const [otp, setOtp] = useState('')
@@ -307,15 +308,45 @@ function Login() {
 
           <div style={{ marginBottom: '24px' }}>
             <label style={labelStyle}>Password</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={inputStyle}
-              disabled={otpSent}
-              required
-            />
+
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  paddingRight: '72px'
+                }}
+                disabled={otpSent}
+                required
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                disabled={otpSent}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-secondary)',
+                  cursor: otpSent ? 'not-allowed' : 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  padding: '6px 8px',
+                  borderRadius: '7px',
+                  opacity: otpSent ? 0.5 : 1
+                }}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
           {role === 'employee' && otpSent && (

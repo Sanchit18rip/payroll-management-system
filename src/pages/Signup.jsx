@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient'
 function SignUp() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [resumeFile, setResumeFile] = useState(null)
   const [idProofFile, setIdProofFile] = useState(null)
 
@@ -263,7 +264,41 @@ function SignUp() {
           <SectionHeader icon="🔐" title="Account Credentials" />
           <div style={formGridStyle}>
             <input type="email" placeholder="Email Address *" required value={user.email} onChange={(e) => handleChange('email', e.target.value)} style={inputStyle} />
-            <input type="password" placeholder="Password *" required value={user.password} onChange={(e) => handleChange('password', e.target.value)} style={inputStyle} />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Password *"
+                required
+                value={user.password}
+                onChange={(e) => handleChange('password', e.target.value)}
+                style={{
+                  ...inputStyle,
+                  paddingRight: '72px'
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '8px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  padding: '6px 8px',
+                  borderRadius: '7px'
+                }}
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
           </div>
 
           <SectionHeader icon="👤" title="Personal Details" />
