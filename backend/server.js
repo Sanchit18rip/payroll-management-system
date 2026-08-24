@@ -5933,4 +5933,357 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+// ============================================
+// HR DOCUMENT TEMPLATES - GET
+// ============================================
+app.get(
+  "/api/hr-documents/templates",
+  requireAuth,
+  async (req, res) => {
+
+    try {
+
+      const result = await db.query(
+        `
+        SELECT *
+        FROM hr_document_templates
+        ORDER BY id ASC
+        `
+      );
+
+      res.json(result.rows);
+
+    } catch (err) {
+
+      console.error(
+        "Get document templates error:",
+        err.message
+      );
+
+      res.status(500).json({
+        message: err.message
+      });
+
+    }
+
+  }
+);
+
+// ============================================
+// HR DOCUMENT TEMPLATES - SAVE
+// ============================================
+app.post(
+  "/api/hr-documents/templates",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
+
+    try {
+
+      const {
+        name,
+        document_type,
+        content
+      } = req.body;
+
+      if (!name || !document_type || !content) {
+
+        return res.status(400).json({
+          message: "Template name, document type and content are required."
+        });
+
+      }
+
+      const result = await db.query(
+        `
+        INSERT INTO hr_document_templates
+        (
+          name,
+          document_type,
+          content
+        )
+        VALUES
+        (
+          $1,
+          $2,
+          $3
+        )
+        RETURNING *
+        `,
+        [
+          name,
+          document_type,
+          content
+        ]
+      );
+
+      res.status(201).json({
+        message: "Document template saved successfully.",
+        template: result.rows[0]
+      });
+
+    } catch (err) {
+
+      console.error(
+        "Save document template error:",
+        err.message
+      );
+
+      res.status(500).json({
+        message: err.message
+      });
+
+    }
+
+  }
+);
+
+// ============================================
+// HR DOCUMENT - SEND EMAIL
+// ============================================
+app.post(
+  "/api/hr-documents/send",
+  requireAuth,
+  requireRole("hr"),
+  async (req, res) => {
+
+    try {
+
+      const {
+        employee_id,
+        document_type,
+        subject,
+        content
+      } = req.body;
+
+      if (
+        !employee_id ||
+        !document_type ||
+        !content
+      ) {
+
+        return res.status(400).json({
+          message:
+            "Employee, document type and document content are required."
+        });
+
+      }
+
+      // Get employee details
+      const employeeResult = await db.query(
+        `
+        SELECT
+          id,
+          name,
+          email,
+          employee_code
+        FROM employees
+        WHERE id = $1
+        `,
+        [employee_id]
+      );
+
+      if (employeeResult.rows.length === 0) {
+
+        return res.status(404).json({
+          message: "Employee not found."
+        });
+
+      }
+
+      const employee =
+        employeeResult.rows[0];
+
+      if (!employee.email) {
+
+        return res.status(400).json({
+          message:
+            "Employee does not have an email address."
+        });
+
+      }
+
+      // Send email
+      const info = await transporter.sendMail({
+
+        from:
+          `"Payroll System" <${process.env.EMAIL_USER}>`,
+
+        to:
+          employee.email,
+
+        subject:
+          subject ||
+          `${document_type} - Payroll System`,
+
+        html: `
+          <div
+            style="
+              font-family: Arial, sans-serif;
+              max-width: 700px;
+              margin: auto;
+              padding: 30px;
+              color: #222;
+              line-height: 1.6;
+            "
+          >
+
+            ${content}
+
+            <hr
+              style="
+                margin-top: 30px;
+                border: none;
+                border-top: 1px solid #ddd;
+              "
+            >
+
+            <p
+              style="
+                font-size: 12px;
+                color: #777;
+              "
+            >
+              This document was sent from the Payroll Management System.
+            </p>
+
+          </div>
+        `
+
+      });
+
+      // Check whether document record already exists
+      const existingDocument = await db.query(
+        `
+        SELECT id
+        FROM hr_documents
+        WHERE employee_id = $1
+        AND document_type = $2
+        LIMIT 1
+        `,
+        [
+          employee_id,
+          document_type
+        ]
+      );
+
+      if (existingDocument.rows.length > 0) {
+
+        // Update existing document
+        await db.query(
+          `
+          UPDATE hr_documents
+
+          SET
+            status = 'Uploaded',
+            upload_date = CURRENT_TIMESTAMP
+
+          WHERE id = $1
+          `,
+          [
+            existingDocument.rows[0].id
+          ]
+        );
+
+      } else {
+
+        // Create document record
+        await db.query(
+          `
+          INSERT INTO hr_documents
+          (
+            employee_id,
+            document_type,
+            status,
+            upload_date
+          )
+          VALUES
+          (
+            $1,
+            $2,
+            'Uploaded',
+            CURRENT_TIMESTAMP
+          )
+          `,
+          [
+            employee_id,
+            document_type
+          ]
+        );
+
+      }
+
+      // Create employee notification
+      try {
+
+        await db.query(
+          `
+          INSERT INTO notifications
+          (
+            employee_id,
+            type,
+            title,
+            body
+          )
+          VALUES
+          (
+            $1,
+            'document',
+            'HR Document Received',
+            $2
+          )
+          `,
+          [
+            employee_id,
+            `Your ${document_type} has been sent to your registered email address.`
+          ]
+        );
+
+      } catch (notificationError) {
+
+        console.error(
+          "Document notification error:",
+          notificationError.message
+        );
+
+      }
+
+      console.log(
+        "HR document email sent:",
+        info.messageId
+      );
+
+      res.json({
+
+        success: true,
+
+        message:
+          `${document_type} sent successfully to ${employee.email}.`,
+
+        messageId:
+          info.messageId
+
+      });
+
+    } catch (err) {
+
+      console.error(
+        "HR document email error:",
+        err.message
+      );
+
+      res.status(500).json({
+
+        success: false,
+
+        message:
+          err.message ||
+          "Failed to send HR document."
+
+      });
+
+    }
+
+  }
+);
 export default app;
