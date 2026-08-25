@@ -24,9 +24,21 @@ const app = express();
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_APP_PASSWORD,
   },
+  tls: {
+    rejectUnauthorized: true,
+  },
+});
+
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Gmail SMTP configuration error:", error);
+  } else {
+    console.log("✅ Gmail SMTP is ready");
+    console.log("📧 Sender:", process.env.GMAIL_USER);
+  }
 });
 // Office Location
 const OFFICE_LAT = 19.0760;
@@ -353,30 +365,62 @@ app.post(
     }
 
   }
-);app.get("/api/test-email", async (req, res) => {
+);
+app.get("/api/test-email", async (req, res) => {
   try {
+
+    if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+      return res.status(500).json({
+        success: false,
+        message:
+          "GMAIL_USER or GMAIL_APP_PASSWORD is missing in backend .env"
+      });
+    }
+
+    await transporter.verify();
+
     const info = await transporter.sendMail({
-      from: `"Payroll System" <${process.env.EMAIL_USER}>`,
-      to: process.env.EMAIL_USER,
-      subject: "Payroll Email Test",
+      from: `"Payroll Management System" <${process.env.GMAIL_USER}>`,
+      to: process.env.GMAIL_USER,
+      subject: "Payroll System Email Test",
+      text: "This is a test email from the Payroll Management System.",
       html: `
-        <h2>Payroll System Email Test</h2>
-        <p>If you received this email, Nodemailer SMTP is working correctly.</p>
-      `,
+        <div style="font-family: Arial, sans-serif;">
+          <h2>Payroll System Email Test</h2>
+
+          <p>
+            If you received this email, Gmail SMTP and Nodemailer
+            are working correctly.
+          </p>
+
+          <p>
+            <strong>Sender:</strong>
+            ${process.env.GMAIL_USER}
+          </p>
+        </div>
+      `
     });
 
-    console.log("Test email sent:", info.messageId);
-    res.json({
+    console.log("✅ Test email sent:", info.messageId);
+
+    return res.json({
       success: true,
-      message: "Test email sent successfully",
-      id: info.messageId,
+      message: "Test email sent successfully.",
+      sender: process.env.GMAIL_USER,
+      messageId: info.messageId
     });
 
   } catch (err) {
-    console.error("Email test error:", err);
-    res.status(500).json({
-      message: err.message || "Email sending failed",
+
+    console.error("❌ Email test error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message || "Email sending failed.",
+      code: err.code || null,
+      responseCode: err.responseCode || null
     });
+
   }
 });
 app.post(
@@ -386,17 +430,48 @@ app.post(
 
     try {
 
-      const userId = req.user.id;
-      const email = req.user.email;
+      // ==========================================
+      // 1. GET SESSION INFORMATION
+      // ==========================================
+
+      const userId = req.user?.id;
+      const email = req.user?.email;
       const sessionId = req.sessionId;
 
       if (!userId || !email || !sessionId) {
+
         return res.status(400).json({
-          message: "User session information is missing"
+          success: false,
+          message: "User session information is missing."
         });
+
       }
 
-      // Check if an OTP was sent in the last 60 seconds
+      // ==========================================
+      // 2. CHECK EMAIL CONFIGURATION
+      // ==========================================
+
+      if (
+        !process.env.GMAIL_USER ||
+        !process.env.GMAIL_APP_PASSWORD
+      ) {
+
+        console.error(
+          "❌ GMAIL_USER or GMAIL_APP_PASSWORD is missing."
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Email service is not configured on the server."
+        });
+
+      }
+
+      // ==========================================
+      // 3. PREVENT OTP SPAM
+      // ==========================================
+
       const recentOtp = await db.query(
         `
         SELECT id
@@ -411,97 +486,95 @@ app.post(
       );
 
       if (recentOtp.rows.length > 0) {
+
         return res.status(429).json({
-          message: "Please wait 60 seconds before requesting another OTP."
+          success: false,
+          message:
+            "Please wait 60 seconds before requesting another OTP."
         });
+
       }
 
-      // Generate secure 6-digit OTP
+      // ==========================================
+      // 4. GENERATE 6-DIGIT OTP
+      // ==========================================
+
       const otp = crypto
         .randomInt(100000, 1000000)
         .toString();
 
-      // Hash OTP before storing it
+      // ==========================================
+      // 5. HASH OTP
+      // ==========================================
+
       const otpHash = crypto
         .createHash("sha256")
         .update(otp)
         .digest("hex");
 
-      
+      // ==========================================
+      // 6. VERIFY GMAIL SMTP
+      // ==========================================
 
-      // Invalidate previous unused OTPs
-      await db.query(
-        `
-        UPDATE login_otps
-        SET used = TRUE
-        WHERE user_id = $1
-          AND used = FALSE
-        `,
-        [userId]
-      );
-
-      // Store OTP hash
-      await db.query(
-        `
-        INSERT INTO login_otps
-(
-  user_id,
-  email,
-  otp_hash,
-  expires_at
-)
-VALUES (
-  $1,
-  $2,
-  $3,
-  NOW() + INTERVAL '5 minutes'
-)
-        `,
-        [
-  userId,
-  email,
-  otpHash
-]
-      );
-
-      // Create login challenge
-      // Create login challenge
-await db.query(
-  `
-  INSERT INTO login_challenges
-  (
-    user_id,
-    session_id,
-    email,
-    otp_verified,
-    expires_at
-  )
-  VALUES (
-    $1,
-    $2,
-    $3,
-    FALSE,
-    NOW() + INTERVAL '5 minutes'
-  )
-  `,
-  [
-    userId,
-    sessionId,
-    email
-  ]
-);  
-
-            // Send OTP
       try {
 
-        const info = await transporter.sendMail({
-          from: `"Payroll System" <${process.env.EMAIL_USER}>`,
-          to: email,
-          subject: "Payroll System Login OTP",
-          html: `
-            <div style="font-family: Arial, sans-serif;">
+        await transporter.verify();
 
-              <h2>Payroll System Login</h2>
+      } catch (mailConfigError) {
+
+        console.error(
+          "❌ Gmail SMTP verification failed:",
+          mailConfigError
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Email service is unavailable. Please check Gmail SMTP configuration.",
+          error:
+            process.env.NODE_ENV === "production"
+              ? undefined
+              : mailConfigError.message
+        });
+
+      }
+
+      // ==========================================
+      // 7. SEND OTP EMAIL
+      // ==========================================
+
+      let mailInfo;
+
+      try {
+
+        mailInfo = await transporter.sendMail({
+
+          from:
+            `"Payroll Management System" <${process.env.GMAIL_USER}>`,
+
+          to: email,
+
+          subject:
+            "Payroll System Login OTP",
+
+          text:
+            `Your Payroll System verification code is ${otp}. This OTP will expire in 5 minutes.`,
+
+          html: `
+            <div
+              style="
+                font-family: Arial, sans-serif;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 30px;
+                color: #222;
+                line-height: 1.6;
+              "
+            >
+
+              <h2>
+                Payroll System Login
+              </h2>
 
               <p>
                 Your verification code is:
@@ -513,13 +586,18 @@ await db.query(
                   font-weight: bold;
                   letter-spacing: 8px;
                   margin: 20px 0;
+                  padding: 15px;
+                  background: #f5f5f5;
+                  text-align: center;
+                  border-radius: 8px;
                 "
               >
                 ${otp}
               </div>
 
               <p>
-                This OTP will expire in 5 minutes.
+                This OTP will expire in
+                <strong>5 minutes</strong>.
               </p>
 
               <p>
@@ -527,44 +605,169 @@ await db.query(
                 please ignore this email.
               </p>
 
+              <hr
+                style="
+                  margin: 25px 0;
+                  border: none;
+                  border-top: 1px solid #ddd;
+                "
+              >
+
+              <p
+                style="
+                  font-size: 12px;
+                  color: #777;
+                "
+              >
+                Payroll Management System
+              </p>
+
             </div>
           `
-        });
 
-        console.log(
-          "Login OTP sent:",
-          info.messageId
-        );
+        });
 
       } catch (mailError) {
 
         console.error(
-          "Nodemailer OTP error:",
+          "❌ Nodemailer OTP error:",
           mailError
         );
 
         return res.status(500).json({
-          message: "Unable to send OTP email."
+          success: false,
+          message:
+            "Unable to send OTP email.",
+          error:
+            process.env.NODE_ENV === "production"
+              ? undefined
+              : mailError.message,
+          code:
+            process.env.NODE_ENV === "production"
+              ? undefined
+              : mailError.code
         });
 
       }
 
+      console.log(
+        "✅ Login OTP email sent:",
+        mailInfo.messageId,
+        "from:",
+        process.env.GMAIL_USER,
+        "to:",
+        email
+      );
+
+      // ==========================================
+      // 8. INVALIDATE PREVIOUS OTPs
+      // ==========================================
+
+      await db.query(
+        `
+        UPDATE login_otps
+        SET used = TRUE
+        WHERE user_id = $1
+          AND used = FALSE
+        `,
+        [userId]
+      );
+
+      // ==========================================
+      // 9. STORE NEW OTP
+      // ==========================================
+
+      await db.query(
+        `
+        INSERT INTO login_otps
+        (
+          user_id,
+          email,
+          otp_hash,
+          expires_at,
+          attempts,
+          used
+        )
+        VALUES
+        (
+          $1,
+          $2,
+          $3,
+          NOW() + INTERVAL '5 minutes',
+          0,
+          FALSE
+        )
+        `,
+        [
+          userId,
+          email,
+          otpHash
+        ]
+      );
+
+      // ==========================================
+      // 10. CREATE LOGIN CHALLENGE
+      // ==========================================
+
+      await db.query(
+        `
+        INSERT INTO login_challenges
+        (
+          user_id,
+          session_id,
+          email,
+          otp_verified,
+          expires_at
+        )
+        VALUES
+        (
+          $1,
+          $2,
+          $3,
+          FALSE,
+          NOW() + INTERVAL '5 minutes'
+        )
+        `,
+        [
+          userId,
+          sessionId,
+          email
+        ]
+      );
+
+      // ==========================================
+      // 11. SUCCESS RESPONSE
+      // ==========================================
+
       return res.json({
+
         success: true,
-        message: "OTP sent successfully."
+
+        message:
+          "OTP sent successfully.",
+
+        email,
+
+        messageId:
+          mailInfo.messageId
+
       });
 
-    }
-
-    catch (err) {
+    } catch (err) {
 
       console.error(
-        "Send OTP error:",
+        "❌ Send OTP API error:",
         err
       );
 
       return res.status(500).json({
-        message: "Unable to send OTP: " + err.message
+
+        success: false,
+
+        message:
+          err.message ||
+          "Unable to send OTP."
+
       });
 
     }
@@ -578,78 +781,160 @@ app.post(
 
     try {
 
-      const userId = req.user.id;
+      // ==========================================
+      // 1. GET SESSION / USER INFORMATION
+      // ==========================================
+
+      const userId = req.user?.id;
+      const email = req.user?.email;
       const sessionId = req.sessionId;
-      const email = req.user.email;
-      const { otp } = req.body;
 
-      if (!otp) {
+      const cleanEmail =
+        String(email || "")
+          .trim()
+          .toLowerCase();
+
+      const cleanOtp =
+        String(req.body?.otp || "")
+          .trim();
+
+
+      console.log("");
+      console.log("==========================================");
+      console.log("        VERIFY EMAIL OTP");
+      console.log("==========================================");
+      console.log("User ID:", userId);
+      console.log("Email:", cleanEmail);
+      console.log("Session ID:", sessionId);
+      console.log("Entered OTP:", cleanOtp);
+      console.log("==========================================");
+
+
+      // ==========================================
+      // 2. VALIDATE USER SESSION
+      // ==========================================
+
+      if (
+        !userId ||
+        !cleanEmail ||
+        !sessionId
+      ) {
+
+        console.error(
+          "❌ Missing user/session information"
+        );
+
         return res.status(400).json({
-          message: "OTP is required"
+          success: false,
+          message:
+            "User session information is missing."
         });
+
       }
 
-      if (!/^\d{6}$/.test(otp)) {
+
+      // ==========================================
+      // 3. VALIDATE OTP
+      // ==========================================
+
+      if (!cleanOtp) {
+
         return res.status(400).json({
-          message: "OTP must be 6 digits"
+          success: false,
+          message:
+            "OTP is required."
         });
+
       }
 
-      // Find the latest unused OTP
-      const otpResult = await db.query(
-        `
-        SELECT
-          id,
-          otp_hash,
-          expires_at,
-          attempts
-        FROM login_otps
-        WHERE user_id = $1
-          AND email = $2
-          AND used = FALSE
-        ORDER BY created_at DESC
-        LIMIT 1
-        `,
-        [userId, email]
+
+      if (!/^\d{6}$/.test(cleanOtp)) {
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "OTP must be 6 digits."
+        });
+
+      }
+
+
+      // ==========================================
+      // 4. FIND LATEST ACTIVE OTP
+      // ==========================================
+
+      const otpResult =
+        await db.query(
+          `
+          SELECT
+            id,
+            user_id,
+            email,
+            otp_hash,
+            expires_at,
+            attempts,
+            used,
+            created_at
+          FROM login_otps
+          WHERE user_id = $1
+            AND LOWER(email) = LOWER($2)
+            AND used = FALSE
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [
+            userId,
+            cleanEmail
+          ]
+        );
+
+
+      // ==========================================
+      // 5. NO OTP FOUND
+      // ==========================================
+
+      if (
+        otpResult.rows.length === 0
+      ) {
+
+        console.error(
+          "❌ No active OTP found"
+        );
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "No active OTP found. Please request a new OTP."
+        });
+
+      }
+
+
+      const storedOtp =
+        otpResult.rows[0];
+
+
+      console.log(
+        "OTP record found:",
+        {
+          id: storedOtp.id,
+          userId: storedOtp.user_id,
+          email: storedOtp.email,
+          expiresAt: storedOtp.expires_at,
+          attempts: storedOtp.attempts,
+          used: storedOtp.used
+        }
       );
 
-      if (otpResult.rows.length === 0) {
-        return res.status(400).json({
-          message: "No active OTP found. Please request a new OTP."
-        });
-      }
 
-      const storedOtp = otpResult.rows[0];
+      // ==========================================
+      // 6. CHECK OTP EXPIRATION
+      // ==========================================
 
-     // Check expiration using PostgreSQL time
-const expiryCheck = await db.query(
-  `
-  SELECT id
-  FROM login_otps
-  WHERE id = $1
-    AND expires_at > NOW()
-  `,
-  [storedOtp.id]
-);
-
-if (expiryCheck.rows.length === 0) {
-
-  await db.query(
-    `
-    UPDATE login_otps
-    SET used = TRUE
-    WHERE id = $1
-    `,
-    [storedOtp.id]
-  );
-
-  return res.status(400).json({
-    message: "OTP has expired. Please request a new OTP."
-  });
-}
-
-      // Limit incorrect attempts
-      if (storedOtp.attempts >= 5) {
+      if (
+        !storedOtp.expires_at ||
+        new Date(storedOtp.expires_at) <= new Date()
+      ) {
 
         await db.query(
           `
@@ -657,114 +942,536 @@ if (expiryCheck.rows.length === 0) {
           SET used = TRUE
           WHERE id = $1
           `,
-          [storedOtp.id]
+          [
+            storedOtp.id
+          ]
         );
 
-        return res.status(429).json({
-          message: "Too many incorrect attempts. Please request a new OTP."
+
+        console.error(
+          "❌ OTP expired"
+        );
+
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "OTP has expired. Please request a new OTP."
         });
+
       }
 
-      // Hash submitted OTP
-      const submittedOtpHash = crypto
-        .createHash("sha256")
-        .update(otp)
-        .digest("hex");
 
-      // Compare hashes
-      if (
-        submittedOtpHash !== storedOtp.otp_hash
-      ) {
+      // ==========================================
+      // 7. CHECK MAXIMUM ATTEMPTS
+      // ==========================================
+
+      const attempts =
+        Number(
+          storedOtp.attempts || 0
+        );
+
+
+      if (attempts >= 5) {
 
         await db.query(
           `
           UPDATE login_otps
-          SET attempts = attempts + 1
+          SET used = TRUE
           WHERE id = $1
           `,
-          [storedOtp.id]
+          [
+            storedOtp.id
+          ]
         );
 
-        return res.status(401).json({
-          message: "Invalid OTP"
+
+        console.error(
+          "❌ Maximum OTP attempts reached"
+        );
+
+
+        return res.status(429).json({
+          success: false,
+          message:
+            "Too many incorrect attempts. Please request a new OTP."
         });
+
       }
 
-      
 
-      // Mark this specific login session as OTP verified
-      // Find the latest active login challenge
-const challengeResult = await db.query(
-  `
-  SELECT
-    id,
-    session_id,
-    expires_at
-  FROM login_challenges
-  WHERE user_id = $1
-    AND email = $2
-    AND otp_verified = FALSE
-    AND expires_at > NOW()
-  ORDER BY created_at DESC
-  LIMIT 1
-  `,
-  [
-    userId,
-    email
-  ]
-);
+      // ==========================================
+      // 8. HASH ENTERED OTP
+      // ==========================================
 
-if (challengeResult.rows.length === 0) {
-
-  return res.status(400).json({
-    message: "Login challenge is invalid or expired."
-  });
-
-}
-
-const challenge =
-  challengeResult.rows[0];
+      const submittedOtpHash =
+        crypto
+          .createHash("sha256")
+          .update(cleanOtp)
+          .digest("hex");
 
 
+      // ==========================================
+      // 9. COMPARE OTP HASH
+      // ==========================================
 
-// Mark challenge as verified
-await db.query(
-  `
-  UPDATE login_challenges
-  SET otp_verified = TRUE
-  WHERE id = $1
-  `,
-  [
-    challenge.id
-  ]
-);
+      if (
+        submittedOtpHash !==
+        storedOtp.otp_hash
+      ) {
 
-// OTP is correct
+        const updatedAttempts =
+          attempts + 1;
+
+
+        await db.query(
+          `
+          UPDATE login_otps
+          SET attempts = $1
+          WHERE id = $2
+          `,
+          [
+            updatedAttempts,
+            storedOtp.id
+          ]
+        );
+
+
+        console.error(
+          "❌ INVALID OTP"
+        );
+
+        console.error(
+          "Attempts:",
+          updatedAttempts
+        );
+
+
+        // ----------------------------------------
+        // MAXIMUM ATTEMPTS REACHED
+        // ----------------------------------------
+
+        if (
+          updatedAttempts >= 5
+        ) {
+
+          await db.query(
+            `
+            UPDATE login_otps
+            SET used = TRUE
+            WHERE id = $1
+            `,
+            [
+              storedOtp.id
+            ]
+          );
+
+
+          return res.status(429).json({
+            success: false,
+            message:
+              "Too many incorrect attempts. Please request a new OTP."
+          });
+
+        }
+
+
+        return res.status(401).json({
+          success: false,
+          message:
+            "Invalid OTP."
+        });
+
+      }
+
+
+      console.log(
+        "✅ OTP HASH MATCHED"
+      );
+
+
+      // ==========================================
+      // 10. FIND ACTIVE LOGIN CHALLENGE
+      //
+      // IMPORTANT:
+      //
+      // DO NOT MATCH session_id HERE.
+      //
+      // The OTP has already been validated against
+      // the authenticated user + email.
+      //
+      // The send-email-otp API creates the challenge
+      // using the session that existed at that time.
+      //
+      // The frontend can subsequently present a
+      // different Supabase session ID, so requiring
+      // session_id here causes:
+      //
+      // "Login challenge is invalid or expired."
+      //
+      // Therefore we find the latest active challenge
+      // belonging to this user/email.
+      // ==========================================
+
+      const challengeResult =
+        await db.query(
+          `
+          SELECT
+            id,
+            user_id,
+            session_id,
+            email,
+            otp_verified,
+            expires_at,
+            created_at
+          FROM login_challenges
+          WHERE user_id = $1
+            AND LOWER(email) = LOWER($2)
+            AND otp_verified = FALSE
+            AND expires_at > NOW()
+          ORDER BY created_at DESC
+          LIMIT 1
+          `,
+          [
+            userId,
+            cleanEmail
+          ]
+        );
+
+
+      // ==========================================
+      // 11. LOGIN CHALLENGE NOT FOUND
+      // ==========================================
+
+      if (
+        challengeResult.rows.length === 0
+      ) {
+
+        console.error("");
+        console.error(
+          "=========================================="
+        );
+        console.error(
+          "❌ NO ACTIVE LOGIN CHALLENGE"
+        );
+        console.error(
+          "=========================================="
+        );
+
+
+        console.error(
+          "Current request:"
+        );
+
+
+        console.error({
+          userId,
+          email: cleanEmail,
+          currentSessionId: sessionId
+        });
+
+
+        // ----------------------------------------
+        // DEBUG RECENT CHALLENGES
+        // ----------------------------------------
+
+        const recentChallenges =
+          await db.query(
+            `
+            SELECT
+              id,
+              user_id,
+              session_id,
+              email,
+              otp_verified,
+              expires_at,
+              created_at
+            FROM login_challenges
+            WHERE user_id = $1
+              AND LOWER(email) = LOWER($2)
+            ORDER BY created_at DESC
+            LIMIT 10
+            `,
+            [
+              userId,
+              cleanEmail
+            ]
+          );
+
+
+        console.error(
+          "Recent login challenges:"
+        );
+
+
+        console.table(
+          recentChallenges.rows.map(
+            challenge => ({
+
+              id:
+                challenge.id,
+
+              user_id:
+                challenge.user_id,
+
+              challenge_session_id:
+                challenge.session_id,
+
+              current_session_id:
+                sessionId,
+
+              session_match:
+                String(
+                  challenge.session_id
+                ) ===
+                String(
+                  sessionId
+                ),
+
+              email:
+                challenge.email,
+
+              otp_verified:
+                challenge.otp_verified,
+
+              expires_at:
+                challenge.expires_at,
+
+              created_at:
+                challenge.created_at
+
+            })
+          )
+        );
+
+
+        console.error(
+          "=========================================="
+        );
+        console.error("");
+
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Login challenge is invalid or expired."
+        });
+
+      }
+
+
+      // ==========================================
+      // 12. GET CHALLENGE
+      // ==========================================
+
+      const challenge =
+        challengeResult.rows[0];
+
+
+      console.log("");
+      console.log(
+        "=========================================="
+      );
+      console.log(
+        "✅ LOGIN CHALLENGE FOUND"
+      );
+      console.log(
+        "=========================================="
+      );
+
+
+      console.log({
+
+        challengeId:
+          challenge.id,
+
+        challengeUserId:
+          challenge.user_id,
+
+        challengeEmail:
+          challenge.email,
+
+        challengeSessionId:
+          challenge.session_id,
+
+        currentSessionId:
+          sessionId,
+
+        sessionMatch:
+          String(
+            challenge.session_id
+          ) ===
+          String(
+            sessionId
+          ),
+
+        expiresAt:
+          challenge.expires_at,
+
+        createdAt:
+          challenge.created_at
+
+      });
+
+
+      console.log(
+        "=========================================="
+      );
+
+
+      // ==========================================
+      // 13. MARK LOGIN CHALLENGE AS VERIFIED
+      // ==========================================
+
+      const challengeUpdate =
+        await db.query(
+          `
+          UPDATE login_challenges
+          SET otp_verified = TRUE
+          WHERE id = $1
+            AND otp_verified = FALSE
+          RETURNING id
+          `,
+          [
+            challenge.id
+          ]
+        );
+
+
+      // ==========================================
+      // 14. MAKE SURE CHALLENGE WAS UPDATED
+      // ==========================================
+
+      if (
+        challengeUpdate.rows.length === 0
+      ) {
+
+        console.error(
+          "❌ Login challenge could not be verified"
+        );
+
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Login challenge is invalid or has already been verified."
+        });
+
+      }
+
+
+      console.log(
+        "✅ LOGIN CHALLENGE VERIFIED"
+      );
+
+
+      // ==========================================
+      // 15. MARK OTP AS USED
+      // ==========================================
+
       await db.query(
         `
         UPDATE login_otps
         SET used = TRUE
         WHERE id = $1
         `,
-        [storedOtp.id]
-      );  
+        [
+          storedOtp.id
+        ]
+      );
+
+
+      console.log(
+        "✅ OTP MARKED AS USED"
+      );
+
+
+      // ==========================================
+      // 16. LOGIN OTP VERIFICATION SUCCESS
+      // ==========================================
+
+      console.log("");
+      console.log(
+        "=========================================="
+      );
+      console.log(
+        "✅ EMAIL OTP VERIFICATION SUCCESSFUL"
+      );
+      console.log(
+        "=========================================="
+      );
+
+
+      console.log({
+        userId,
+        email: cleanEmail,
+        sessionId,
+        challengeId: challenge.id,
+        otpId: storedOtp.id
+      });
+
+
+      console.log(
+        "=========================================="
+      );
+      console.log("");
+
+
+      // ==========================================
+      // 17. SEND SUCCESS RESPONSE
+      // ==========================================
 
       return res.json({
+
         success: true,
-        message: "Email OTP verified successfully."
+
+        message:
+          "Email OTP verified successfully."
+
       });
 
     }
 
     catch (err) {
 
+      // ==========================================
+      // ERROR HANDLING
+      // ==========================================
+
+      console.error("");
       console.error(
-        "Verify OTP error:",
-        err
+        "=========================================="
       );
+      console.error(
+        "❌ VERIFY EMAIL OTP ERROR"
+      );
+      console.error(
+        "=========================================="
+      );
+      console.error(err);
+      console.error(
+        "=========================================="
+      );
+      console.error("");
+
 
       return res.status(500).json({
-        message: "Unable to verify OTP."
+
+        success: false,
+
+        message:
+          "Unable to verify OTP.",
+
+        error:
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : err.message,
+
+        code:
+          process.env.NODE_ENV === "production"
+            ? undefined
+            : err.code
+
       });
 
     }
@@ -6041,6 +6748,14 @@ app.post(
 // ============================================
 // HR DOCUMENT - SEND EMAIL
 // ============================================
+// ============================================================
+// HR DOCUMENT - SEND EMAIL
+// ============================================================
+
+// ============================================
+// HR DOCUMENT - SEND EMAIL
+// ============================================
+
 app.post(
   "/api/hr-documents/send",
   requireAuth,
@@ -6056,36 +6771,65 @@ app.post(
         content
       } = req.body;
 
+      // -----------------------------------------
+      // VALIDATE REQUEST
+      // -----------------------------------------
+
       if (
         !employee_id ||
         !document_type ||
         !content
       ) {
-
         return res.status(400).json({
+          success: false,
           message:
             "Employee, document type and document content are required."
+        });
+      }
+
+      // -----------------------------------------
+      // VALIDATE GMAIL CONFIGURATION
+      // -----------------------------------------
+
+      if (
+        !process.env.GMAIL_USER ||
+        !process.env.GMAIL_APP_PASSWORD
+      ) {
+
+        console.error(
+          "❌ GMAIL_USER or GMAIL_APP_PASSWORD is missing."
+        );
+
+        return res.status(500).json({
+          success: false,
+          message:
+            "Gmail email service is not configured on the server."
         });
 
       }
 
-      // Get employee details
-      const employeeResult = await db.query(
-        `
-        SELECT
-          id,
-          name,
-          email,
-          employee_code
-        FROM employees
-        WHERE id = $1
-        `,
-        [employee_id]
-      );
+      // -----------------------------------------
+      // GET EMPLOYEE
+      // -----------------------------------------
+
+      const employeeResult =
+        await db.query(
+          `
+          SELECT
+            id,
+            name,
+            email,
+            employee_code
+          FROM employees
+          WHERE id = $1
+          `,
+          [employee_id]
+        );
 
       if (employeeResult.rows.length === 0) {
 
         return res.status(404).json({
+          success: false,
           message: "Employee not found."
         });
 
@@ -6094,191 +6838,312 @@ app.post(
       const employee =
         employeeResult.rows[0];
 
-      if (!employee.email) {
+      // -----------------------------------------
+      // CHECK EMPLOYEE EMAIL
+      // -----------------------------------------
+
+      const cleanEmployeeEmail =
+        String(employee.email || "").trim();
+
+      if (!cleanEmployeeEmail) {
 
         return res.status(400).json({
+          success: false,
           message:
             "Employee does not have an email address."
         });
 
       }
 
-      // Send email
-      const info = await transporter.sendMail({
+      // -----------------------------------------
+      // VALIDATE EMAIL
+      // -----------------------------------------
 
-        from:
-          `"Payroll System" <${process.env.EMAIL_USER}>`,
+      const emailRegex =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        to:
-          employee.email,
+      if (!emailRegex.test(cleanEmployeeEmail)) {
 
-        subject:
-          subject ||
-          `${document_type} - Payroll System`,
+        return res.status(400).json({
+          success: false,
+          message:
+            "Employee email address is invalid."
+        });
 
-        html: `
+      }
+
+      // -----------------------------------------
+      // VERIFY SMTP
+      // -----------------------------------------
+
+      await transporter.verify();
+
+      // -----------------------------------------
+      // EMAIL SUBJECT
+      // -----------------------------------------
+
+      const emailSubject =
+        String(subject || "").trim() ||
+        `${document_type} - Payroll Management System`;
+
+      // -----------------------------------------
+      // ESCAPE HTML
+      // -----------------------------------------
+
+      const escapeHtml = (value) =>
+        String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+
+      const safeEmployeeName =
+        escapeHtml(employee.name || "Employee");
+
+      const safeSubject =
+        escapeHtml(emailSubject);
+
+      const safeContent =
+        escapeHtml(String(content))
+          .replace(/\r\n/g, "<br>")
+          .replace(/\n/g, "<br>");
+
+      // -----------------------------------------
+      // CREATE HTML EMAIL
+      // -----------------------------------------
+
+      const htmlContent = `
+        <!DOCTYPE html>
+
+        <html>
+
+        <head>
+          <meta charset="UTF-8">
+          <title>${safeSubject}</title>
+        </head>
+
+        <body
+          style="
+            margin:0;
+            padding:0;
+            background:#f4f6f8;
+            font-family:Arial,Helvetica,sans-serif;
+          "
+        >
+
           <div
             style="
-              font-family: Arial, sans-serif;
-              max-width: 700px;
-              margin: auto;
-              padding: 30px;
-              color: #222;
-              line-height: 1.6;
+              max-width:700px;
+              margin:40px auto;
+              background:#ffffff;
+              border-radius:12px;
+              padding:35px;
+              color:#1f2937;
+              line-height:1.7;
+              box-shadow:0 4px 20px rgba(0,0,0,.08);
             "
           >
 
-            ${content}
+            <h2>
+              Dear ${safeEmployeeName},
+            </h2>
+
+            <div>
+              ${safeContent}
+            </div>
 
             <hr
               style="
-                margin-top: 30px;
-                border: none;
-                border-top: 1px solid #ddd;
+                margin:30px 0;
+                border:none;
+                border-top:1px solid #e5e7eb;
               "
             >
 
-            <p
-              style="
-                font-size: 12px;
-                color: #777;
-              "
-            >
-              This document was sent from the Payroll Management System.
+            <p>
+              Regards,<br>
+              <strong>HR Department</strong><br>
+              Payroll Management System
             </p>
 
           </div>
-        `
 
-      });
+        </body>
 
-      // Check whether document record already exists
-      const existingDocument = await db.query(
-        `
-        SELECT id
-        FROM hr_documents
-        WHERE employee_id = $1
-        AND document_type = $2
-        LIMIT 1
-        `,
-        [
-          employee_id,
-          document_type
-        ]
-      );
+        </html>
+      `;
 
-      if (existingDocument.rows.length > 0) {
+      // -----------------------------------------
+      // SEND EMAIL
+      // -----------------------------------------
 
-        // Update existing document
-        await db.query(
-          `
-          UPDATE hr_documents
+      const mailInfo =
+        await transporter.sendMail({
 
-          SET
-            status = 'Uploaded',
-            upload_date = CURRENT_TIMESTAMP
+          from:
+            `"Payroll Management System" <${process.env.GMAIL_USER}>`,
 
-          WHERE id = $1
-          `,
-          [
-            existingDocument.rows[0].id
-          ]
-        );
+          to:
+            cleanEmployeeEmail,
 
-      } else {
+          subject:
+            emailSubject,
 
-        // Create document record
-        await db.query(
-          `
-          INSERT INTO hr_documents
-          (
-            employee_id,
-            document_type,
-            status,
-            upload_date
-          )
-          VALUES
-          (
-            $1,
-            $2,
-            'Uploaded',
-            CURRENT_TIMESTAMP
-          )
-          `,
-          [
-            employee_id,
-            document_type
-          ]
-        );
+          text:
+            String(content),
 
-      }
+          html:
+            htmlContent
 
-      // Create employee notification
-      try {
+        });
 
-        await db.query(
-          `
-          INSERT INTO notifications
-          (
-            employee_id,
-            type,
-            title,
-            body
-          )
-          VALUES
-          (
-            $1,
-            'document',
-            'HR Document Received',
-            $2
-          )
-          `,
-          [
-            employee_id,
-            `Your ${document_type} has been sent to your registered email address.`
-          ]
-        );
-
-      } catch (notificationError) {
-
-        console.error(
-          "Document notification error:",
-          notificationError.message
-        );
-
-      }
+      // -----------------------------------------
+      // LOG
+      // -----------------------------------------
 
       console.log(
-        "HR document email sent:",
-        info.messageId
+        "=========================================="
       );
 
-      res.json({
+      console.log(
+        "✅ HR DOCUMENT EMAIL SENT"
+      );
+
+      console.log(
+        "From:",
+        process.env.GMAIL_USER
+      );
+
+      console.log(
+        "To:",
+        cleanEmployeeEmail
+      );
+
+      console.log(
+        "Subject:",
+        emailSubject
+      );
+
+      console.log(
+        "Message ID:",
+        mailInfo.messageId
+      );
+
+      console.log(
+        "=========================================="
+      );
+
+      // -----------------------------------------
+      // UPDATE HR DOCUMENT RECORD
+      // -----------------------------------------
+
+      try {
+
+        const existingDocument =
+          await db.query(
+            `
+            SELECT id
+            FROM hr_documents
+            WHERE employee_id = $1
+              AND document_type = $2
+            LIMIT 1
+            `,
+            [
+              employee_id,
+              document_type
+            ]
+          );
+
+        if (
+          existingDocument.rows.length > 0
+        ) {
+
+          await db.query(
+            `
+            UPDATE hr_documents
+            SET
+              status = 'Uploaded',
+              upload_date = CURRENT_TIMESTAMP
+            WHERE id = $1
+            `,
+            [
+              existingDocument.rows[0].id
+            ]
+          );
+
+        } else {
+
+          await db.query(
+            `
+            INSERT INTO hr_documents
+            (
+              employee_id,
+              document_type,
+              status,
+              upload_date
+            )
+            VALUES
+            (
+              $1,
+              $2,
+              'Uploaded',
+              CURRENT_TIMESTAMP
+            )
+            `,
+            [
+              employee_id,
+              document_type
+            ]
+          );
+
+        }
+
+      } catch (dbError) {
+
+        console.error(
+          "⚠ HR document history update failed:",
+          dbError.message
+        );
+
+      }
+
+      // -----------------------------------------
+      // SUCCESS
+      // -----------------------------------------
+
+      return res.json({
 
         success: true,
 
         message:
-          `${document_type} sent successfully to ${employee.email}.`,
+          `HR document sent successfully to ${cleanEmployeeEmail}.`,
+
+        sender:
+          process.env.GMAIL_USER,
+
+        recipient:
+          cleanEmployeeEmail,
 
         messageId:
-          info.messageId
+          mailInfo.messageId || null
 
       });
 
     } catch (err) {
 
       console.error(
-        "HR document email error:",
-        err.message
+        "❌ HR DOCUMENT EMAIL ERROR:",
+        err
       );
 
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
         message:
           err.message ||
-          "Failed to send HR document."
+          "Failed to send HR document email."
 
       });
 
