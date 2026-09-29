@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import Card from "../components/ui/Card";
 import { motion } from "framer-motion";
 import DashboardHeader from "../components/Dashboard/DashboardHeader";
 import TermsModal from "../components/Dashboard/TermsModal";
@@ -16,14 +15,31 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Legend,
   ResponsiveContainer
 } from "recharts";
 
+const getRecentPayrollMonths = (count = 6) => {
+  const today = new Date();
+
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(today.getFullYear(), today.getMonth() - (count - 1 - index), 1);
+
+    return {
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+      label: date.toLocaleDateString("en-US", { month: "short" }),
+      fullLabel: date.toLocaleDateString("en-US", {
+        month: "long",
+        year: "numeric",
+      }),
+    };
+  });
+};
+
 function Dashboard() {
-  const [greeting, setGreeting] = useState("");
   const [employees, setEmployees] = useState([])
 const [payroll, setPayroll] = useState([])
+const [monthlyPayrollTrend, setMonthlyPayrollTrend] = useState([])
 const [attendance, setAttendance] = useState([])
 const [monthlySummary, setMonthlySummary] =useState([])
 const [leaveBalances, setLeaveBalances] =
@@ -41,14 +57,49 @@ const [todayDate, setTodayDate] =
 const loadDashboardData = async () => {
 
   try {
-    const [empRes, payRes, sumRes, attRes, lbRes, actRes] = await Promise.all([
-      apiFetch(`${API_BASE}/api/employees`),
-      apiFetch(`${API_BASE}/api/payroll`),
-      apiFetch(`${API_BASE}/api/monthly-attendance-summary`),
-      apiFetch(`${API_BASE}/api/attendance/${todayDate}`),
-      apiFetch(`${API_BASE}/api/leave-balance`),
-      apiFetch(`${API_BASE}/api/recent-activities`)
+    const months = getRecentPayrollMonths();
+    const [responses, payrollTrend] = await Promise.all([
+      Promise.all([
+        apiFetch(`${API_BASE}/api/employees`),
+        apiFetch(`${API_BASE}/api/payroll`),
+        apiFetch(`${API_BASE}/api/monthly-attendance-summary`),
+        apiFetch(`${API_BASE}/api/attendance/${todayDate}`),
+        apiFetch(`${API_BASE}/api/leave-balance`),
+        apiFetch(`${API_BASE}/api/recent-activities`)
+      ]),
+      Promise.all(
+        months.map(async ({ month, year, label, fullLabel }) => {
+          const response = await apiFetch(
+            `${API_BASE}/api/payroll/monthly?month=${month}&year=${year}`
+          );
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data?.message || "Unable to load monthly payroll.");
+          }
+
+          const employeesForMonth = Array.isArray(data) ? data : [];
+
+          return {
+            month: label,
+            fullMonth: fullLabel,
+            payroll: employeesForMonth.reduce(
+              (total, employee) =>
+                total + Number(employee.payable_salary ?? employee.salary ?? 0),
+              0
+            ),
+            employees: employeesForMonth.length,
+          };
+        })
+      ).catch((error) => {
+        // Keep the rest of the dashboard available if the optional trend
+        // endpoint is temporarily unavailable.
+        console.error("Monthly payroll trend load error:", error);
+        return [];
+      })
     ]);
+
+    const [empRes, payRes, sumRes, attRes, lbRes, actRes] = responses;
 
     const [empData, payData, sumData, attData, lbData, actData] = await Promise.all([
       empRes.json(), payRes.json(), sumRes.json(), attRes.json(), lbRes.json(), actRes.json()
@@ -60,6 +111,7 @@ const loadDashboardData = async () => {
     if (Array.isArray(attData)) setAttendance(attData);
     if (Array.isArray(lbData)) setLeaveBalances(lbData);
     if (Array.isArray(actData)) setRecentActivities(actData);
+    setMonthlyPayrollTrend(payrollTrend);
   } catch (err) {
     console.error('Dashboard load error:', err);
   }
@@ -112,7 +164,7 @@ useEffect(() => {
   apiFetch(`${API_BASE}/api/attendance/${todayDate}`)
     .then(res => res.json())
     .then(data => { if (Array.isArray(data)) setAttendance(data); })
-    .catch(err => console.log(err))
+    .catch(err => console.error(err))
 
 }, [])
 const totalEmployees =
@@ -197,70 +249,15 @@ const attendanceData = [
   }
 ];
 
-const payrollData =
-  payroll.map(employee => ({
-    employee: employee.name,
-    payroll: Number(employee.salary)
-  }))
+const latestPayrollMonth =
+  monthlyPayrollTrend[monthlyPayrollTrend.length - 1];
 
   const COLORS = [
-  "#37FFD7",
-  "#FFB84D",
-  "#FF4D8D",
-  "#8B5CF6"
+  "#3b82f6",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6"
 ];
-
-const activityStyles = {
-
-  attendance: {
-
-    background: '#dcfce7',
-
-    color: '#16a34a'
-
-  },
-
-  employee: {
-
-    background: '#dbeafe',
-
-    color: '#2563eb'
-
-  },
-
-  payroll: {
-
-    background: '#fef3c7',
-
-    color: '#d97706'
-
-  },
-
-  deletion: {
-
-    background: '#fee2e2',
-
-    color: '#dc2626'
-
-  },
-
-  update: {
-
-    background: '#ffedd5',
-
-    color: '#ea580c'
-
-  },
-
-  leave: {
-
-    background: '#ede9fe',
-
-    color: '#7c3aed'
-
-  }
-
-}
 
   return (
 
@@ -391,7 +388,7 @@ duration:.8
   <div>
     <h2
       style={{
-        color: "var(--text-primary, #f8fafc)",
+        color: "var(--text-primary, #0f172a)",
         margin: 0,
         fontSize: "28px",
         fontWeight: 700
@@ -403,7 +400,7 @@ duration:.8
     <p
       style={{
         marginTop: "6px",
-        color: "var(--text-secondary, rgba(255,255,255,.55))",
+        color: "var(--text-secondary, #475569)",
         fontSize: "14px"
       }}
     >
@@ -414,13 +411,7 @@ duration:.8
   <div
     style={{
       padding: "8px 16px",
-      borderRadius: "999px",
-
-      background: "var(--bg-hover, rgba(255,255,255,.05))",
-
-      border: "1px solid var(--border-card, rgba(255,255,255,.08))",
-
-      color: "var(--text-accent, #37FFD7)",
+      borderRadius: "999px",        background: "var(--bg-hover, #f8fafc)",        border: "1px solid var(--border-card, #e2e8f0)",        color: "var(--text-accent, #2563eb)",
 
       fontWeight: 600,
 
@@ -451,7 +442,7 @@ duration:.8
     height: "260px",
     borderRadius: "50%",
     background:
-      "radial-gradient(circle, rgba(55,255,215,.18), transparent 70%)",
+      "radial-gradient(circle, rgba(37,99,235,.12), transparent 70%)",
     filter: "blur(45px)",
     left: "50%",
     top: "52%",
@@ -495,10 +486,10 @@ cornerRadius={8}
 
             <Tooltip
   contentStyle={{
-    background: "rgba(20,25,35,.92)",
-    border: "1px solid rgba(255,255,255,.08)",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
     borderRadius: "14px",
-    color: "#fff"
+    color: "#0f172a"
   }}
 />
 
@@ -523,11 +514,7 @@ cornerRadius={8}
 
                 padding:"14px",
 
-                borderRadius:"16px",
-
-                background:"var(--bg-hover, rgba(255,255,255,.04))",
-
-                border:"1px solid var(--border-card, rgba(255,255,255,.05))"
+                borderRadius:"16px",        background: "var(--bg-hover, #f8fafc)",        border: "1px solid var(--border-card, #e2e8f0)"
             }}
         >
 
@@ -551,7 +538,7 @@ cornerRadius={8}
 
                 <span
                     style={{
-                        color:"var(--text-secondary, #cbd5e1)",
+                        color:"var(--text-secondary, #475569)",
                         fontSize:"14px"
                     }}
                 >
@@ -617,41 +604,36 @@ cornerRadius={8}
   <div>
     <h2
       style={{
-        color: "var(--text-primary, #f8fafc)",
+        color: "var(--text-primary, #0f172a)",
         margin: 0,
         fontSize: "28px",
         fontWeight: 700
       }}
     >
-      Payroll Distribution
+      Monthly Payroll
     </h2>
 
     <p
       style={{
         marginTop: "6px",
-        color: "var(--text-secondary, rgba(255,255,255,.55))",
+        color: "var(--text-secondary, #475569)",
         fontSize: "14px"
       }}
     >
-      Salary payable this month
+      Total payroll payable across the company
     </p>
   </div>
 
   <div
     style={{      padding: "8px 16px",
       borderRadius: "999px",
-      background: "var(--bg-hover, rgba(255,255,255,.05))",
-      border: "1px solid var(--border-card, rgba(255,255,255,.08))",
+      background: "var(--bg-hover, #f8fafc)",        border: "1px solid var(--border-card, #e2e8f0)",
       color: "var(--accent-blue, #60A5FA)",
       fontWeight: 600,
       fontSize: "13px"
     }}
   >
-    {new Date().toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric"
-    })
-  }
+    Last 6 Months
   </div>
 </div>
           <ResponsiveContainer
@@ -659,7 +641,7 @@ cornerRadius={8}
     height={320}
 >
     <BarChart
-        data={payrollData}
+        data={monthlyPayrollTrend}
         margin={{
             top: 20,
             right: 20,
@@ -675,14 +657,14 @@ cornerRadius={8}
 </defs>
 
             <CartesianGrid
-    stroke="rgba(255,255,255,.06)"
+    stroke="#e2e8f0"
     strokeDasharray="5 5"
 />
 
            <XAxis
-    dataKey="employee"
+    dataKey="month"
     tick={{
-        fill:"rgba(255,255,255,.55)",
+        fill:"#475569",
         fontSize:11
     }}
     axisLine={false}
@@ -691,7 +673,7 @@ cornerRadius={8}
 
               <YAxis
     tick={{
-        fill: "rgba(255,255,255,.55)",
+        fill: "#475569",
         fontSize: 12
     }}
     axisLine={false}
@@ -701,17 +683,20 @@ cornerRadius={8}
 
             <Tooltip
     cursor={{
-        fill: "rgba(255,255,255,.03)"
+        fill: "rgba(37,99,235,.04)"
     }}
+    labelFormatter={(_, entries) =>
+      entries?.[0]?.payload?.fullMonth || "Monthly payroll"
+    }
     formatter={(value) => [
         `₹${Number(value).toLocaleString("en-IN")}`,
-        "Salary"
+        "Total Payroll"
     ]}
     contentStyle={{
-        background: "rgba(15,23,42,.92)",
-        border: "1px solid rgba(255,255,255,.08)",
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
         borderRadius: "16px",
-        color: "#fff"
+        color: "#0f172a"
     }}
 />
 
@@ -738,17 +723,17 @@ cornerRadius={8}
       flex: 1,
       padding: "14px",
       borderRadius: "16px",
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid rgba(255,255,255,.06)"
+      background: "#ffffff",
+      border: "1px solid #e2e8f0"
     }}
   >
     <div
       style={{
-        color: "var(--text-secondary, rgba(255,255,255,.55))",
+        color: "var(--text-secondary, #475569)",
         fontSize: "12px"
       }}
     >
-      Total Payroll
+      Latest Month Payroll
     </div>
 
     <div
@@ -759,7 +744,7 @@ cornerRadius={8}
         color: "#60A5FA"
       }}
     >
-      ₹{monthlyPayroll.toLocaleString()}
+      ₹{Number(latestPayrollMonth?.payroll ?? 0).toLocaleString("en-IN")}
     </div>
   </div>
 
@@ -768,13 +753,13 @@ cornerRadius={8}
       flex: 1,
       padding: "14px",
       borderRadius: "16px",
-      background: "rgba(255,255,255,.04)",
-      border: "1px solid rgba(255,255,255,.06)"
+      background: "#ffffff",
+      border: "1px solid #e2e8f0"
     }}
   >
     <div
       style={{
-        color: "var(--text-secondary, rgba(255,255,255,.55))",
+        color: "var(--text-secondary, #475569)",
         fontSize: "12px"
       }}
     >
@@ -786,10 +771,10 @@ cornerRadius={8}
         marginTop: "6px",
         fontSize: "22px",
         fontWeight: 700,
-        color: "#37FFD7"
+        color: "#059669"
       }}
     >
-      {totalEmployees}
+      {latestPayrollMonth?.employees ?? totalEmployees}
     </div>
   </div>
 </div>
@@ -835,7 +820,7 @@ style={{
 fontSize:"30px",
 fontWeight:700,
 margin:0,
-color:"var(--text-primary, #f8fafc)"
+color:"var(--text-primary, #0f172a)"
 }}
 >
 Recent Activities
@@ -856,9 +841,8 @@ Latest workforce updates
 <div
 style={{      padding:"8px 16px",
 borderRadius:"999px",
-background:"var(--bg-hover, rgba(255,255,255,.05))",
-border:"1px solid var(--border-card, rgba(255,255,255,.08))",
-color:"var(--text-accent, #37FFD7)",
+background:"var(--bg-hover, #f8fafc)",
+border:"1px solid var(--border-card, #e2e8f0)",        color: "var(--text-accent, #2563eb)",
 fontWeight:600,
 fontSize:"13px"
 }}
@@ -889,9 +873,9 @@ Live Feed
         boxShadow:
           '0 2px 8px rgba(0,0,0,0.05)',
 
-        background: "rgba(255,255,255,.04)",
+        background: "#ffffff",
 
-border: "1px solid rgba(255,255,255,.06)",
+border: "1px solid #e2e8f0",
 
 backdropFilter: "blur(18px)",
 
@@ -929,19 +913,17 @@ onMouseLeave={(e)=>{
           style={{
     width: "48px",
     height: "48px",
-    borderRadius: "16px",
+    borderRadius: "16px",        background: "var(--bg-hover, #f8fafc)",
 
-    background: "var(--bg-hover, rgba(255,255,255,.08))",
+    border: "1px solid var(--border-card, #e2e8f0)",
 
-    border: "1px solid var(--border-card, rgba(255,255,255,.08))",
-
-    boxShadow: "0 0 15px rgba(55,255,215,.1)",
+    boxShadow: "0 1px 3px rgba(0,0,0,.08)",
 
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
 
-    color: "#37FFD7",
+    color: "#2563eb",
 
     fontWeight: 700,
 
@@ -964,7 +946,7 @@ onMouseLeave={(e)=>{
             style={{
     fontWeight: 700,
     fontSize: "16px",
-    color: "var(--text-primary, #f8fafc)",
+    color: "var(--text-primary, #0f172a)",
     letterSpacing: ".3px"
 }}
           >
@@ -974,8 +956,7 @@ onMouseLeave={(e)=>{
 
           <div
             style={{
-    fontSize: "13px",
-    color: "var(--text-secondary, rgba(255,255,255,.65))",
+    fontSize: "13px",        color: "var(--text-secondary, #64748b)",
     lineHeight: "1.6"
 }}
           >
@@ -994,8 +975,7 @@ onMouseLeave={(e)=>{
 
           <div
             style={{
-    fontSize: "12px",
-    color: "var(--text-muted, rgba(255,255,255,.40))",
+    fontSize: "12px",        color: "var(--text-muted, #94a3b8)",
     marginTop: "6px",
     letterSpacing: ".4px"
 }}
@@ -1027,13 +1007,11 @@ onMouseLeave={(e)=>{
         style={{
     padding: "7px 14px",
 
-    borderRadius: "999px",
+    borderRadius: "999px",        background: "var(--bg-hover, #f8fafc)",
 
-    background: "var(--bg-hover, rgba(255,255,255,.06))",
+    border: "1px solid var(--border-card, #e2e8f0)",
 
-    border: "1px solid var(--border-card, rgba(255,255,255,.08))",
-
-    color: "var(--text-accent, #37FFD7)",
+    color: "var(--text-accent, #2563eb)",
 
     fontSize: "12px",
 
@@ -1063,7 +1041,7 @@ onMouseLeave={(e)=>{
     style={{
       textAlign: 'center',
       padding: '40px 0',
-      color: 'var(--text-muted, #cbd5e1)'
+      color: 'var(--text-muted, #94a3b8)'
     }}
   >
 
@@ -1117,15 +1095,6 @@ const cardContainer = {
   marginBottom: '35px',
   alignItems: 'stretch'
 }
-const card = {
-  background: 'var(--bg-card-solid, #1e293b)',
-  borderRadius: '20px',
-  padding: '28px',
-  border: 'var(--border-card, 1px solid #334155)',
-  boxShadow: 'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
-  transition: 'all 0.3s ease',
-  color: 'var(--text-primary, #f8fafc)'
-}
 const chartContainer = {
   display: 'grid',
   gridTemplateColumns:
@@ -1136,25 +1105,21 @@ const chartContainer = {
 const chartCard = {
   position: "relative",
   overflow: "hidden",
-  background: 'var(--bg-card, rgba(255,255,255,.06))',
-  backdropFilter: "blur(28px)",
-  WebkitBackdropFilter: "blur(28px)",
-  border: 'var(--border-card, 1px solid rgba(255,255,255,.08))',
+  background: 'var(--bg-card, #ffffff)',
+  border: 'var(--border-card, 1px solid #e2e8f0)',
   borderRadius: "24px",
   padding: "26px",
-  color: 'var(--text-primary, #fff)',
-  boxShadow: 'var(--shadow-card, 0 20px 45px rgba(0,0,0,.35))'
+  color: 'var(--text-primary, #0f172a)',
+  boxShadow: 'var(--shadow-card, 0 1px 3px rgba(0,0,0,.08))'
 }
 const activityCard = {
   position: "relative",
   overflow: "hidden",
-  background: 'var(--bg-card, rgba(255,255,255,.06))',
-  backdropFilter: "blur(28px)",
-  WebkitBackdropFilter: "blur(28px)",
-  border: 'var(--border-card, 1px solid rgba(255,255,255,.08))',
+  background: 'var(--bg-card, #ffffff)',
+  border: 'var(--border-card, 1px solid #e2e8f0)',
   borderRadius: "24px",
   padding: "28px",
-  color: 'var(--text-primary, #fff)',
-  boxShadow: 'var(--shadow-card, 0 20px 45px rgba(0,0,0,.35))'
+  color: 'var(--text-primary, #0f172a)',
+  boxShadow: 'var(--shadow-card, 0 1px 3px rgba(0,0,0,.08))'
 }
 export default Dashboard

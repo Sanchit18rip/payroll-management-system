@@ -5,9 +5,7 @@ import "./Attendance.css";
 import StatCard from "../components/Dashboard/StatCard";
 import GlassScrollArea from "../components/GlassScrollArea";
 import { apiFetch, API_BASE } from "../api";
-import { useTheme } from "../context/ThemeContext";
 function Attendance() {
-  const { isDark } = useTheme();
 
   const [attendance, setAttendance] = useState([])
   const [selectedDate, setSelectedDate] = useState(
@@ -52,8 +50,8 @@ useEffect(() => {
     }
   )
     .then(res => res.json())
-    .then(data => console.log(data))
-    .catch(err => console.log(err))
+    .then(() => {})
+    .catch(err => console.error(err))
 
 }, [])
 useEffect(() => {
@@ -101,6 +99,11 @@ const updateAttendance = (
     record => record.id === id
   )
 
+if (!employeeRecord) {
+  alert('Attendance record not found')
+  return
+}
+
 if (
   employeeRecord.status === status
 ) {
@@ -130,21 +133,7 @@ if (
   })
   .then(res => {
     if (!res.ok) throw new Error('Failed to update attendance');
-    if (status === "Paid Leave") {
-
-      return apiFetch(`${API_BASE}/api/leave-balance/${employeeId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            available_leaves:
-              currentLeaveBalance - 1
-          })
-        }
-      )
-
-    }
-
+    // Backend handles leave balance deduction/return automatically
   })
   .then(() =>
   Promise.all([
@@ -224,43 +213,6 @@ const formattedDate = new Date(
     year: 'numeric'
   }
 )
-const previousDay = () => {
-
-  const date = new Date(selectedDate)
-
-  date.setDate(date.getDate() - 1)
-
-  setSelectedDate(
-  date.toLocaleDateString(
-    'en-CA'
-  )
-)
-
-}
-const nextDay = () => {
-
-  if (selectedDate >= todayDate) {
-    return
-  }
-
-  const date = new Date(selectedDate)
-
-  date.setDate(date.getDate() + 1)
-
-  setSelectedDate(
-  date.toLocaleDateString(
-    'en-CA'
-  )
-)
-
-}
-const todayDate =
-  new Date()
-    .toLocaleDateString(
-      'en-CA'
-    )
-
-
 const filteredAttendance =
   attendance.filter((record) =>
     record.name
@@ -294,7 +246,7 @@ const filteredAttendance =
 
     <button
         onClick={generateTodayAttendance}
-        style={getGlassButton(isDark)}
+        style={getGlassButton()}
     >
         📅 Generate Attendance
     </button>
@@ -377,19 +329,19 @@ const filteredAttendance =
 <div
   style={{
   background:
-    "linear-gradient(180deg,rgba(17,24,39,.75),rgba(15,23,42,.75))",
+    "#ffffff",
 
   borderRadius: "28px",
 
   border:
-    "1px solid rgba(255,255,255,.08)",
+    "1px solid #e2e8f0",
 
   backdropFilter: "blur(22px)",
 
   WebkitBackdropFilter: "blur(22px)",
 
   boxShadow:
-    "0 15px 40px rgba(0,0,0,.28)",
+    "0 2px 8px rgba(0,0,0,.06)",
 
   padding: "30px",
 }}
@@ -404,7 +356,7 @@ const filteredAttendance =
     <div>
       <h2
         style={{
-          color: "#f8fafc",
+          color: "#0f172a",
           margin: 0
         }}
       >
@@ -413,7 +365,7 @@ const filteredAttendance =
 
       <p
         style={{
-          color: "#94a3b8",
+          color: "#64748b",
           marginTop: "5px"
         }}
       >
@@ -428,12 +380,12 @@ const filteredAttendance =
     borderRadius: "14px",
 
     background:
-      "rgba(55,255,215,.08)",
+      "rgba(8,145,178,.08)",
 
     border:
-      "1px solid rgba(55,255,215,.18)",
+      "1px solid rgba(8,145,178,.25)",
 
-    color: "#37FFD7",
+    color: "#0891b2",
 
     fontWeight: "700",
 
@@ -463,7 +415,7 @@ const filteredAttendance =
   paddingTop: "24px",
 
   borderTop:
-    "1px solid rgba(255,255,255,.08)",
+    "1px solid #e2e8f0",
 
   display: "flex",
 
@@ -477,7 +429,7 @@ const filteredAttendance =
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      color: "#f8fafc",
+      color: "#0f172a",
       fontSize: "14px"
     }}
   >
@@ -498,7 +450,7 @@ const filteredAttendance =
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      color: "#f8fafc",
+      color: "#0f172a",
       fontSize: "14px"
     }}
   >
@@ -519,7 +471,7 @@ const filteredAttendance =
       display: "flex",
       alignItems: "center",
       gap: "8px",
-      color: "#f8fafc",
+      color: "#0f172a",
       fontSize: "14px"
     }}
   >
@@ -543,7 +495,7 @@ const filteredAttendance =
       
   <h2
     style={{
-      color: "#f8fafc",
+      color: "#0f172a",
       marginBottom: "20px"
     }}
   >
@@ -562,7 +514,7 @@ const filteredAttendance =
     <h2
       style={{
         margin: 0,
-        color: "#f8fafc",
+        color: "#0f172a",
         fontSize: "28px",
         fontWeight: "700",
       }}
@@ -573,7 +525,7 @@ const filteredAttendance =
     <p
       style={{
         marginTop: "6px",
-        color: "#94a3b8",
+        color: "#64748b",
       }}
     >
       Daily employee attendance overview
@@ -585,19 +537,19 @@ const filteredAttendance =
     placeholder="🔍 Search employee..."
     value={searchTerm}
     onChange={(e) => setSearchTerm(e.target.value)}
-    style={searchInput}
+    style={getSearchInput()}
   />
 </div>
   <GlassScrollArea height={650}>
 
-<table style={tableStyle}>
+<table style={getTableStyle()}>
     <thead>
       <tr>
-        <th style={newHeader}>Employee ID</th>
-        <th style={newHeader}>Employee Name</th>
-        <th style={newHeader}>Status</th>
-        <th style={newHeader}>Leave Balance</th>
-        <th style={newHeader}>Action</th>
+        <th style={getNewHeader()}>Employee ID</th>
+        <th style={getNewHeader()}>Employee Name</th>
+        <th style={getNewHeader()}>Status</th>
+        <th style={getNewHeader()}>Leave Balance</th>
+        <th style={getNewHeader()}>Action</th>
       </tr>
     </thead>
 
@@ -608,7 +560,7 @@ const filteredAttendance =
   style={{
     background:
       record.id % 2 === 0
-        ? "rgba(255,255,255,.02)"
+        ? "rgba(15,23,42,.02)"
         : "transparent",
 
     transition: ".25s"
@@ -616,21 +568,21 @@ const filteredAttendance =
 
   onMouseEnter={(e)=>{
     e.currentTarget.style.background =
-      "rgba(0,212,255,.06)";
+      "rgba(37,99,235,.06)";
   }}
 
   onMouseLeave={(e)=>{
     e.currentTarget.style.background =
       record.id % 2 === 0
-        ? "rgba(255,255,255,.02)"
+        ? "rgba(15,23,42,.02)"
         : "transparent";
   }}
 >
-          <td style={newCell}>
+          <td style={getNewCell()}>
             EMP{String(record.employee_id).padStart(3, "0")}
           </td>
 
-          <td style={newCell}>
+          <td style={getNewCell()}>
 
 <div
 style={{
@@ -662,8 +614,7 @@ fontSize:"16px"
 <div
 style={{
 fontWeight:"700",
-color:"#fff"
-}}
+color: "#0f172a"}}
 >
 {record.name}
 </div>
@@ -671,8 +622,7 @@ color:"#fff"
 <div
 style={{
 fontSize:"12px",
-color:"#94a3b8"
-}}
+color: "#64748b"}}
 >
 EMP{String(record.employee_id).padStart(3,"0")}
 </div>
@@ -683,7 +633,7 @@ EMP{String(record.employee_id).padStart(3,"0")}
 
 </td>
 
-          <td style={newCell}>
+          <td style={getNewCell()}>
             <span
   style={{
     display: "inline-flex",
@@ -744,11 +694,11 @@ EMP{String(record.employee_id).padStart(3,"0")}
 </span>
           </td>
 
-          <td style={newCell}>
+          <td style={getNewCell()}>
             {leaveMap[record.employee_id] ?? 0}
           </td>
 
-          <td style={newCell}>
+          <td style={getNewCell()}>
             <select
               value={record.status}
               onChange={(e) =>
@@ -760,49 +710,32 @@ EMP{String(record.employee_id).padStart(3,"0")}
               }
              style={{
   width: "170px",
-
   padding: "11px 14px",
-
   borderRadius: "12px",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
-  color: "#f8fafc",
-
+  border: "1px solid #d1d5db",
+  background: "#ffffff",
+  color: "#0f172a",
   backdropFilter: "blur(18px)",
-
   WebkitBackdropFilter: "blur(18px)",
-
   fontWeight: "600",
-
   cursor: "pointer",
-
   outline: "none",
-
   transition: ".25s",
-
-  boxShadow:
-    "0 8px 22px rgba(0,0,0,.22)"
-}}
+  boxShadow: "0 2px 4px rgba(0,0,0,.06)"}}
             >
               <option
   value="Present"
   style={{
-    background: "#0f172a",
-    color: "#fff"
-  }}
+    background: "#ffffff",
+    color: "#0f172a"}}
 >
   🟢 Present
 </option>
 <option
   value="Absent"
   style={{
-    background: "#0f172a",
-    color: "#fff"
-  }}
+    background: "#ffffff",
+    color: "#0f172a"}}
 >
   🔴 Absent
 </option>
@@ -810,9 +743,8 @@ EMP{String(record.employee_id).padStart(3,"0")}
 <option
   value="Paid Leave"
   style={{
-    background: "#0f172a",
-    color: "#fff"
-  }}
+    background: "#ffffff",
+    color: "#0f172a"}}
 >
   🟠 Paid Leave
 </option>
@@ -820,9 +752,8 @@ EMP{String(record.employee_id).padStart(3,"0")}
 <option
   value="Not Marked"
   style={{
-    background: "#0f172a",
-    color: "#fff"
-  }}
+    background: "#ffffff",
+    color: "#0f172a"}}
 >
   ⚪ Not Marked
 </option>
@@ -839,7 +770,7 @@ EMP{String(record.employee_id).padStart(3,"0")}
  style={{
 
 background:
-"linear-gradient(180deg,rgba(17,24,39,.78),rgba(15,23,42,.78))",
+ "#ffffff",
 
 backdropFilter:"blur(22px)",
 
@@ -849,9 +780,9 @@ borderRadius:"28px",
 
 padding:"30px",
 
-border:"1px solid rgba(255,255,255,.08)",
+border: "1px solid #e2e8f0",
 
-boxShadow:"0 18px 45px rgba(0,0,0,.28)",
+boxShadow: "0 2px 8px rgba(0,0,0,.06)",
 
 marginTop:"30px"
 
@@ -871,7 +802,7 @@ marginBottom:"24px"
 <h2
 style={{
 margin:0,
-color:"#fff",
+color: "#0f172a",
 fontSize:"28px"
 }}
 >
@@ -881,8 +812,7 @@ Monthly Attendance Summary
 <p
 style={{
 marginTop:"6px",
-color:"#94a3b8"
-}}
+color: "#64748b"}}
 >
 Employee attendance overview for the current month
 </p>
@@ -893,34 +823,34 @@ Employee attendance overview for the current month
 
   <GlassScrollArea height={500}>
 
-<table style={tableStyle}>
+<table style={getTableStyle()}>
   
 
     <thead>
       <tr>
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Employee ID
         </th>
 
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Employee Name
         </th>
 
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Present Days
         </th>
 
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Absent Days
         </th>
 
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Paid Leave Days
         </th>
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
   Total Days
 </th>
-        <th style={newHeader}>
+        <th style={getNewHeader()}>
           Attendance %
         </th>
       </tr>
@@ -936,7 +866,7 @@ Employee attendance overview for the current month
   style={{
     background:
       employee.id % 2 === 0
-        ? "rgba(255,255,255,.02)"
+        ? "rgba(15,23,42,.02)"
         : "transparent",
 
     transition: ".25s"
@@ -944,22 +874,22 @@ Employee attendance overview for the current month
 
   onMouseEnter={(e)=>{
     e.currentTarget.style.background =
-      "rgba(0,212,255,.06)";
+      "rgba(37,99,235,.06)";
   }}
 
   onMouseLeave={(e)=>{
     e.currentTarget.style.background =
       employee.id % 2 === 0
-        ? "rgba(255,255,255,.02)"
+        ? "rgba(15,23,42,.02)"
         : "transparent";
   }}
 >
 
-            <td style={newCell}>
+            <td style={getNewCell()}>
               EMP{String(employee.id).padStart(3,"0")}
             </td>
 
-            <td style={newCell}>
+            <td style={getNewCell()}>
 
 <div
 style={{
@@ -992,8 +922,7 @@ flexShrink:0
 <div
 style={{
 fontWeight:"700",
-color:"#fff"
-}}
+color: "#0f172a"}}
 >
 {employee.name}
 </div>
@@ -1001,8 +930,7 @@ color:"#fff"
 <div
 style={{
 fontSize:"12px",
-color:"#94a3b8"
-}}
+color: "#64748b"}}
 >
 EMP{String(employee.id).padStart(3,"0")}
 </div>
@@ -1013,7 +941,7 @@ EMP{String(employee.id).padStart(3,"0")}
 
 </td>
 
-            <td style={newCell}>
+            <td style={getNewCell()}>
 
 <span
 style={{
@@ -1030,7 +958,7 @@ fontWeight:"700"
 
 </td>
 
-            <td style={newCell}>
+            <td style={getNewCell()}>
 
 <span
 style={{
@@ -1047,7 +975,7 @@ fontWeight:"700"
 
 </td>
 
-            <td style={newCell}>
+            <td style={getNewCell()}>
 
 <span
 style={{
@@ -1063,14 +991,14 @@ fontWeight:"700"
 </span>
 
 </td>
-            <td style={newCell}>
+            <td style={getNewCell()}>
   {Number(employee.present_days)
     +
     Number(employee.absent_days)
     +
     Number(employee.paid_leave_days)}
 </td>
-            <td style={newCell}>
+            <td style={getNewCell()}>
 
 <span
 style={{
@@ -1117,161 +1045,55 @@ boxShadow:"0 0 15px rgba(34,197,94,.18)"
 
   )
 }
-const generateButton = {
-  padding: '14px 22px',
-  background: '#2563eb',
-  color: '#ffffff',
-  border: 'none',
-  borderRadius: '12px',
-  cursor: 'pointer',
-  marginBottom: '24px',
-  fontWeight: '600',
-  boxShadow:
-    '0 4px 20px rgba(37,99,235,0.3)'
-}
-const tableStyle = {
-
+function getTableStyle() {
+  return {
     width:"100%",
-
     minWidth:"1200px",
-
     borderCollapse:"separate",
-
     borderSpacing:"0",
-
-    color:"#f8fafc",
-
+    color: "#0f172a",
     textAlign:"center",
-
+  };
 }
 
 
-
-const headerStyle = {
-  padding: '18px',
-  textAlign: 'left',
-  borderBottom: '1px solid #334155',
-  fontSize: '15px',
-  color: '#cbd5e1',
-  background: '#0f172a'
+function getNewHeader() {
+  return {
+    position: "sticky",
+    top: 0,
+    zIndex: 20,
+    padding: "18px 22px",
+    textAlign: "left",
+    background: "rgba(241,245,249,.98)",
+    color: "#334155",
+    fontSize: "14px",
+    fontWeight: "700",
+    letterSpacing: ".7px",
+    textTransform: "uppercase",
+    borderBottom: "1px solid rgba(0,0,0,0.06)",
+    backdropFilter: "blur(18px)",
+    boxShadow: "0 2px 4px rgba(0,0,0,.04)",
+  };
 }
-const rowStyle = {
-  borderBottom: '1px solid #334155'
+function getNewCell() {
+  return {
+    padding: "18px 22px",
+    color: "#0f172a",
+    fontSize: "15px",
+    borderBottom: "1px solid rgba(0,0,0,0.05)",
+    transition: "all .25s ease",
+    verticalAlign: "middle",
+  };
 }
-
-const cardsContainer = {
-  display: 'grid',
-  gridTemplateColumns:
-    'repeat(auto-fit, minmax(250px, 1fr))',
-  gap: '20px',
-  marginBottom: '30px'
-}
-
-const dashboardCard = {
-  background: '#1e293b',
-  borderRadius: '20px',
-  padding: '28px',
-  textAlign: 'center',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)'
-}
-const blueCardNumber = {
-  fontSize: '32px',
-  fontWeight: '700',
-  color: '#2563eb'
-}
-
-const greenCardNumber = {
-  fontSize: '32px',
-  fontWeight: '700',
-  color: '#16a34a'
-}
-
-const redCardNumber = {
-  fontSize: '32px',
-  fontWeight: '700',
-  color: '#dc2626'
-}
-
-const orangeCardNumber = {
-  fontSize: '32px',
-  fontWeight: '700',
-  color: '#ea580c'
-}
-
-const dateBar = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  marginBottom: '20px'
-}
-
-const navButton = {
-  padding: '12px 20px',
-  background: '#1d4ed8',
-  color: '#ffffff',
-  border: 'none',
-  borderRadius: '12px',
-  cursor: 'pointer',
-  fontWeight: '600',
-  boxShadow:
-    '0 4px 20px rgba(37,99,235,0.3)'
-}
-const newHeader = {
-  position: "sticky",
-  top: 0,
-  zIndex: 20,
-
-  padding: "18px 22px",
-
-  textAlign: "left",
-
-  background:
-    "linear-gradient(180deg,#0f172a,#111827)",
-
-  color: "#e2e8f0",
-
-  fontSize: "14px",
-
-  fontWeight: "700",
-
-  letterSpacing: ".7px",
-
-  textTransform: "uppercase",
-
-  borderBottom:
-    "1px solid rgba(255,255,255,.08)",
-
-  backdropFilter: "blur(18px)",
-
-  boxShadow:
-    "0 6px 20px rgba(0,0,0,.18)"
-};
-const newCell = {
-
-  padding: "18px 22px",
-
-  color: "#f8fafc",
-
-  fontSize: "15px",
-
-  borderBottom:
-    "1px solid rgba(255,255,255,.06)",
-
-  transition: "all .25s ease",
-
-  verticalAlign: "middle"
-};
 
 const glassButton = {
   padding: "12px 22px",
   borderRadius: "16px",
-  border: "1px solid rgba(255,255,255,.08)",
-  background: "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
+  border: "1px solid rgba(0,0,0,0.1)",
+  background: "rgba(255,255,255,0.85)",
   backdropFilter: "blur(18px)",
   WebkitBackdropFilter: "blur(18px)",
-  color: "#f8fafc",
+  color: "#0f172a",
   fontWeight: 600,
   cursor: "pointer",
   transition: "all .25s ease",
@@ -1279,17 +1101,15 @@ const glassButton = {
   alignItems: "center",
   justifyContent: "center",
   gap: "8px",
-  boxShadow: "0 12px 30px rgba(0,0,0,.25)"
+  boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
 };
-function getGlassButton(isDark) {
+function getGlassButton() {
   return {
     ...glassButton,
-    border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
-    background: isDark
-      ? "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))"
-      : "rgba(255,255,255,0.85)",
-    color: isDark ? "#f8fafc" : "#0f172a",
-    boxShadow: isDark ? "0 12px 30px rgba(0,0,0,.25)" : "0 2px 8px rgba(0,0,0,0.06)",
+    border: "1px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.85)",
+    color: "#0f172a",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
   };
 }
 const cardContainer = {
@@ -1302,18 +1122,18 @@ const searchInput = {
   width: "300px",
   padding: "14px",
   borderRadius: "14px",
-  border: "1px solid rgba(255,255,255,.08)",
-  background: "rgba(255,255,255,.04)",
-  color: "#f8fafc",
+  border: "1px solid rgba(0,0,0,0.1)",
+  background: "rgba(255,255,255,0.85)",
+  color: "#0f172a",
   outline: "none",
   backdropFilter: "blur(18px)",
 };
-function getSearchInput(isDark) {
+function getSearchInput() {
   return {
     ...searchInput,
-    border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
-    background: isDark ? "rgba(255,255,255,.04)" : "rgba(255,255,255,0.85)",
-    color: isDark ? "#f8fafc" : "#0f172a",
+    border: "1px solid rgba(0,0,0,0.1)",
+    background: "rgba(255,255,255,0.85)",
+    color: "#0f172a",
   };
 }
 export default Attendance

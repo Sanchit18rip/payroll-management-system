@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "../supabaseClient";
 import { apiFetch, API_BASE } from "../api";
-import { useTheme } from "../context/ThemeContext";
 import { Plane, Wallet, CalendarDays, Receipt, Landmark, FileText, Settings, Bell, BellRing, Trash2, X } from "lucide-react";
 
 const TYPE_ICONS = {
@@ -27,21 +26,21 @@ const TYPE_COLORS = {
 // HR vs Employee accent colors
 const ROLE_THEMES = {
   hr: {
-    accent: '#10b981',        // emerald
-    accentLight: '#10b98120',
-    accentBorder: '#10b98140',
-    headerBg: 'rgba(5, 46, 30, 0.6)',
-    headerBorder: 'rgba(16, 185, 129, 0.15)',
-    badge: '#10b981',
+    accent: '#059669',        // emerald
+    accentLight: '#05966920',
+    accentBorder: '#05966940',
+    headerBg: 'rgba(236,253,245,0.8)',
+    headerBorder: 'rgba(5,150,105,0.15)',
+    badge: '#059669',
     label: 'HR Panel',
   },
   employee: {
-    accent: '#3b82f6',        // blue
-    accentLight: '#3b82f620',
-    accentBorder: '#3b82f640',
-    headerBg: 'rgba(15, 23, 42, 0.6)',
-    headerBorder: 'rgba(59, 130, 246, 0.15)',
-    badge: '#3b82f6',
+    accent: '#2563eb',        // blue
+    accentLight: '#2563eb20',
+    accentBorder: '#2563eb40',
+    headerBg: 'rgba(239,246,255,0.8)',
+    headerBorder: 'rgba(37,99,235,0.15)',
+    badge: '#2563eb',
     label: 'Notifications',
   },
 };
@@ -65,7 +64,6 @@ function formatTime(value) {
 }
 
 function NotificationBell({ employeeId, role = 'employee' }) {
-  const { isDark } = useTheme();
   const isHR = role === 'hr';
   const theme = isHR ? ROLE_THEMES.hr : ROLE_THEMES.employee;
   const [resolvedEmployeeId, setResolvedEmployeeId] = useState(employeeId || null);
@@ -90,7 +88,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
         if (!res.ok) return;
         const emp = await res.json();
         if (!cancelled && emp?.id) setResolvedEmployeeId(emp.id);
-      } catch { }
+      } catch { /* ignore fetch errors */ }
     };
     resolveEmployee();
     return () => { cancelled = true; };
@@ -165,7 +163,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
   const markAsRead = async (id) => {
     try {
       await apiFetch(`${API_BASE}/api/notifications/${id}/read`, { method: "PUT" });
-    } catch { }
+    } catch { /* ignore */ }
     setNotifications((prev) => prev && prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
     loadUnreadCount();
   };
@@ -173,7 +171,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
   const deleteNotification = async (id) => {
     try {
       await apiFetch(`${API_BASE}/api/notifications/${id}`, { method: "DELETE" });
-    } catch { }
+    } catch { /* ignore */ }
     setNotifications((prev) => prev && prev.filter((n) => n.id !== id));
     loadUnreadCount();
   };
@@ -185,7 +183,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employee_id: employee }),
       });
-    } catch { }
+    } catch { /* ignore */ }
     setNotifications((prev) => prev && prev.map((n) => ({ ...n, is_read: true })));
     loadUnreadCount();
   };
@@ -198,7 +196,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ employee_id: employee }),
       });
-    } catch { }
+    } catch { /* ignore */ }
     setNotifications([]);
     setUnreadCount(0);
   };
@@ -216,12 +214,12 @@ function NotificationBell({ employeeId, role = 'employee' }) {
           }}
           style={{
             ...bellButton,
-            background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.05)",
-            border: isDark ? "1px solid rgba(148,163,184,0.2)" : "1px solid rgba(0,0,0,0.1)",
+            background: "rgba(0,0,0,0.05)",
+            border: "1px solid rgba(0,0,0,0.1)",
           }}
           title={theme.label}
         >
-          <BellRing size={22} color={isDark ? "#f8fafc" : "#475569"} />
+          <BellRing size={22} color={ "#475569"} />
           {unreadCount > 0 && (
             <span key={unreadCount} style={{ ...badgeStyle, background: theme.badge, animation: "bellBadgePop 0.35s ease" }}>
               {unreadCount > 9 ? "9+" : unreadCount}
@@ -230,12 +228,12 @@ function NotificationBell({ employeeId, role = 'employee' }) {
         </button>
 
         {open && (
-          <div style={{ ...dropdownStyle, borderColor: isDark ? "rgba(148,163,184,0.12)" : "rgba(0,0,0,0.08)", background: isDark ? "rgba(15,23,42,0.95)" : "rgba(255,255,255,0.97)", boxShadow: isDark ? "0 20px 60px rgba(0,0,0,0.5)" : "0 20px 60px rgba(0,0,0,0.12)", animation: "bellDropdownIn 0.18s ease" }}>
+          <div style={{ ...dropdownStyle, borderColor: "rgba(0,0,0,0.08)", background: "rgba(255,255,255,0.97)", boxShadow: "0 20px 60px rgba(0,0,0,0.12)", animation: "bellDropdownIn 0.18s ease" }}>
             {/* Header with role-specific color */}
-            <div style={{ ...dropdownHeader, background: isDark ? theme.headerBg : "rgba(241,245,249,0.95)", borderBottomColor: isDark ? theme.headerBorder : "rgba(0,0,0,0.06)" }}>
-              <span style={{ fontWeight: 600, color: isDark ? "#f8fafc" : "#0f172a", fontSize: "14px" }}>
-                <span style={{ color: isDark ? theme.accent : (isHR ? '#059669' : '#2563eb'), fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 6 }}>{theme.label}</span>
-                {unread > 0 && <span style={{ color: isDark ? theme.accent : (isHR ? '#059669' : '#2563eb'), fontSize: '12px' }}>({unread} unread)</span>}
+            <div style={{ ...dropdownHeader, background: "rgba(241,245,249,0.95)", borderBottomColor: "rgba(0,0,0,0.06)"}}>
+              <span style={{ fontWeight: 600, color: "#0f172a", fontSize: "14px" }}>
+                <span style={{ color: (isHR ? '#059669' : '#2563eb'), fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginRight: 6 }}>{theme.label}</span>
+                {unread > 0 && <span style={{ color: (isHR ? '#059669' : '#2563eb'), fontSize: '12px' }}>({unread} unread)</span>}
               </span>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 {unread > 0 && (
@@ -254,7 +252,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
                 <p style={emptyStyle}>Loading…</p>
               ) : notifications.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px 12px' }}>
-                  <Bell size={32} color={isDark ? "#334155" : "#94a3b8"} style={{ marginBottom: 8 }} />
+                  <Bell size={32} color={ "#94a3b8"} style={{ marginBottom: 8 }} />
                   <p style={{ ...emptyStyle, margin: 0 }}>No notifications yet</p>
                 </div>
               ) : (
@@ -263,7 +261,7 @@ function NotificationBell({ employeeId, role = 'employee' }) {
                     key={n.id}
                     style={{
                       ...notificationItem,
-                      background: isDark ? (n.is_read ? "rgba(30,41,59,0.5)" : "rgba(24,39,65,0.8)") : (n.is_read ? "rgba(0,0,0,0.02)" : "rgba(59,130,246,0.04)"),
+                      background: (n.is_read ? "rgba(0,0,0,0.02)" : "rgba(59,130,246,0.04)"),
                       borderLeft: n.is_read ? "3px solid transparent" : `3px solid ${TYPE_COLORS[n.type] || theme.accent}`,
                     }}
                     onClick={() => markAsRead(n.id)}
@@ -277,13 +275,13 @@ function NotificationBell({ employeeId, role = 'employee' }) {
                         {typeIcon(n.type)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ fontWeight: n.is_read ? 500 : 700, color: isDark ? "#f8fafc" : "#0f172a", fontSize: "14px", display: 'block' }}>
+                        <span style={{ fontWeight: n.is_read ? 500 : 700, color: "#0f172a", fontSize: "14px", display: 'block' }}>
                           {n.title}
                         </span>
-                        <p style={{ color: isDark ? "#94a3b8" : "#64748b", fontSize: "13px", margin: "5px 0 0", lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                        <p style={{ color: "#64748b", fontSize: "13px", margin: "5px 0 0", lineHeight: 1.4, whiteSpace: 'pre-line' }}>
                           {n.body}
                         </p>
-                        <span style={{ color: isDark ? "#64748b" : "#94a3b8", fontSize: "11px", marginTop: "6px", display: 'block' }}>
+                        <span style={{ color: "#94a3b8", fontSize: "11px", marginTop: "6px", display: 'block' }}>
                           {formatTime(n.created_at)}
                         </span>
                       </div>
@@ -309,9 +307,9 @@ function NotificationBell({ employeeId, role = 'employee' }) {
           {toasts.map((t) => (
             <div key={t.id} style={{
               ...toastItem,
-              background: isDark ? "rgba(15, 23, 42, 0.95)" : "#ffffff",
+              background: "#ffffff",
               borderLeft: `3px solid ${theme.accent}`,
-              boxShadow: isDark ? "0 16px 48px rgba(0,0,0,0.5)" : "0 8px 24px rgba(0,0,0,0.1)",
+              boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
               animation: "bellToastIn 0.3s ease",
             }}>
               <div style={{
@@ -322,9 +320,9 @@ function NotificationBell({ employeeId, role = 'employee' }) {
                 {typeIcon(t.type)}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontWeight: 700, color: isDark ? "#f8fafc" : "#0f172a", fontSize: "13px" }}>{t.title}</div>
+                <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "13px" }}>{t.title}</div>
                 {t.body && (
-                  <div style={{ color: isDark ? "#94a3b8" : "#64748b", fontSize: "12px", marginTop: "2px", wordBreak: "break-word", lineHeight: 1.4, whiteSpace: 'pre-line' }}>
+                  <div style={{ color: "#64748b", fontSize: "12px", marginTop: "2px", wordBreak: "break-word", lineHeight: 1.4, whiteSpace: 'pre-line' }}>
                     {t.body}
                   </div>
                 )}
@@ -365,8 +363,8 @@ function NotificationBell({ employeeId, role = 'employee' }) {
 
 const bellButton = {
   position: "relative",
-  background: "rgba(255,255,255,0.06)",
-  border: "1px solid rgba(148,163,184,0.2)",
+  background: "#ffffff",
+  border: "1px solid #e2e8f0",
   cursor: "pointer",
   padding: "10px",
   borderRadius: "12px",
@@ -402,12 +400,12 @@ const dropdownStyle = {
   right: 0,
   width: "440px",
   maxHeight: "580px",
-  background: "rgba(15, 23, 42, 0.95)",
+  background: "rgba(255,255,255,0.97)",
   backdropFilter: "blur(20px)",
   WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(148, 163, 184, 0.12)",
+  border: "1px solid rgba(0,0,0,0.08)",
   borderRadius: "18px",
-  boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+  boxShadow: "0 20px 60px rgba(0,0,0,0.12)",
   zIndex: 3000,
   overflow: "hidden",
 };
@@ -417,8 +415,8 @@ const dropdownHeader = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: "14px 20px",
-  borderBottom: "1px solid rgba(148, 163, 184, 0.1)",
-  background: "rgba(15, 23, 42, 0.6)",
+  borderBottom: "1px solid rgba(0,0,0,0.06)",
+  background: "rgba(241,245,249,0.95)",
 };
 
 const scrollArea = {
@@ -509,12 +507,12 @@ const toastItem = {
   display: "flex",
   alignItems: "flex-start",
   gap: "10px",
-  background: "rgba(15, 23, 42, 0.95)",
+  background: "#ffffff",
   backdropFilter: "blur(20px)",
   WebkitBackdropFilter: "blur(20px)",
-  border: "1px solid rgba(148, 163, 184, 0.15)",
+  border: "1px solid rgba(0,0,0,0.08)",
   borderRadius: "14px",
-  boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
   padding: "12px 14px",
 };
 

@@ -59,7 +59,7 @@ function ChatbotWidget({ role, employeeId, employeeName }) {
 
   const saveMessage = (sender, text) => {
     if (role === 'employee' && employeeId) {
-      addChatMessage({ employee_id: employeeId, sender, message: text }).catch(err => console.log(err))
+      addChatMessage({ employee_id: employeeId, sender, message: text }).catch(err => console.error(err))
     }
   }
 
@@ -104,7 +104,7 @@ function ChatbotWidget({ role, employeeId, employeeName }) {
       pushBotMessage(confirmMsg)
       saveMessage('bot', confirmMsg)
     } catch (err) {
-      console.log(err)
+      console.error(err)
       pushBotMessage('❌ Something went wrong while sending this to HR. Please try again.')
     }
     setAwaitingEscalationConfirm(false)
@@ -177,11 +177,11 @@ function ChatbotWidget({ role, employeeId, employeeName }) {
               }}>🤖</div>
               <div>
                 <span style={{ fontWeight: 700, fontSize: '14px' }}>HR Assistant</span>
-                <p style={{ margin: 0, fontSize: '11px', color: '#94a3b8' }}>Always online • Ask anything</p>
+                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>Always online • Ask anything</p>
               </div>
             </div>
             <button onClick={() => setOpen(false)} style={{
-              background: 'rgba(255,255,255,0.1)', border: 'none', color: '#f8fafc',
+              background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b',
               width: '28px', height: '28px', borderRadius: '8px', cursor: 'pointer',
               fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center'
             }}>✕</button>
@@ -205,7 +205,7 @@ function ChatbotWidget({ role, employeeId, employeeName }) {
                   marginBottom: '10px', animation: 'fadeIn 0.25s ease'
                 }}>
                   {!isUser && (
-                    <span style={{ fontSize: '10px', color: '#64748b', marginBottom: '3px', marginLeft: '4px' }}>
+                    <span style={{                    fontSize: '10px', color: '#94a3b8', marginBottom: '3px', marginLeft: '4px' }}>
                       HR Assistant
                     </span>
                   )}
@@ -213,7 +213,7 @@ function ChatbotWidget({ role, employeeId, employeeName }) {
                     {m.text}
                   </span>
                   <span style={{
-                    fontSize: '10px', color: '#475569', marginTop: '3px',
+                    fontSize: '10px', color: '#94a3b8', marginTop: '3px',
                     marginLeft: isUser ? '0' : '4px', marginRight: isUser ? '4px' : '0'
                   }}>
                     {formatTime(m.time)}
@@ -324,8 +324,7 @@ const unreadBadge = {
   borderRadius: '50%',
   display: 'flex',
   alignItems: 'center',
-  justifyContent: 'center',
-  border: '2px solid #1e293b',
+  justifyContent: 'center',              border: '2px solid #ffffff',
 }
 
 const panel = {
@@ -334,12 +333,10 @@ const panel = {
   right: '24px',
   width: '360px',
   maxHeight: '520px',
-  background: 'rgba(15, 23, 42, 0.92)',
-  backdropFilter: 'blur(24px)',
-  WebkitBackdropFilter: 'blur(24px)',
-  border: '1px solid rgba(148, 163, 184, 0.12)',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
   borderRadius: '20px',
-  boxShadow: '0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
+  boxShadow: '0 20px 60px rgba(0,0,0,0.12)',
   display: 'flex',
   flexDirection: 'column',
   zIndex: 1500,
@@ -349,12 +346,12 @@ const panel = {
 
 const panelHeader = {
   padding: '14px 16px',
-  borderBottom: '1px solid rgba(148, 163, 184, 0.1)',
-  color: '#f8fafc',
+  borderBottom: '1px solid #e2e8f0',
+  color: '#0f172a',
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
-  background: 'rgba(15, 23, 42, 0.6)',
+  background: '#f8fafc',
 }
 
 const messagesArea = {
@@ -368,15 +365,14 @@ const messagesArea = {
 
 const botBubble = {
   display: 'inline-block',
-  background: 'rgba(51, 65, 85, 0.6)',
-  backdropFilter: 'blur(8px)',
-  color: '#f1f5f9',
+  background: '#f1f5f9',
+  color: '#0f172a',
   padding: '10px 14px',
   borderRadius: '14px 14px 14px 4px',
   fontSize: '13px',
   maxWidth: '82%',
   lineHeight: '1.6',
-  border: '1px solid rgba(148, 163, 184, 0.08)',
+  border: '1px solid #e2e8f0',
 }
 
 const userBubble = {
@@ -403,7 +399,7 @@ const typingDot = {
 
 const quickQuestionsArea = {
   padding: '12px 14px',
-  borderTop: '1px solid rgba(148, 163, 184, 0.1)',
+  borderTop: '1px solid #e2e8f0',
   maxHeight: '180px',
   display: 'flex',
   flexDirection: 'column',
@@ -421,9 +417,9 @@ const quickQuestionsScroll = {
 
 const quickQuestionButton = {
   textAlign: 'left',
-  background: 'rgba(15, 23, 42, 0.5)',
-  color: '#cbd5e1',
-  border: '1px solid rgba(148, 163, 184, 0.1)',
+  background: '#f8fafc',
+  color: '#334155',
+  border: '1px solid #e2e8f0',
   borderRadius: '10px',
   padding: '8px 12px',
   fontSize: '12px',
@@ -438,17 +434,17 @@ const inputRow = {
   display: 'flex',
   gap: '8px',
   padding: '12px 14px',
-  borderTop: '1px solid rgba(148, 163, 184, 0.1)',
-  background: 'rgba(15, 23, 42, 0.4)',
+  borderTop: '1px solid #e2e8f0',
+  background: '#f8fafc',
 }
 
 const inputStyle = {
   flex: 1,
   padding: '10px 14px',
   borderRadius: '12px',
-  border: '1px solid rgba(148, 163, 184, 0.15)',
-  background: 'rgba(2, 6, 23, 0.6)',
-  color: '#f8fafc',
+  border: '1px solid #e2e8f0',
+  background: '#ffffff',
+  color: '#0f172a',
   fontSize: '13px',
   outline: 'none',
   transition: 'border-color 0.15s ease',
@@ -471,15 +467,14 @@ const hoverPreview = {
   position: 'absolute',
   bottom: '66px',
   right: 0,
-  background: 'rgba(15, 23, 42, 0.95)',
-  backdropFilter: 'blur(16px)',
-  border: '1px solid rgba(148, 163, 184, 0.12)',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
   borderRadius: '14px',
   padding: '10px 16px',
   display: 'flex',
   flexDirection: 'column',
   gap: '2px',
-  boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
   animation: 'fadeIn 0.2s ease',
   whiteSpace: 'nowrap',
 }
@@ -497,9 +492,9 @@ const smallPrimaryButton = {
 
 const smallSecondaryButton = {
   padding: '8px 16px',
-  background: 'rgba(51, 65, 85, 0.5)',
-  color: '#cbd5e1',
-  border: '1px solid rgba(148, 163, 184, 0.15)',
+  background: '#f1f5f9',
+  color: '#475569',
+  border: '1px solid #e2e8f0',
   borderRadius: '10px',
   cursor: 'pointer',
   fontSize: '12px',

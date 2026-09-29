@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { apiFetch } from "../api";
-
-const API = "https://payroll-management-system-five-brown.vercel.app/api";
+import { apiFetch, API_BASE } from "../api";
 
 const DOCUMENT_TYPES = [
   "Offer Letter",
@@ -12,105 +10,619 @@ const DOCUMENT_TYPES = [
   "Warning Letter",
   "Experience Letter",
   "Relieving Letter",
+  "Certificate of Completion",
 ];
 
 const DEFAULT_TEMPLATES = {
   "Offer Letter": {
     subject: "Offer Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-We are pleased to offer you the position of {{designation}} at our organization.
+To,
+{{employee_name}}
 
-Your joining date is {{joining_date}}.
+Subject: Appointment for the position of "{{designation}}"
 
-We look forward to having you as part of our team.
+Dear {{employee_name}},
 
-Regards,
+A warm welcome to the House of Talent Corner, a leading Human Resources Consultancy headquartered in Mumbai. We are pleased to inform you that you have been selected to work with Talent Corner HR Services Pvt. Ltd.
+
+We are pleased to offer you the position of "{{designation}}" in the {{department}} department. Your employment will begin on {{joining_date}}, and your monthly compensation or stipend will be Rs. {{salary}}.
+
+Working hours are 09:30 a.m. to 06:30 p.m. from Monday to Friday and 09:30 a.m. to 05:30 p.m. on Saturday. The 2nd and 4th Saturdays will be off.
+
+Please confirm your acceptance of this offer. We look forward to working with you.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Appointment Letter": {
     subject: "Appointment Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-We are pleased to confirm your appointment as {{designation}} in the {{department}} department.
+To,
+{{employee_name}}
 
-Your date of joining is {{joining_date}}.
+Subject: Appointment for the post of "{{designation}}"
 
-Regards,
+Dear {{employee_name}},
+
+A warm welcome to the House of Talent Corner, a leading Human Resources Consultancy headquartered in Mumbai. We are pleased to appoint you as "{{designation}}" in the {{department}} department with effect from {{joining_date}}.
+
+Salary and Compensation: Your gross remuneration on appointment will be Rs. {{salary}} per month. Tax deduction and other statutory deductions will be made at source. You will receive the variable amount based on your performance.
+
+The Standard Company Employment Policy and the terms and conditions of your appointment apply. We congratulate you on your appointment and wish you a long and successful career with us.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Confirmation Letter": {
     subject: "Confirmation Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-We are pleased to confirm your employment with the organization.
+To,
+{{employee_name}}
 
-Designation: {{designation}}
-Department: {{department}}
+Subject: Confirmation of Employment
 
-Regards,
+Dear {{employee_name}},
+
+We are pleased to confirm your employment with Talent Corner HR Services Pvt. Ltd. as "{{designation}}" in the {{department}} department.
+
+Your employment is confirmed with effect from {{letter_date}}. The other terms and conditions of your appointment will remain unchanged.
+
+We value your contribution to the organization and look forward to your continued growth and success with us.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Increment Letter": {
     subject: "Salary Increment Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-We are pleased to inform you that your compensation has been revised.
+To,
+{{employee_name}}
 
-Your revised salary is {{salary}}.
+Subject: Salary Increment Letter
 
-Regards,
+Dear {{employee_name}},
+
+Congratulations!
+
+Consequent to the review of your performance, we are delighted to inform you that your salary has been revised with effect from {{letter_date}}. Your revised monthly compensation is Rs. {{salary}}.
+
+The other terms and conditions of your Appointment Letter will remain unchanged. We hope your performance will continue to grow and contribute to the success of the organization.
+
+Congratulations once again on this achievement, and we wish you continued success in the years ahead.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Promotion Letter": {
-    subject: "Promotion Letter",
-    body: `Dear {{employee_name}},
+    subject: "Letter of Promotion",
+    body: `Date: {{letter_date}}
 
-We are pleased to inform you that you have been promoted.
+To,
+{{employee_name}}
 
-Your current designation is {{designation}}.
+Subject: Promotion to the post of "{{designation}}"
 
-Congratulations on your achievement.
+Dear {{employee_name}},
 
-Regards,
+Congratulations!
+
+We are pleased and honoured to inform you that you have been promoted to "{{designation}}" in Talent Corner HR Services Pvt. Ltd. with effect from {{letter_date}}.
+
+This is a position you have earned through merit and your contribution to the organization. We have complete faith in your abilities to execute the responsibilities of this role. The Standard Company Employment Policy remains as written in your Appointment Letter, and your revised compensation is Rs. {{salary}}.
+
+Congratulations once again on this achievement. We wish you every success in the years ahead.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Warning Letter": {
     subject: "Warning Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-This letter serves as a formal warning regarding the matter discussed with you.
+To,
+{{employee_name}}
 
-Please ensure that the issue is addressed promptly.
+Subject: Warning Letter
 
-Regards,
+Dear {{employee_name}},
+
+This letter serves as a formal warning regarding the matter discussed with you. You are required to address this issue immediately and to ensure that it is not repeated.
+
+Please treat this communication seriously. Further instances may lead to action in accordance with the Standard Company Employment Policy.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Experience Letter": {
     subject: "Experience Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-This is to certify that {{employee_name}} has been associated with our organization as {{designation}} in the {{department}} department.
+To Whomsoever It May Concern
 
-We wish you success in your future endeavors.
+This is to certify that {{employee_name}} was employed with Talent Corner HR Services Pvt. Ltd. as "{{designation}}" in the {{department}} department from {{joining_date}} to {{letter_date}}.
 
-Regards,
+During this tenure, {{employee_name}} consistently demonstrated a strong work ethic and efficiency, and proved to be a valuable asset to the company. {{employee_name}} was highly motivated, duty-bound, and a dedicated team member. Their positive attitude and collaborative spirit fostered a strong work environment.
+
+We are grateful for {{employee_name}}'s contributions to our company and wish them all the best in their future endeavours. We have no doubt they will continue to achieve great success.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
   "Relieving Letter": {
     subject: "Relieving Letter",
-    body: `Dear {{employee_name}},
+    body: `Date: {{letter_date}}
 
-This is to confirm that you have been relieved from your duties with the organization.
+To,
+{{employee_name}}
 
-We thank you for your contribution and wish you success in your future endeavors.
+Subject: Relieving Letter
 
-Regards,
+Dear {{employee_name}},
+
+With reference to your resignation, we wish to inform you that it has been accepted and you are being relieved from the services of Talent Corner HR Services Pvt. Ltd. from the position of "{{designation}}" with effect from {{letter_date}}.
+
+During your tenure from {{joining_date}} to {{letter_date}}, your contributions to the organization have been highly appreciated.
+
+We hereby confirm that {{employee_name}} has no outstanding dues and has cleared all financial and contractual obligations with the company.
+
+We wish you the very best of luck in your future endeavours.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
+HR Department`,
+  },
+  "Certificate of Completion": {
+    subject: "Certificate of Completion",
+    body: `Certificate of Completion
+
+This is to certify that {{employee_name}} has successfully completed an internship with Talent Corner HR Services Pvt. Ltd. as "{{designation}}" from {{joining_date}} to {{letter_date}}. During this period, {{employee_name}} was engaged in various projects and tasks assigned by the company.
+
+Through hard work, dedication and enthusiasm, {{employee_name}} made significant contributions to the company. Their exemplary work ethic, punctuality and professional conduct were highly valued by the company.
+
+{{employee_name}} demonstrated a high level of competence and an eagerness to learn throughout the internship. We are proud to have had them as part of the team and wish them all the best.
+
+Cordially,
+For Talent Corner HR Services Pvt. Ltd.
 HR Department`,
   },
 };
 
+/* ───────────────────────────────────────────────────
+   Light theme styles for the HR documents page.
+   light is its complete counterpart.
+   ─────────────────────────────────────────────────── */
+function getStyles() {
+  return {
+    page: {
+      minHeight: "100vh",
+      padding: "30px",
+      background: "#f8fafc",
+      color: "#1e293b",
+      boxSizing: "border-box",
+    },
+
+    eyebrow: {
+      color: "#0891b2",
+      fontSize: "12px",
+      fontWeight: "700",
+      letterSpacing: "1.5px",
+      marginBottom: "7px",
+    },
+
+    title: {
+      margin: 0,
+      fontSize: "30px",
+      letterSpacing: "-0.5px",
+      color: "#0f172a",
+      fontWeight: "750",
+      textShadow: "none",
+    },
+
+    subtitle: {
+      color: "#64748b",
+      margin: "8px 0 0",
+    },
+
+    statCard: {
+      position: "relative",
+      overflow: "hidden",
+      background: "#ffffff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "18px",
+      padding: "20px",
+      display: "flex",
+      alignItems: "center",
+      gap: "15px",
+      boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+    },
+
+    statIcon: {
+      width: "44px",
+      height: "44px",
+      display: "grid",
+      placeItems: "center",
+      borderRadius: "13px",
+      background: "#f0fdfa",
+      fontSize: "21px",
+    },
+
+    statLabel: {
+      color: "#64748b",
+      fontSize: "13px",
+      marginBottom: "4px",
+    },
+
+    statValue: {
+      fontSize: "25px",
+      fontWeight: "750",
+      color: "#0f172a",
+    },
+
+    section: {
+      position: "relative",
+      background: "#ffffff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "20px",
+      padding: "24px",
+      marginBottom: "24px",
+      overflow: "hidden",
+      boxShadow: "0 1px 3px rgba(0,0,0,.06)",
+    },
+
+    sectionHeader: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: "16px",
+      marginBottom: "20px",
+      flexWrap: "wrap",
+    },
+
+    sectionTitle: {
+      margin: 0,
+      fontSize: "20px",
+      letterSpacing: ".2px",
+      color: "#0f172a",
+    },
+
+    sectionDesc: {
+      margin: "6px 0 0",
+      color: "#64748b",
+      fontSize: "13px",
+    },
+
+    baseInput: {
+      width: "100%",
+      padding: "12px 13px",
+      borderRadius: "10px",
+      border: "1px solid #d1d5db",
+      background: "#ffffff",
+      color: "#1e293b",
+      outline: "none",
+      boxSizing: "border-box",
+    },
+
+    searchInput: {
+      minWidth: "260px",
+    },
+
+    employeeGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(310px,1fr))",
+      gap: "14px",
+    },
+
+    employeeCard: {
+      display: "flex",
+      alignItems: "center",
+      gap: "13px",
+      padding: "16px",
+      background: "#f9fafb",
+      border: "1px solid #e2e8f0",
+      borderRadius: "16px",
+    },
+
+    avatar: {
+      width: "43px",
+      height: "43px",
+      minWidth: "43px",
+      borderRadius: "50%",
+      display: "grid",
+      placeItems: "center",
+      background: "linear-gradient(135deg, #0891b2, #0284c7)",
+      color: "#ffffff",
+      fontWeight: "750",
+    },
+
+    employeeName: {
+      margin: "0 0 4px",
+      fontSize: "15px",
+      color: "#0f172a",
+    },
+
+    employeeMeta: {
+      margin: "3px 0",
+      color: "#64748b",
+      fontSize: "12px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    },
+
+    templateGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
+      gap: "12px",
+    },
+
+    templateCard: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "15px",
+      background: "#f9fafb",
+      border: "1px solid #e2e8f0",
+      borderRadius: "15px",
+    },
+
+    templateIcon: {
+      fontSize: "21px",
+    },
+
+    templateTitle: {
+      margin: 0,
+      fontSize: "14px",
+      color: "#0f172a",
+    },
+
+    templatePreview: {
+      margin: "5px 0 0",
+      color: "#94a3b8",
+      fontSize: "12px",
+    },
+
+    variablesBox: {
+      marginTop: "18px",
+      padding: "15px",
+      borderRadius: "14px",
+      background: "#f1f5f9",
+      border: "1px solid #e2e8f0",
+    },
+
+    variableList: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "7px",
+      marginTop: "10px",
+    },
+
+    variableChip: {
+      padding: "5px 8px",
+      borderRadius: "7px",
+      background: "#e0f2fe",
+      color: "#0369a1",
+      fontSize: "12px",
+      fontWeight: "600",
+    },
+
+    hintText: {
+      color: "#64748b",
+      fontSize: "12px",
+      lineHeight: 1.5,
+      margin: "10px 0 0",
+    },
+
+    th: {
+      padding: "13px",
+      borderBottom: "1px solid #e2e8f0",
+      color: "#64748b",
+      fontSize: "12px",
+      textAlign: "left",
+      whiteSpace: "nowrap",
+    },
+
+    td: {
+      padding: "14px 13px",
+      borderBottom: "1px solid #e2e8f0",
+      fontSize: "13px",
+      color: "#1e293b",
+    },
+
+    input: {
+      marginBottom: "16px",
+    },
+
+    editor: {
+      minHeight: "280px",
+      resize: "vertical",
+      lineHeight: 1.6,
+      fontFamily: "inherit",
+      marginBottom: "5px",
+    },
+
+    primaryBtn: {
+      padding: "11px 16px",
+      border: "none",
+      borderRadius: "10px",
+      background: "linear-gradient(135deg, #0891b2, #0284c7)",
+      color: "#ffffff",
+      cursor: "pointer",
+      fontWeight: "650",
+      whiteSpace: "nowrap",
+    },
+
+    smallPrimaryBtn: {
+      padding: "9px 11px",
+      fontSize: "12px",
+    },
+
+    secondaryBtn: {
+      padding: "10px 14px",
+      border: "1px solid #d1d5db",
+      borderRadius: "10px",
+      background: "#ffffff",
+      color: "#475569",
+      cursor: "pointer",
+      fontWeight: "600",
+      whiteSpace: "nowrap",
+    },
+
+    dangerBtn: {
+      padding: "7px 10px",
+      border: "none",
+      borderRadius: "8px",
+      background: "#ef4444",
+      color: "#ffffff",
+      cursor: "pointer",
+      fontSize: "12px",
+    },
+
+    alertError: {
+      padding: "12px 15px",
+      marginBottom: "18px",
+      borderRadius: "12px",
+      background: "#fef2f2",
+      border: "1px solid #fecaca",
+      color: "#dc2626",
+    },
+
+    alertSuccess: {
+      padding: "12px 15px",
+      marginBottom: "18px",
+      borderRadius: "12px",
+      background: "#f0fdf4",
+      border: "1px solid #bbf7d0",
+      color: "#16a34a",
+    },
+
+    emptyState: {
+      padding: "35px",
+      textAlign: "center",
+      color: "#94a3b8",
+      background: "#f9fafb",
+      borderRadius: "14px",
+    },
+
+    recipientBox: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
+      gap: "12px",
+      padding: "14px",
+      marginBottom: "18px",
+      background: "#f1f5f9",
+      border: "1px solid #e2e8f0",
+      borderRadius: "13px",
+    },
+
+    fieldCaption: {
+      display: "block",
+      color: "#94a3b8",
+      fontSize: "10px",
+      fontWeight: "700",
+      letterSpacing: "1px",
+      marginBottom: "5px",
+    },
+
+    label: {
+      display: "block",
+      color: "#334155",
+      fontSize: "13px",
+      fontWeight: "650",
+      marginBottom: "8px",
+    },
+
+    strongText: {
+      color: "#0f172a",
+    },
+
+    modalBackdrop: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 1000,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "20px",
+      background: "rgba(15,23,42,.45)",
+      backdropFilter: "blur(6px)",
+    },
+
+    modal: {
+      width: "100%",
+      maxHeight: "90vh",
+      overflowY: "auto",
+      background: "#ffffff",
+      border: "1px solid #e2e8f0",
+      borderRadius: "20px",
+      boxShadow: "0 25px 70px rgba(0,0,0,.15)",
+    },
+
+    modalHeader: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "20px 22px",
+      borderBottom: "1px solid #e2e8f0",
+    },
+
+    modalTitle: {
+      margin: 0,
+      fontSize: "20px",
+      color: "#0f172a",
+    },
+
+    closeBtn: {
+      width: "34px",
+      height: "34px",
+      border: "1px solid #d1d5db",
+      borderRadius: "9px",
+      background: "#f9fafb",
+      color: "#64748b",
+      fontSize: "22px",
+      lineHeight: 1,
+      cursor: "pointer",
+    },
+
+    modalContent: {
+      padding: "22px",
+    },
+
+    modalActions: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "10px",
+      marginTop: "20px",
+    },
+  };
+}
+
+/* ── Badge colours (light theme) ── */
+function badgeColors(normalized) {
+  const isSent = ["sent", "uploaded", "delivered"].includes(normalized);
+  const isPending = ["pending", "draft"].includes(normalized);
+  return {
+    background: isSent ? "#dcfce7" : isPending ? "#fef3c7" : "#fee2e2",
+    color: isSent ? "#16a34a" : isPending ? "#d97706" : "#dc2626",
+  };
+}
+
+/* ════════════════════════════════════════════════════ */
+
 function HRDocuments() {
+  const s = getStyles();
+
   const [employees, setEmployees] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [templates, setTemplates] = useState(DEFAULT_TEMPLATES);
@@ -187,6 +699,7 @@ function HRDocuments() {
         ["joining_date", "joiningDate", "date_of_joining"],
         ""
       ),
+      letter_date: new Date().toLocaleDateString("en-GB"),
       salary: getEmployeeValue(
         employee,
         ["salary", "basic_salary", "monthly_salary"],
@@ -204,7 +717,7 @@ function HRDocuments() {
   };
 
   const loadEmployees = async () => {
-    const response = await apiFetch(`${API}/employees`);
+    const response = await apiFetch(`${API_BASE}/api/employees`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -215,7 +728,7 @@ function HRDocuments() {
   };
 
   const loadDocuments = async () => {
-    const response = await apiFetch(`${API}/hr-documents`);
+    const response = await apiFetch(`${API_BASE}/api/hr-documents`);
     const data = await response.json();
 
     if (!response.ok) {
@@ -227,7 +740,7 @@ function HRDocuments() {
 
   const loadTemplates = async () => {
     try {
-      const response = await apiFetch(`${API}/hr-documents/templates`);
+      const response = await apiFetch(`${API_BASE}/api/hr-documents/templates`);
       if (!response.ok) return;
 
       const data = await response.json();
@@ -326,15 +839,16 @@ function HRDocuments() {
     setSuccess("");
 
     try {
-      const response = await apiFetch(`${API}/hr-documents/send`, {
-  method: "POST",
-  body: JSON.stringify({
-    employeeEmail: email,
-    employeeName: getEmployeeName(selectedEmployee),
-    subject: subject.trim(),
-    content: letterBody,
-  }),
-});
+      const response = await apiFetch(`${API_BASE}/api/hr-documents/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          employee_id: selectedEmployee.id,
+          document_type: selectedDocumentType,
+          recipient_email: email,
+          subject: subject.trim(),
+          content: letterBody,
+        }),
+      });
 
       const result = await response.json();
 
@@ -396,7 +910,7 @@ function HRDocuments() {
 
     try {
       const response = await apiFetch(
-        `${API}/hr-documents/templates`,
+        `${API_BASE}/api/hr-documents/templates`,
         {
           method: "POST",
           body: JSON.stringify({
@@ -430,7 +944,7 @@ function HRDocuments() {
 
     try {
       const response = await apiFetch(
-        `${API}/hr-documents/${id}`,
+        `${API_BASE}/api/hr-documents/${id}`,
         { method: "DELETE" }
       );
 
@@ -470,6 +984,13 @@ function HRDocuments() {
     });
   }, [employees, searchTerm]);
 
+  const normalizeStatus = (value) => {
+    const v = String(value || "").toLowerCase();
+    if (["sent", "uploaded", "delivered"].includes(v)) return "Sent";
+    if (["pending", "draft", "not uploaded"].includes(v)) return "Pending";
+    return v ? v.charAt(0).toUpperCase() + v.slice(1) : "Pending";
+  };
+
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) => {
       const name = String(
@@ -480,24 +1001,20 @@ function HRDocuments() {
         searchTerm.trim().toLowerCase()
       );
 
-      const status = doc.status || "Sent";
-
       const matchesStatus =
-        statusFilter === "All" || status === statusFilter;
+        statusFilter === "All" ||
+        normalizeStatus(doc.status) === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
   }, [documents, searchTerm, statusFilter]);
 
   const sentDocuments = documents.filter(
-    (doc) => (doc.status || "").toLowerCase() === "sent"
+    (doc) => normalizeStatus(doc.status) === "Sent"
   ).length;
 
   const pendingDocuments = documents.filter(
-    (doc) =>
-      ["pending", "not uploaded", "draft"].includes(
-        String(doc.status || "").toLowerCase()
-      )
+    (doc) => normalizeStatus(doc.status) === "Pending"
   ).length;
 
   const formatDate = (value) => {
@@ -509,19 +1026,27 @@ function HRDocuments() {
     return date.toLocaleString();
   };
 
+  /* ── Merged input style (base + per-use) ── */
+  const makeInput = (extra) => ({ ...s.baseInput, ...extra });
+  const inputS = makeInput(s.input);
+  const editorS = makeInput(s.editor);
+  const searchS = makeInput(s.searchInput);
+  const primaryBtn = (extra) => ({ ...s.primaryBtn, ...extra });
+  const secondaryBtn = (extra) => ({ ...s.secondaryBtn, ...extra });
+
   return (
-    <div style={pageStyle}>
+    <div style={s.page}>
       <div style={headerRow}>
         <div>
-          <div style={eyebrow}>HR COMMUNICATION</div>
-          <h1 style={titleStyle}>HR Documents & Letters</h1>
-          <p style={subtitleStyle}>
+          <div style={s.eyebrow}>HR COMMUNICATION</div>
+          <h1 style={s.title}>HR Documents & Letters</h1>
+          <p style={s.subtitle}>
             Send personalised HR letters directly to employees.
           </p>
         </div>
 
         <button
-          style={primaryButton}
+          style={s.primaryBtn}
           onClick={() => openTemplateEditor()}
         >
           ✎ Manage Templates
@@ -529,13 +1054,13 @@ function HRDocuments() {
       </div>
 
       {error && (
-        <div style={alertError} role="alert">
+        <div style={s.alertError} role="alert">
           ⚠ {error}
         </div>
       )}
 
       {success && (
-        <div style={alertSuccess} role="status">
+        <div style={s.alertSuccess} role="status">
           ✓ {success}
         </div>
       )}
@@ -545,29 +1070,33 @@ function HRDocuments() {
           label="Employees"
           value={employees.length}
           icon="👥"
+          s={s}
         />
         <StatCard
           label="Letters Sent"
           value={sentDocuments}
           icon="✉️"
+          s={s}
         />
         <StatCard
           label="Pending / Draft"
           value={pendingDocuments}
           icon="⏳"
+          s={s}
         />
         <StatCard
           label="Templates"
           value={Object.keys(templates).length}
           icon="📄"
+          s={s}
         />
       </div>
 
-      <section style={sectionStyle}>
-        <div style={sectionHeader}>
+      <section style={s.section}>
+        <div style={s.sectionHeader}>
           <div>
-            <h2 style={sectionTitle}>Employees</h2>
-            <p style={sectionDescription}>
+            <h2 style={s.sectionTitle}>Employees</h2>
+            <p style={s.sectionDesc}>
               Select an employee to prepare and send a letter.
             </p>
           </div>
@@ -576,39 +1105,32 @@ function HRDocuments() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search name, email or employee code..."
-            style={searchInput}
+            style={searchS}
           />
         </div>
 
         {loading ? (
-          <div style={emptyState}>Loading employees...</div>
+          <div style={s.emptyState}>Loading employees...</div>
         ) : filteredEmployees.length === 0 ? (
-          <div style={emptyState}>
-            No employees found.
-          </div>
+          <div style={s.emptyState}>No employees found.</div>
         ) : (
-          <div style={employeeGrid}>
+          <div style={s.employeeGrid}>
             {filteredEmployees.map((employee) => {
               const name = getEmployeeName(employee);
               const email = getEmployeeEmail(employee);
 
               return (
-                <div
-                  key={employee.id}
-                  style={employeeCard}
-                >
-                  <div style={avatar}>
+                <div key={employee.id} style={s.employeeCard}>
+                  <div style={s.avatar}>
                     {name.charAt(0).toUpperCase()}
                   </div>
 
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <h3 style={employeeName}>{name}</h3>
-
-                    <p style={employeeMeta}>
+                    <h3 style={s.employeeName}>{name}</h3>
+                    <p style={s.employeeMeta}>
                       {email || "No email address"}
                     </p>
-
-                    <p style={employeeMeta}>
+                    <p style={s.employeeMeta}>
                       {getEmployeeValue(
                         employee,
                         ["designation", "position", "job_title"],
@@ -618,7 +1140,7 @@ function HRDocuments() {
                   </div>
 
                   <button
-                    style={smallPrimaryButton}
+                    style={primaryBtn(s.smallPrimaryBtn)}
                     onClick={() => openSendModal(employee)}
                     disabled={!email}
                     title={
@@ -636,29 +1158,29 @@ function HRDocuments() {
         )}
       </section>
 
-      <section style={sectionStyle}>
-        <div style={sectionHeader}>
+      <section style={s.section}>
+        <div style={s.sectionHeader}>
           <div>
-            <h2 style={sectionTitle}>Letter Templates</h2>
-            <p style={sectionDescription}>
+            <h2 style={s.sectionTitle}>Letter Templates</h2>
+            <p style={s.sectionDesc}>
               Edit the standard format used when sending letters.
             </p>
           </div>
         </div>
 
-        <div style={templateGrid}>
+        <div style={s.templateGrid}>
           {DOCUMENT_TYPES.map((type) => (
-            <div key={type} style={templateCard}>
-              <div style={templateIcon}>📄</div>
+            <div key={type} style={s.templateCard}>
+              <div style={s.templateIcon}>📄</div>
               <div style={{ flex: 1 }}>
-                <h3 style={templateTitle}>{type}</h3>
-                <p style={templatePreview}>
+                <h3 style={s.templateTitle}>{type}</h3>
+                <p style={s.templatePreview}>
                   {templates[type]?.subject || type}
                 </p>
               </div>
 
               <button
-                style={secondaryButton}
+                style={secondaryBtn()}
                 onClick={() => openTemplateEditor(type)}
               >
                 Edit
@@ -667,9 +1189,9 @@ function HRDocuments() {
           ))}
         </div>
 
-        <div style={variablesBox}>
-          <strong>Available placeholders</strong>
-          <div style={variableList}>
+        <div style={s.variablesBox}>
+          <strong style={s.strongText}>Available placeholders</strong>
+          <div style={s.variableList}>
             {[
               "{{employee_name}}",
               "{{employee_code}}",
@@ -677,14 +1199,15 @@ function HRDocuments() {
               "{{department}}",
               "{{email}}",
               "{{joining_date}}",
+              "{{letter_date}}",
               "{{salary}}",
             ].map((variable) => (
-              <code key={variable} style={variableChip}>
+              <code key={variable} style={s.variableChip}>
                 {variable}
               </code>
             ))}
           </div>
-          <p style={hintText}>
+          <p style={s.hintText}>
             Placeholders are automatically replaced when an employee is
             selected. You can still manually edit the final letter before
             sending.
@@ -692,7 +1215,77 @@ function HRDocuments() {
         </div>
       </section>
 
+      <section style={s.section}>
+        <div style={s.sectionHeader}>
+          <div>
+            <h2 style={s.sectionTitle}>Sent Documents</h2>
+            <p style={s.sectionDesc}>
+              Records of letters sent or prepared for each employee.
+            </p>
+          </div>
 
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ ...inputS, width: "150px" }}
+            aria-label="Filter by status"
+          >
+            <option value="All">All statuses</option>
+            <option value="Sent">Sent</option>
+            <option value="Pending">Pending</option>
+          </select>
+        </div>
+
+        {loading ? (
+          <div style={s.emptyState}>Loading documents...</div>
+        ) : filteredDocuments.length === 0 ? (
+          <div style={s.emptyState}>
+            {documents.length === 0
+              ? "No HR documents yet. Send a letter to get started."
+              : "No documents match the current filter."}
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={s.th}>Employee</th>
+                  <th style={s.th}>Document</th>
+                  <th style={s.th}>Status</th>
+                  <th style={s.th}>Date</th>
+                  <th style={{ ...s.th, textAlign: "right" }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredDocuments.map((doc) => (
+                  <tr key={doc.id}>
+                    <td style={s.td}>
+                      <strong style={s.strongText}>
+                        {doc.name || doc.employee_name || "Employee"}
+                      </strong>
+                    </td>
+                    <td style={s.td}>{doc.document_type || "Letter"}</td>
+                    <td style={s.td}>
+                      <StatusBadge status={normalizeStatus(doc.status)} />
+                    </td>
+                    <td style={s.td}>
+                      {formatDate(doc.upload_date || doc.created_at || doc.sent_at)}
+                    </td>
+                    <td style={{ ...s.td, textAlign: "right" }}>
+                      <button
+                        style={s.dangerBtn}
+                        onClick={() => deleteDocument(doc.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       {showSendModal && selectedEmployee && (
         <Modal
@@ -701,36 +1294,32 @@ function HRDocuments() {
             if (!sending) setShowSendModal(false);
           }}
           wide
+          s={s}
         >
-          <div style={recipientBox}>
+          <div style={s.recipientBox}>
             <div>
-              <span style={fieldCaption}>EMPLOYEE</span>
-              <strong>{getEmployeeName(selectedEmployee)}</strong>
+              <span style={s.fieldCaption}>EMPLOYEE</span>
+              <strong style={s.strongText}>
+                {getEmployeeName(selectedEmployee)}
+              </strong>
             </div>
 
             <div>
-              <span style={fieldCaption}>EMAIL</span>
-              <strong>
+              <span style={s.fieldCaption}>EMAIL</span>
+              <strong style={s.strongText}>
                 {getEmployeeEmail(selectedEmployee)}
               </strong>
             </div>
           </div>
 
-          <label style={labelStyle}>
-            Letter Type
-          </label>
+          <label style={s.label}>Letter Type</label>
 
           <select
             value={selectedDocumentType}
-            onChange={(e) =>
-              handleDocumentTypeChange(e.target.value)
-            }
-            style={inputStyle}
+            onChange={(e) => handleDocumentTypeChange(e.target.value)}
+            style={inputS}
           >
-            <option value="">
-              Select a letter
-            </option>
-
+            <option value="">Select a letter</option>
             {DOCUMENT_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -738,38 +1327,31 @@ function HRDocuments() {
             ))}
           </select>
 
-          <label style={labelStyle}>
-            Subject
-          </label>
+          <label style={s.label}>Subject</label>
 
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
             placeholder="Email subject"
-            style={inputStyle}
+            style={inputS}
           />
 
-          <label style={labelStyle}>
-            Letter Content
-          </label>
+          <label style={s.label}>Letter Content</label>
 
           <textarea
             value={letterBody}
-            onChange={(e) =>
-              setLetterBody(e.target.value)
-            }
+            onChange={(e) => setLetterBody(e.target.value)}
             placeholder="Select a letter template or write your letter..."
-            style={editorStyle}
+            style={editorS}
           />
 
-          <p style={hintText}>
-            You can edit the automatically filled details before
-            sending.
+          <p style={s.hintText}>
+            You can edit the automatically filled details before sending.
           </p>
 
-          <div style={modalActions}>
+          <div style={s.modalActions}>
             <button
-              style={secondaryButton}
+              style={secondaryBtn()}
               onClick={() => setShowSendModal(false)}
               disabled={sending}
             >
@@ -777,7 +1359,7 @@ function HRDocuments() {
             </button>
 
             <button
-              style={primaryButton}
+              style={s.primaryBtn}
               onClick={sendLetter}
               disabled={sending}
             >
@@ -794,10 +1376,9 @@ function HRDocuments() {
             if (!savingTemplate) setShowTemplateModal(false);
           }}
           wide
+          s={s}
         >
-          <label style={labelStyle}>
-            Letter Type
-          </label>
+          <label style={s.label}>Letter Type</label>
 
           <select
             value={templateType}
@@ -807,12 +1388,10 @@ function HRDocuments() {
                 templates[type] || DEFAULT_TEMPLATES[type];
 
               setTemplateType(type);
-              setTemplateSubject(
-                template?.subject || type
-              );
+              setTemplateSubject(template?.subject || type);
               setTemplateBody(template?.body || "");
             }}
-            style={inputStyle}
+            style={inputS}
           >
             {DOCUMENT_TYPES.map((type) => (
               <option key={type} value={type}>
@@ -821,37 +1400,27 @@ function HRDocuments() {
             ))}
           </select>
 
-          <label style={labelStyle}>
-            Email Subject
-          </label>
+          <label style={s.label}>Email Subject</label>
 
           <input
             value={templateSubject}
-            onChange={(e) =>
-              setTemplateSubject(e.target.value)
-            }
-            style={inputStyle}
+            onChange={(e) => setTemplateSubject(e.target.value)}
+            style={inputS}
           />
 
-          <label style={labelStyle}>
-            Template Content
-          </label>
+          <label style={s.label}>Template Content</label>
 
           <textarea
             value={templateBody}
-            onChange={(e) =>
-              setTemplateBody(e.target.value)
-            }
-            style={editorStyle}
+            onChange={(e) => setTemplateBody(e.target.value)}
+            style={editorS}
           />
 
-          <div style={variablesBox}>
-            <strong>Placeholders</strong>
-            <p style={hintText}>
-              Use these in your template:
-            </p>
+          <div style={s.variablesBox}>
+            <strong style={s.strongText}>Placeholders</strong>
+            <p style={s.hintText}>Use these in your template:</p>
 
-            <div style={variableList}>
+            <div style={s.variableList}>
               {[
                 "{{employee_name}}",
                 "{{employee_code}}",
@@ -859,18 +1428,19 @@ function HRDocuments() {
                 "{{department}}",
                 "{{email}}",
                 "{{joining_date}}",
+                "{{letter_date}}",
                 "{{salary}}",
               ].map((variable) => (
-                <code key={variable} style={variableChip}>
+                <code key={variable} style={s.variableChip}>
                   {variable}
                 </code>
               ))}
             </div>
           </div>
 
-          <div style={modalActions}>
+          <div style={s.modalActions}>
             <button
-              style={secondaryButton}
+              style={secondaryBtn()}
               onClick={() => setShowTemplateModal(false)}
               disabled={savingTemplate}
             >
@@ -878,13 +1448,11 @@ function HRDocuments() {
             </button>
 
             <button
-              style={primaryButton}
+              style={s.primaryBtn}
               onClick={saveTemplate}
               disabled={savingTemplate}
             >
-              {savingTemplate
-                ? "Saving..."
-                : "Save Template"}
+              {savingTemplate ? "Saving..." : "Save Template"}
             </button>
           </div>
         </Modal>
@@ -893,13 +1461,15 @@ function HRDocuments() {
   );
 }
 
-function StatCard({ label, value, icon }) {
+/* ── Sub-components ── */
+
+function StatCard({ label, value, icon, s }) {
   return (
-    <div style={statCard}>
-      <div style={statIcon}>{icon}</div>
+    <div style={s.statCard}>
+      <div style={s.statIcon}>{icon}</div>
       <div>
-        <div style={statLabel}>{label}</div>
-        <div style={statValue}>{value}</div>
+        <div style={s.statLabel}>{label}</div>
+        <div style={s.statValue}>{value}</div>
       </div>
     </div>
   );
@@ -907,50 +1477,31 @@ function StatCard({ label, value, icon }) {
 
 function StatusBadge({ status }) {
   const normalized = String(status).toLowerCase();
-
-  const success = ["sent", "uploaded", "delivered"].includes(
-    normalized
-  );
-
-  const warning = ["pending", "draft"].includes(normalized);
+  const colors = badgeColors(normalized);
 
   return (
-    <span
-      style={{
-        ...statusBadge,
-        background: success
-          ? "rgba(34,197,94,.15)"
-          : warning
-            ? "rgba(245,158,11,.15)"
-            : "rgba(239,68,68,.15)",
-        color: success
-          ? "#86efac"
-          : warning
-            ? "#fcd34d"
-            : "#fca5a5",
-      }}
-    >
+    <span style={{ display: "inline-block", padding: "5px 9px", borderRadius: "999px", fontSize: "11px", fontWeight: "700", ...colors }}>
       {status}
     </span>
   );
 }
 
-function Modal({ title, children, onClose, wide = false }) {
+function Modal({ title, children, onClose, wide = false, s }) {
   return (
-    <div style={modalBackdrop} onMouseDown={onClose}>
+    <div style={s.modalBackdrop} onMouseDown={onClose}>
       <div
         style={{
-          ...modal,
+          ...s.modal,
           maxWidth: wide ? "850px" : "600px",
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div style={modalHeader}>
-          <h2 style={modalTitle}>{title}</h2>
+        <div style={s.modalHeader}>
+          <h2 style={s.modalTitle}>{title}</h2>
 
           <button
             type="button"
-            style={closeButton}
+            style={s.closeBtn}
             onClick={onClose}
             aria-label="Close"
           >
@@ -958,19 +1509,13 @@ function Modal({ title, children, onClose, wide = false }) {
           </button>
         </div>
 
-        <div style={modalContent}>{children}</div>
+        <div style={s.modalContent}>{children}</div>
       </div>
     </div>
   );
 }
 
-const pageStyle = {
-  minHeight: "100vh",
-  padding: "30px",
-  background: "radial-gradient(circle at 85% 5%, rgba(55,255,215,.08), transparent 28%), radial-gradient(circle at 10% 90%, rgba(0,229,255,.06), transparent 30%), #070b12",
-  color: "#e6f7ff",
-  boxSizing: "border-box",
-};
+/* ── Static layout styles (no color, same for both themes) ── */
 
 const headerRow = {
   display: "flex",
@@ -981,419 +1526,11 @@ const headerRow = {
   flexWrap: "wrap",
 };
 
-const eyebrow = {
-  color: "#37FFD7",
-  fontSize: "12px",
-  fontWeight: "700",
-  letterSpacing: "1.5px",
-  marginBottom: "7px",
-};
-
-const titleStyle = {
-  margin: 0,
-  fontSize: "30px",
-  letterSpacing: "-0.5px",
-  textShadow: "0 0 24px rgba(55,255,215,.16)",
-  fontWeight: "750",
-};
-
-const subtitleStyle = {
-  color: "#7f9aaa",
-  margin: "8px 0 0",
-};
-
 const statsGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit,minmax(190px,1fr))",
   gap: "16px",
   marginBottom: "24px",
-};
-
-const statCard = {
-  position: "relative",
-  overflow: "hidden",
-  background: "linear-gradient(145deg, rgba(15,27,39,.96), rgba(8,17,29,.98))",
-  border: "1px solid rgba(55,255,215,.18)",
-  borderRadius: "18px",
-  padding: "20px",
-  display: "flex",
-  alignItems: "center",
-  gap: "15px",
-};
-
-const statIcon = {
-  width: "44px",
-  height: "44px",
-  display: "grid",
-  placeItems: "center",
-  borderRadius: "13px",
-  background: "#08111d",
-  fontSize: "21px",
-};
-
-const statLabel = {
-  color: "#7f9aaa",
-  fontSize: "13px",
-  marginBottom: "4px",
-};
-
-const statValue = {
-  fontSize: "25px",
-  fontWeight: "750",
-};
-
-const sectionStyle = {
-  position: "relative",
-  background: "linear-gradient(145deg, rgba(15,27,39,.96), rgba(8,17,29,.98))",
-  border: "1px solid rgba(55,255,215,.18)",
-  borderRadius: "20px",
-  padding: "24px",
-  marginBottom: "24px",
-  overflow: "hidden",
-};
-
-const sectionHeader = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "16px",
-  marginBottom: "20px",
-  flexWrap: "wrap",
-};
-
-const sectionTitle = {
-  margin: 0,
-  fontSize: "20px",
-  letterSpacing: ".2px",
-};
-
-const sectionDescription = {
-  margin: "6px 0 0",
-  color: "#7f9aaa",
-  fontSize: "13px",
-};
-
-const baseInput = {
-  width: "100%",
-  padding: "12px 13px",
-  borderRadius: "10px",
-  border: "1px solid rgba(55,255,215,.22)",
-  background: "radial-gradient(circle at 85% 5%, rgba(55,255,215,.08), transparent 28%), radial-gradient(circle at 10% 90%, rgba(0,229,255,.06), transparent 30%), #070b12",
-  color: "#e6f7ff",
-  outline: "none",
-  boxSizing: "border-box",
-};
-
-const searchInput = {
-  ...baseInput,
-  minWidth: "260px",
-};
-
-const filterSelect = {
-  ...baseInput,
-  minWidth: "170px",
-};
-
-const employeeGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit,minmax(310px,1fr))",
-  gap: "14px",
-};
-
-const employeeCard = {
-  display: "flex",
-  alignItems: "center",
-  gap: "13px",
-  padding: "16px",
-  background: "#08111d",
-  border: "1px solid rgba(55,255,215,.14)",
-  borderRadius: "16px",
-};
-
-const avatar = {
-  width: "43px",
-  height: "43px",
-  minWidth: "43px",
-  borderRadius: "50%",
-  display: "grid",
-  placeItems: "center",
-  background: "linear-gradient(135deg, #37FFD7, #00B8FF)",
-  color: "#061017",
-  fontWeight: "750",
-};
-
-const employeeName = {
-  margin: "0 0 4px",
-  fontSize: "15px",
-};
-
-const employeeMeta = {
-  margin: "3px 0",
-  color: "#7f9aaa",
-  fontSize: "12px",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-const templateGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))",
-  gap: "12px",
-};
-
-const templateCard = {
-  display: "flex",
-  alignItems: "center",
-  gap: "12px",
-  padding: "15px",
-  background: "#08111d",
-  border: "1px solid rgba(55,255,215,.14)",
-  borderRadius: "15px",
-};
-
-const templateIcon = {
-  fontSize: "21px",
-};
-
-const templateTitle = {
-  margin: 0,
-  fontSize: "14px",
-};
-
-const templatePreview = {
-  margin: "5px 0 0",
-  color: "#64748b",
-  fontSize: "12px",
-};
-
-const variablesBox = {
-  marginTop: "18px",
-  padding: "15px",
-  borderRadius: "14px",
-  background: "#08111d",
-  border: "1px solid rgba(55,255,215,.14)",
-};
-
-const variableList = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: "7px",
-  marginTop: "10px",
-};
-
-const variableChip = {
-  padding: "5px 8px",
-  borderRadius: "7px",
-  background: "#1e293b",
-  color: "#93c5fd",
-  fontSize: "12px",
-};
-
-const hintText = {
-  color: "#7f9aaa",
-  fontSize: "12px",
-  lineHeight: 1.5,
-  margin: "10px 0 0",
-};
-
-const tableWrapper = {
-  overflowX: "auto",
-};
-
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "760px",
-};
-
-const thStyle = {
-  padding: "13px",
-  borderBottom: "1px solid #334155",
-  color: "#7f9aaa",
-  fontSize: "12px",
-  textAlign: "left",
-  whiteSpace: "nowrap",
-};
-
-const tdStyle = {
-  padding: "14px 13px",
-  borderBottom: "1px solid #334155",
-  fontSize: "13px",
-};
-
-
-
-const inputStyle = {
-  ...baseInput,
-  marginBottom: "16px",
-};
-
-const editorStyle = {
-  ...baseInput,
-  minHeight: "280px",
-  resize: "vertical",
-  lineHeight: 1.6,
-  fontFamily: "inherit",
-  marginBottom: "5px",
-};
-
-const primaryButton = {
-  padding: "11px 16px",
-  border: "none",
-  borderRadius: "10px",
-  background: "linear-gradient(135deg, #37FFD7, #00B8FF)",
-  color: "#061017",
-  cursor: "pointer",
-  fontWeight: "650",
-  whiteSpace: "nowrap",
-};
-
-const smallPrimaryButton = {
-  ...primaryButton,
-  padding: "9px 11px",
-  fontSize: "12px",
-};
-
-const secondaryButton = {
-  padding: "10px 14px",
-  border: "1px solid rgba(55,255,215,.22)",
-  borderRadius: "10px",
-  background: "#08111d",
-  color: "#b9d8e5",
-  cursor: "pointer",
-  fontWeight: "600",
-  whiteSpace: "nowrap",
-};
-
-const dangerButton = {
-  padding: "7px 10px",
-  border: "none",
-  borderRadius: "8px",
-  background: "#ef4444",
-  color: "#061017",
-  cursor: "pointer",
-  fontSize: "12px",
-};
-
-const statusBadge = {
-  display: "inline-block",
-  padding: "5px 9px",
-  borderRadius: "999px",
-  fontSize: "11px",
-  fontWeight: "700",
-};
-
-const alertError = {
-  padding: "12px 15px",
-  marginBottom: "18px",
-  borderRadius: "12px",
-  background: "rgba(239,68,68,.1)",
-  border: "1px solid rgba(239,68,68,.3)",
-  color: "#fca5a5",
-};
-
-const alertSuccess = {
-  padding: "12px 15px",
-  marginBottom: "18px",
-  borderRadius: "12px",
-  background: "rgba(34,197,94,.1)",
-  border: "1px solid rgba(34,197,94,.3)",
-  color: "#86efac",
-};
-
-const emptyState = {
-  padding: "35px",
-  textAlign: "center",
-  color: "#7f9aaa",
-  background: "#08111d",
-  borderRadius: "14px",
-};
-
-const recipientBox = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))",
-  gap: "12px",
-  padding: "14px",
-  marginBottom: "18px",
-  background: "#08111d",
-  border: "1px solid rgba(55,255,215,.14)",
-  borderRadius: "13px",
-};
-
-const fieldCaption = {
-  display: "block",
-  color: "#64748b",
-  fontSize: "10px",
-  fontWeight: "700",
-  letterSpacing: "1px",
-  marginBottom: "5px",
-};
-
-const labelStyle = {
-  display: "block",
-  color: "#b9d8e5",
-  fontSize: "13px",
-  fontWeight: "650",
-  marginBottom: "8px",
-};
-
-const modalBackdrop = {
-  position: "fixed",
-  inset: 0,
-  zIndex: 1000,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "20px",
-  background: "rgba(2,6,12,.86)",
-  backdropFilter: "blur(8px)",
-};
-
-const modal = {
-  width: "100%",
-  maxHeight: "90vh",
-  overflowY: "auto",
-  background: "#1e293b",
-  border: "1px solid rgba(55,255,215,.22)",
-  borderRadius: "20px",
-  boxShadow: "0 25px 70px rgba(0,0,0,.65), 0 0 45px rgba(55,255,215,.08)",
-};
-
-const modalHeader = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "20px 22px",
-  borderBottom: "1px solid #334155",
-};
-
-const modalTitle = {
-  margin: 0,
-  fontSize: "20px",
-};
-
-const closeButton = {
-  width: "34px",
-  height: "34px",
-  border: "1px solid rgba(55,255,215,.22)",
-  borderRadius: "9px",
-  background: "#08111d",
-  color: "#b9d8e5",
-  fontSize: "22px",
-  lineHeight: 1,
-  cursor: "pointer",
-};
-
-const modalContent = {
-  padding: "22px",
-};
-
-const modalActions = {
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: "10px",
-  marginTop: "20px",
 };
 
 export default HRDocuments;

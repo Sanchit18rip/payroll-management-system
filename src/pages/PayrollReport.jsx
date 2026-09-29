@@ -20,8 +20,6 @@ function PayrollReport() {
         { id: "paySlip", label: "Pay Slip", icon: Receipt },
     ];
 
-    const ActiveIcon = tabs.find(t => t.id === selectedReport)?.icon || FileText;
-
     return (
         <div
             style={{
@@ -39,9 +37,9 @@ function PayrollReport() {
                         gap: "8px",
                         padding: "8px 18px",
                         borderRadius: "999px",
-                        background: "rgba(55,255,215,.08)",
-                        border: "1px solid rgba(55,255,215,.18)",
-                        color: "#4dd8ff",
+                        background: "rgba(8,145,178,.08)",
+                        border: "1px solid rgba(8,145,178,.25)",
+                        color: "#0284c7",
                         fontSize: "12px",
                         fontWeight: "700",
                         letterSpacing: "2px",
@@ -55,7 +53,7 @@ function PayrollReport() {
                     style={{
                         fontSize: "52px",
                         fontWeight: "800",
-                        color: "#f8fafc",
+                        color: "#0f172a",
                         margin: 0,
                         lineHeight: 1.1,
                     }}
@@ -64,8 +62,7 @@ function PayrollReport() {
                 </h1>
                 <p
                     style={{
-                        color: "#94a3b8",
-                        marginTop: "12px",
+                    color: "#64748b",
                         fontSize: "17px",
                         maxWidth: "550px",
                         lineHeight: 1.8,
@@ -90,11 +87,11 @@ function PayrollReport() {
                                 gap: "10px",
                                 padding: "14px 28px",
                                 borderRadius: "14px",
-                                border: isActive ? "1px solid rgba(55,255,215,.35)" : "1px solid rgba(255,255,255,.08)",
+                                border: isActive ? ( "1px solid rgba(8,145,178,.35)") : ( "1px solid rgba(0,0,0,0.1)"),
                                 background: isActive
-                                    ? "linear-gradient(135deg, rgba(6,182,212,.25), rgba(37,99,235,.25))"
-                                    : "rgba(255,255,255,.03)",
-                                color: isActive ? "#37FFD7" : "#94a3b8",
+                                    ? ( "linear-gradient(135deg, rgba(8,145,178,.15), rgba(2,132,199,.15))")
+                                    : ( "rgba(255,255,255,.8)"),
+                                color: isActive ? ( "#0891b2") : ( "#64748b"),
                                 cursor: "pointer",
                                 fontWeight: "700",
                                 fontSize: "14px",
@@ -102,21 +99,21 @@ function PayrollReport() {
                                 transition: "all .3s ease",
                                 backdropFilter: "blur(14px)",
                                 WebkitBackdropFilter: "blur(14px)",
-                                boxShadow: isActive ? "0 0 22px rgba(55,255,215,.12)" : "0 12px 30px rgba(0,0,0,.18)",
+                                boxShadow: isActive ? ( "0 4px 16px rgba(8,145,178,.12)") : ( "0 2px 8px rgba(0,0,0,.06)"),
                                 transform: isActive ? "translateY(-2px)" : "none",
                             }}
                             onMouseEnter={(e) => {
                                 if (!isActive) {
                                     e.currentTarget.style.transform = "translateY(-2px)";
-                                    e.currentTarget.style.border = "1px solid rgba(55,255,215,.20)";
-                                    e.currentTarget.style.boxShadow = "0 0 18px rgba(55,255,215,.08)";
+                                    e.currentTarget.style.border = "1px solid rgba(8,145,178,.20)";
+                                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(8,145,178,.1)";
                                 }
                             }}
                             onMouseLeave={(e) => {
                                 if (!isActive) {
                                     e.currentTarget.style.transform = "translateY(0)";
-                                    e.currentTarget.style.border = "1px solid rgba(255,255,255,.08)";
-                                    e.currentTarget.style.boxShadow = "0 12px 30px rgba(0,0,0,.18)";
+                                    e.currentTarget.style.border = "1px solid rgba(0,0,0,0.1)";
+                                    e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,.06)";
                                 }
                             }}
                         >
@@ -131,11 +128,11 @@ function PayrollReport() {
             <div
                 style={{
                     borderRadius: "24px",
-                    border: "1px solid rgba(255,255,255,.08)",
-                    background: "linear-gradient(180deg, rgba(17,24,39,.72), rgba(15,23,42,.72))",
+                    border: "1px solid #e2e8f0",
+                    background: "#ffffff",
                     backdropFilter: "blur(22px)",
                     WebkitBackdropFilter: "blur(22px)",
-                    boxShadow: "0 15px 40px rgba(0,0,0,.28)",
+                    boxShadow: "0 2px 8px rgba(0,0,0,.06)",
                     padding: "30px",
                     minHeight: "400px",
                 }}

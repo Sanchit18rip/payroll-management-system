@@ -71,7 +71,7 @@ function PayrollDrawer({
     <h2
       style={{
         margin: 0,
-        color: "#fff"
+        color: "#0f172a"
       }}
     >
       {employee.name}
@@ -79,7 +79,7 @@ function PayrollDrawer({
 
     <p
       style={{
-        color: "#94a3b8",
+        color: "#64748b",
         marginTop: "6px"
       }}
     >
@@ -438,7 +438,7 @@ value={`₹${Number(employee.total_deduction).toLocaleString()}`}
 <hr
   style={{
     border: "none",
-    borderTop: "1px solid rgba(255,255,255,.25)",
+    borderTop: "1px solid #e2e8f0",
     margin: "22px 0"
   }}
 />
@@ -531,8 +531,8 @@ function SummaryCard({ title, value, color }) {
 
     <div
       style={{
-        background: "#1e293b",
-        border: "1px solid #334155",
+        background: "#f8fafc",
+        border: "1px solid #e2e8f0",
         borderRadius: "18px",
         padding: "22px",
         transition: "all .35s ease",
@@ -567,7 +567,7 @@ function SummaryCard({ title, value, color }) {
 
       <div
         style={{
-          color: "#94a3b8",
+          color: "#64748b",
           fontSize: "14px"
         }}
       >
@@ -576,7 +576,7 @@ function SummaryCard({ title, value, color }) {
 
       <div
         style={{
-          color: "#fff",
+          color: "#0f172a",
           fontWeight: "700",
           fontSize: "30px",
           marginTop: "12px"
@@ -607,15 +607,15 @@ function InfoRow({
         padding: "10px 0",
         borderBottom: noBorder
           ? "none"
-          : "1px solid #334155"
+          : "1px solid #e2e8f0"
       }}
     >
 
       <span
         style={{
-          color: white
-            ? "#ffffff"
-            : "#94a3b8"
+        color: white
+          ? "#ffffff"
+          : "#64748b"
         }}
       >
         {label}
@@ -623,7 +623,7 @@ function InfoRow({
 
       <span
         style={{
-          color: "#ffffff",
+          color: white ? "#ffffff" : "#0f172a",
           fontWeight: "600"
         }}
       >
@@ -652,12 +652,12 @@ const drawerStyle = {
   width: "1100px",
   maxWidth: "95vw",
   height: "85vh",
-  background: "#0f172a",
+  background: "#ffffff",
   borderRadius: "22px",
   overflowY: "auto",
   padding: "35px",
   zIndex: 9999,
-  boxShadow: "0 25px 60px rgba(0,0,0,.45)"
+  boxShadow: "0 25px 60px rgba(0,0,0,.15)"
 };
 
 const headerStyle = {
@@ -665,7 +665,7 @@ const headerStyle = {
   justifyContent: "space-between",
   alignItems: "center",
   marginBottom: "25px",
-  borderBottom: "1px solid #334155",
+  borderBottom: "1px solid #e2e8f0",
   paddingBottom: "20px"
 };
 
@@ -681,30 +681,22 @@ const closeButton = {
 };
 
 const cardStyle = {
-  background: "#1e293b",
+  background: "#f8fafc",
   borderRadius: "18px",
   padding: "20px",
   marginBottom: "22px",
-  border: "1px solid #334155",
-  boxShadow: "0 6px 20px rgba(0,0,0,.25)",
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 1px 3px rgba(0,0,0,.08)",
   transition: "all .25s ease"
 };
 
 const sectionTitle = {
   marginTop: 0,
   marginBottom: "18px",
-  color: "#fff"
+  color: "#0f172a"
 };
 
-const rowStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  padding: "10px 0",
-  borderBottom: "1px solid #334155"
-};
-
-const badgeBlue = {
-  background: "#2563eb",
+const badgeBlue = {        background: "#16a34a",
   color: "#fff",
   padding: "6px 12px",
   borderRadius: "30px",

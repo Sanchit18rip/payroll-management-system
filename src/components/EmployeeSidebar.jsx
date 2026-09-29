@@ -3,7 +3,6 @@ import {
   useLocation,
 } from 'react-router-dom'
 import { useState } from 'react'
-import { useTheme } from '../context/ThemeContext'
 import './Sidebar.css'
 import {
   LayoutDashboard,
@@ -23,7 +22,6 @@ function EmployeeSidebar({
 }) {
   const [collapsed, setCollapsed] = useState(false)
   const [showBrand, setShowBrand] = useState(false)
-  const { isDark } = useTheme()
   const location = useLocation()
 
   const menuItems = [
@@ -53,7 +51,7 @@ function EmployeeSidebar({
         </button>
         {!collapsed && (
           <div className="sidebar-brand" onClick={() => setShowBrand(true)} style={{ cursor: 'pointer' }}>
-            <img src="/images/logo.png" alt="Logo" className="sidebar-logo" />
+            <img src="/images/Logo.png" alt="Logo" className="sidebar-logo" />
             <span className="sidebar-title">Payroll</span>
           </div>
         )}
@@ -77,55 +75,51 @@ function EmployeeSidebar({
       <button onClick={onLogout} className="logout-btn">
         {!collapsed && ' Logout'}
       </button>
-    </div>
-
-    {/* Brand Overlay */}
-    {showBrand && (
-      <div
-        onClick={() => setShowBrand(false)}
-        style={{
-          position: 'fixed',
-          inset: 0,
-          zIndex: 999999,
-          background: isDark ? 'rgba(2,6,23,0.85)' : 'rgba(0,0,0,0.4)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          animation: 'brandFadeIn 0.3s ease',
-        }}
-      >
-        <div style={{ textAlign: 'center', animation: 'brandScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
-          <img
-            src="/images/logo.png"
-            alt="Logo"
-            style={{
-              width: 140, height: 140, borderRadius: 32,
-              boxShadow: isDark
-                ? '0 0 60px rgba(99,102,241,0.4), 0 20px 50px rgba(0,0,0,0.5)'
-                : '0 0 40px rgba(59,130,246,0.2), 0 15px 40px rgba(0,0,0,0.1)',
-              marginBottom: 24,
-            }}
-          />
-          <h1 style={{
-            margin: 0, fontSize: 42, fontWeight: 800,
-            background: 'linear-gradient(90deg, #6366f1, #3b82f6, #8b5cf6)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            letterSpacing: '-1px',
-          }}>
-            Payroll Management
-          </h1>
-          <p style={{ margin: '12px 0 0', fontSize: 16, color: isDark ? '#94a3b8' : '#64748b', fontWeight: 500 }}>
-            Talent Pay Corner
-          </p>
-          <p style={{ margin: '8px 0 0', fontSize: 13, color: isDark ? '#64748b' : '#94a3b8' }}>
-            Click anywhere to close
-          </p>
+    </div>      {/* Brand Overlay */}
+      {showBrand && (
+        <div
+          onClick={() => setShowBrand(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            animation: 'brandFadeIn 0.3s ease',
+          }}
+        >
+          <div style={{ textAlign: 'center', animation: 'brandScaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)' }}>
+            <img
+              src="/images/Logo.png"
+              alt="Logo"
+              style={{
+                width: 260, height: 'auto',
+                objectFit: 'contain',
+                display: 'block',
+                margin: '0 auto 24px',
+              }}
+            />
+            <h1 style={{
+              margin: 0, fontSize: 42, fontWeight: 800,
+              color: '#0f172a',
+              letterSpacing: '-1px',
+            }}>
+              Payroll Management
+            </h1>
+            <p style={{ margin: '12px 0 0', fontSize: 16, color: '#0f172a', fontWeight: 600 }}>
+              Talent Pay Corner
+            </p>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: '#334155'}}>
+              Click anywhere to close
+            </p>
+          </div>
         </div>
-      </div>
-    )}
+      )}
 
     <style>{`
       @keyframes brandFadeIn { from { opacity: 0; } to { opacity: 1; } }

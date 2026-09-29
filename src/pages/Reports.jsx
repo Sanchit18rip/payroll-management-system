@@ -61,7 +61,7 @@ function Reports() {
 
   catch (err) {
 
-    console.log(
+    console.error(
       'Error fetching report data:',
       err
     )
@@ -123,15 +123,15 @@ function Reports() {
     margin: '0 auto',
     width: '100%',
     minHeight: '100vh',
-    background: 'var(--bg-page, #0f172a)'
+    background: 'var(--bg-page, #f0f4f8)'
   }}
   className="hr-page-light"
 >
       <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ fontSize: '32px', fontWeight: '700', color: "#f8fafc", margin: '0 0 4px 0' }}>
+        <h1 style={{ fontSize: '32px', fontWeight: '700', color: "#0f172a", margin: '0 0 4px 0' }}>
           Reports & Analytics
         </h1>
-        <p style={{ color: '#94a3b8', margin: 0, fontSize: '14px' }}>
+        <p style={{ color: '#475569', margin: 0, fontSize: '14px' }}>
           Detailed analytical insights of the corporate workforce.
         </p>
         <button
@@ -178,7 +178,7 @@ style={{
       </div>
 
       <div style={reportSection}>
-        <h2 style={{ fontSize: '18px', fontWeight: '600', color: "#f8fafc", marginBottom: '20px' }}>
+        <h2 style={{ fontSize: '18px', fontWeight: '600', color: "#0f172a", marginBottom: '20px' }}>
           Company Summary Report
         </h2>
 
@@ -227,16 +227,16 @@ const cardContainer = {
 }
 
 const cardStyle = {
-  background: 'var(--bg-card-solid, #1e293b)',
+  background: 'var(--bg-card-solid, #ffffff)',
   padding: '28px',
   borderRadius: '20px',
-  border: 'var(--border-card, 1px solid #334155)',
+  border: 'var(--border-card, 1px solid #e2e8f0)',
   boxShadow:
-    'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
+    'var(--shadow-card, 0 1px 3px rgba(0,0,0,.08))',
   transition: 'all 0.3s ease'
 }
 const cardTitle = {
-  color: 'var(--text-secondary, #94a3b8)',
+  color: 'var(--text-secondary, #475569)',
   fontSize: '14px',
   fontWeight: '600',
   textTransform: 'uppercase',
@@ -252,17 +252,19 @@ const cardValue = {
 }
 
 const reportSection = {
-  background: 'var(--bg-card-solid, #1e293b)',
+  background: 'var(--bg-card-solid, #ffffff)',
   padding: '30px',
   borderRadius: '20px',
   boxShadow:
-    'var(--shadow-card, 0 8px 32px rgba(0,0,0,0.35))',
-  border: 'var(--border-card, 1px solid #334155)'
+    'var(--shadow-card, 0 1px 3px rgba(0,0,0,.08))',
+  border: 'var(--border-card, 1px solid #e2e8f0)'
 }
 
 const tableContainer = {
   width: '100%',
-  overflowX: 'auto'
+  overflowX: 'auto',
+  overflowY: 'auto',
+  maxHeight: '70vh'
 }
 
 const tableStyle = {
@@ -272,49 +274,44 @@ const tableStyle = {
 }
 
 const theadRow = {
-  borderBottom: '1px solid var(--border-default, #334155)',
-  background: 'var(--bg-input, #0f172a)'
+  borderBottom: '1px solid var(--border-default, #e2e8f0)',
+  background: 'var(--bg-input, #f8fafc)'
 }
 
 const thStyle = {
   padding: '16px',
   fontSize: '14px',
   fontWeight: '600',
-  color: 'var(--text-secondary, #cbd5e1)'
+  color: 'var(--text-secondary, #475569)',
+  background: 'var(--bg-input, #f8fafc)',
+  position: 'sticky',
+  top: 0,
+  zIndex: 5
 }
 
 const thStyleRight = {
   padding: '16px',
   fontSize: '14px',
   fontWeight: '600',
-  color: 'var(--text-secondary, #cbd5e1)',
+  color: 'var(--text-secondary, #475569)',
   textAlign: 'right'
 }
 
 const rowStyle = {
-  borderBottom: '1px solid var(--border-default, #334155)'
+  borderBottom: '1px solid var(--border-default, #e2e8f0)'
 }
 const tdStyle = {
   padding: '16px',
   fontSize: '14px',
-  color: 'var(--text-primary, #f8fafc)'
+  color: 'var(--text-primary, #0f172a)'
 }
   
 
 const tdStyleRight = {
   padding: '16px',
   fontSize: '14px',
-  color: "var(--text-primary, #f8fafc)",
+  color: "var(--text-primary, #0f172a)",
   fontWeight: '600',
   textAlign: 'right'
-}
-const exportButton = {
-  padding: '10px 16px',
-  background: '#0f172a',
-  color: '#f8fafc',
-  border: '1px solid #334155',
-  borderRadius: '10px',
-  cursor: 'pointer',
-  fontWeight: '600'
 }
 export default Reports

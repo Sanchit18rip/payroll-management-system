@@ -1,12 +1,16 @@
 import { apiFetch, API_BASE } from "../api";
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import SearchableDropdown from '../components/SearchableDropdown'
 import { jsPDF } from 'jspdf'
 import StatCard from "../components/Dashboard/StatCard";
 import PayrollDrawer from "../components/PayrollDrawer";
 import GlassScrollArea from "../components/GlassScrollArea";
-import { Download } from "lucide-react";
 import Papa from 'papaparse'
+import {
+  glassButton as mkGlassBtn,
+  textColor,
+  accentColor,
+} from "../styles/adminTheme"
 
 function Payroll() {
 
@@ -14,7 +18,6 @@ function Payroll() {
   const [editingEmployee, setEditingEmployee] =
   useState(null)
 const [showPayrollDrawer, setShowPayrollDrawer] = useState(false); 
-const [importingPayroll, setImportingPayroll] = useState(false);
 const [editBonus, setEditBonus] =
   useState("")
 const [payrollSettings, setPayrollSettings] = useState({
@@ -32,11 +35,16 @@ const [payrollSettings, setPayrollSettings] = useState({
   lwf: false,
 });  
 
-const [employeePayrollSettings, setEmployeePayrollSettings] = useState({});
 const [showPayrollModal, setShowPayrollModal] = useState(false);
 const [selectedEmployee, setSelectedEmployee] = useState(null);
 
 const [editDeduction, setEditDeduction] =useState("")
+const [editBasicDA, setEditBasicDA] = useState('')
+const [editHRA, setEditHRA] = useState('')
+const [editConveyance, setEditConveyance] = useState('')
+const [editMedical, setEditMedical] = useState('')
+const [editOtherAllowance, setEditOtherAllowance] = useState('')
+const [editPF, setEditPF] = useState('')
 const [searchTerm, setSearchTerm] =useState("")
 const [deptFilter, setDeptFilter] = useState("All")
 const [incrementHistory,setIncrementHistory] = useState([]);
@@ -49,55 +57,75 @@ const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   useEffect(() => {
     apiFetch(`${API_BASE}/api/payroll/monthly?month=${selectedMonth}&year=${selectedYear}`)
       .then(res => res.json())
-      .then(data => setPayroll(data))
-      .catch(err => console.log(err));
-    apiFetch(`${API_BASE}/api/increment-history/monthly?month=${selectedMonth}&year=${selectedYear}`)
-      .then(res => res.json())
-      .then(data => setIncrementHistory(data))
-      .catch(err => console.log(err));
+      .then(data => setPayroll(Array.isArray(data) ? data : []))
+      .catch(err => { console.error('Payroll fetch error:', err); setPayroll([]); });
+
+    // Sync increment_history from performance_reviews first, then fetch
+    apiFetch(`${API_BASE}/api/increment-history/sync`)
+      .then(res => {
+        if (!res.ok) throw new Error(`Sync HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(() => {
+        return apiFetch(`${API_BASE}/api/increment-history/monthly?month=${selectedMonth}&year=${selectedYear}`);
+      })
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => setIncrementHistory(Array.isArray(data) ? data : []))
+      .catch(err => {
+        console.error('Increment history fetch failed, trying all:', err);
+        apiFetch(`${API_BASE}/api/increment-history`)
+          .then(res => {
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.json();
+          })
+          .then(data => setIncrementHistory(Array.isArray(data) ? data : []))
+          .catch(err2 => { console.error('Increment history fallback error:', err2); setIncrementHistory([]); });
+      });
   }, [selectedMonth, selectedYear]);
 
 
   const openEditModal = (employee) => {
-
   setEditingEmployee(employee)
-
-  setEditBonus(employee.bonus)
-
-  setEditDeduction(employee.deduction)
-
+  setEditBonus(employee.bonus || 0)
+  setEditDeduction(employee.deduction || 0)
+  setEditBasicDA(employee.basic_da_override != null ? employee.basic_da_override : '')
+  setEditHRA(employee.hra_override != null ? employee.hra_override : '')
+  setEditConveyance(employee.conveyance_override != null ? employee.conveyance_override : '')
+  setEditMedical(employee.medical_allowance_override != null ? employee.medical_allowance_override : '')
+  setEditOtherAllowance(employee.other_allowance_override != null ? employee.other_allowance_override : '')
+  setEditPF(employee.pf_override != null ? employee.pf_override : '')
 }
-const savePayrollChanges = () => {
-
-  apiFetch(
-    `${API_BASE}/api/payroll/${editingEmployee.id}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type":
-          "application/json"
-      },
-      body: JSON.stringify({
-        bonus: editBonus,
-        deduction: editDeduction
-      })
-    }
-  )
-    .then(() =>
-      apiFetch(
-        `${API_BASE}/api/payroll`
-      )
+const savePayrollChanges = async () => {
+  try {
+    const res = await apiFetch(
+      `${API_BASE}/api/payroll/${editingEmployee.id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          bonus: editBonus,
+          deduction: editDeduction,
+          basic_da_override: editBasicDA !== '' ? Number(editBasicDA) : null,
+          hra_override: editHRA !== '' ? Number(editHRA) : null,
+          conveyance_override: editConveyance !== '' ? Number(editConveyance) : null,
+          medical_allowance_override: editMedical !== '' ? Number(editMedical) : null,
+          other_allowance_override: editOtherAllowance !== '' ? Number(editOtherAllowance) : null,
+          pf_override: editPF !== '' ? Number(editPF) : null,
+        })
+      }
     )
-    .then(res => res.json())
-    .then(data => {
-
-      setPayroll(data)
-
-      setEditingEmployee(null)
-
-    })
-    .catch(err => console.log(err))
-
+    if (!res.ok) throw new Error('Save failed')
+    const refreshed = await apiFetch(`${API_BASE}/api/payroll/monthly?month=${selectedMonth}&year=${selectedYear}`)
+    if (!refreshed.ok) throw new Error('Refresh failed')
+    const data = await refreshed.json()
+    setPayroll(data)
+    setEditingEmployee(null)
+  } catch(err) { console.error('Save error:', err) }
 }
 const totalPayroll = payroll.reduce(
   (total, employee) =>
@@ -120,7 +148,6 @@ const averagePayroll =
         totalPayroll / payroll.length
       ).toFixed(2)
     : 0
-console.log(payroll);
 const filteredPayroll = Array.isArray(payroll)
   ? payroll.filter((employee) => {
       if (!(employee?.name ?? "").toLowerCase().includes(searchTerm.toLowerCase())) return false;
@@ -427,7 +454,6 @@ const importPayrollCSV = (event) => {
           return;
         }
 
-        setImportingPayroll(true);
 
         // ==============================
         // IMPORT
@@ -489,7 +515,7 @@ const importPayrollCSV = (event) => {
 
         const refreshed =
           await apiFetch(
-            `${API_BASE}/api/payroll`
+            `${API_BASE}/api/payroll/monthly?month=${selectedMonth}&year=${selectedYear}`
           );
 
         if (!refreshed.ok) {
@@ -503,7 +529,7 @@ const importPayrollCSV = (event) => {
         const updatedPayroll =
           await refreshed.json();
 
-        setPayroll(updatedPayroll);
+        setPayroll(Array.isArray(updatedPayroll) ? updatedPayroll : []);
 
         alert(
           "✅ Payroll Import Successful\n\n" +
@@ -527,8 +553,6 @@ const importPayrollCSV = (event) => {
       }
 
       finally {
-
-        setImportingPayroll(false);
 
         resetInput();
 
@@ -618,7 +642,7 @@ const payrollOptions = [
       style={{
         fontSize: "52px",
         fontWeight: "800",
-        color: "#f8fafc",
+        color: textColor("primary"),
         margin: 0,
       }}
     >
@@ -627,7 +651,7 @@ const payrollOptions = [
 
     <p
       style={{
-        color: "#94a3b8",
+        color: textColor("secondary"),
         marginTop: "10px",
         fontSize: "17px",
       }}
@@ -635,14 +659,6 @@ const payrollOptions = [
       Manage employee salaries, bonuses, deductions and payroll.
     </p>
   </div>
-
-  <input
-  id="payroll-csv-import"
-  type="file"
-  accept=".csv"
-  hidden
-  onChange={importPayrollCSV}
-/>
 
 <div
   style={{
@@ -669,16 +685,16 @@ const payrollOptions = [
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = "translateY(-2px)";
       e.currentTarget.style.border =
-        "1px solid rgba(55,255,215,.35)";
+        "1px solid #2563eb";
       e.currentTarget.style.boxShadow =
-        "0 0 22px rgba(55,255,215,.18)";
+        "0 0 18px rgba(37,99,235,.18)";
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = "translateY(0)";
       e.currentTarget.style.border =
-        "1px solid rgba(255,255,255,.08)";
+        "1px solid #e2e8f0";
       e.currentTarget.style.boxShadow =
-        "0 12px 30px rgba(0,0,0,.25)";
+        "0 1px 3px rgba(0,0,0,.08)";
     }}
   >
     <span
@@ -694,20 +710,12 @@ const payrollOptions = [
 
   <button
     onClick={exportPayroll}
-    style={glassButton}
+    style={mkGlassBtn()}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = "translateY(-2px)";
-      e.currentTarget.style.border =
-        "1px solid rgba(55,255,215,.35)";
-      e.currentTarget.style.boxShadow =
-        "0 0 22px rgba(55,255,215,.18)";
     }}
     onMouseLeave={(e) => {
       e.currentTarget.style.transform = "translateY(0)";
-      e.currentTarget.style.border =
-        "1px solid rgba(255,255,255,.08)";
-      e.currentTarget.style.boxShadow =
-        "0 12px 30px rgba(0,0,0,.25)";
     }}
   >
     <span
@@ -773,12 +781,11 @@ const payrollOptions = [
         <div>
 
     <h2
-        style={{
-            margin: 0,
-            fontSize: "30px",
-            fontWeight: "700",
-            color: "#f8fafc",
-        }}
+        style={{        margin: 0,
+        fontSize: "30px",
+        fontWeight: "700",
+        color: textColor("primary"),
+      }}
     >
         Employee Payroll
     </h2>
@@ -786,7 +793,7 @@ const payrollOptions = [
     <p
         style={{
             marginTop: "8px",
-            color: "#94a3b8",
+            color: textColor("secondary"),
             fontSize: "15px",
         }}
     >
@@ -838,7 +845,7 @@ style={searchInput}
     >
       <label
         style={{
-          color: "#94a3b8",
+          color: textColor("secondary"),
           fontSize: "15px",
           fontWeight: "600",
         }}
@@ -851,9 +858,9 @@ style={searchInput}
         style={{
           padding: "10px 16px",
           borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,.08)",
-          background: "rgba(255,255,255,.04)",
-          color: "#f8fafc",
+          border: "1px solid #d1d5db",
+          background: "#ffffff",
+          color: textColor("primary"),
           fontSize: "14px",
           fontWeight: "600",
           outline: "none",
@@ -876,7 +883,7 @@ style={searchInput}
  
       <label
         style={{
-          color: "#94a3b8",
+          color: textColor("secondary"),
           fontSize: "15px",
           fontWeight: "600",
         }}
@@ -889,9 +896,9 @@ style={searchInput}
         style={{
           padding: "10px 16px",
           borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,.08)",
-          background: "rgba(255,255,255,.04)",
-          color: "#f8fafc",
+          border: "1px solid #d1d5db",
+          background: "#ffffff",
+          color: textColor("primary"),
           fontSize: "14px",
           fontWeight: "600",
           outline: "none",
@@ -907,10 +914,10 @@ style={searchInput}
  
       <span
         style={{
-          color: "#37FFD7",
-          fontSize: "14px",
-          fontWeight: "700",
-          marginLeft: "10px",
+        color: accentColor(),
+        fontSize: "14px",
+        fontWeight: "700",
+        marginLeft: "10px",
         }}
       >
         Showing:{" "}
@@ -924,20 +931,19 @@ style={searchInput}
     </div>
 
 
-    <GlassScrollArea
-  height={650}
+    <div
   style={{
     borderRadius: "24px",
-    border: "1px solid rgba(255,255,255,.08)",
+    border: "1px solid #e2e8f0",
     background:
-      "linear-gradient(180deg, rgba(17,24,39,.72), rgba(15,23,42,.72))",
-    backdropFilter: "blur(22px)",
-    WebkitBackdropFilter: "blur(22px)",
-    boxShadow: "0 15px 40px rgba(0,0,0,.28)",
+      "#ffffff",
+    boxShadow: "0 2px 8px rgba(0,0,0,.06)",
+    overflow: "auto",
+    maxHeight: "650px",
   }}
 >
 
-        <table style={tableStyle}>
+        <table style={{ ...tableStyle, color: textColor('primary') }}>
         <thead>
 
 <tr style={tableHeaderRow}>
@@ -972,9 +978,7 @@ style={searchInput}
 
 <th style={tableHeader}>Payable</th>
 
-<th style={tableHeader}>Settings</th>
-
-<th style={tableHeader}>Payslip</th>
+<th style={tableHeader}>Actions</th>
 
 </tr>
 
@@ -990,7 +994,7 @@ style={searchInput}
   onMouseEnter={(e) => {
 
     e.currentTarget.style.background =
-      "rgba(55,255,215,.05)";
+      "rgba(37,99,235,.05)";
 
     e.currentTarget.style.transform =
       "translateY(-2px)";
@@ -1011,7 +1015,7 @@ style={searchInput}
   style={{
     padding: "18px 16px",
     borderBottom:
-      "1px solid rgba(255,255,255,.06)",
+      "1px solid #f1f5f9",
   }}
 >
 
@@ -1037,12 +1041,12 @@ fontWeight:"700",
 fontSize:"16px",
 
 background:
-"linear-gradient(135deg,#37FFD7,#0EA5E9)",
+ "linear-gradient(135deg,#0891b2,#0284c7)",
 
-color:"#08111d",
+color: "#ffffff",
 
 boxShadow:
-"0 0 18px rgba(55,255,215,.35)",
+ "none",
 }}
 >
 {employee.name.charAt(0).toUpperCase()}
@@ -1090,12 +1094,8 @@ padding:0,
 
 fontSize:"15px",
 
-fontWeight:"700",
-
-color:"#f8fafc",
-
+fontWeight:"700",color:textColor("primary"),
 cursor:"pointer",
-
 textAlign:"left",
 
 }}
@@ -1123,11 +1123,11 @@ Employee
               <td
   style={{
     padding: "18px",
-    color: "#38bdf8",
+    color: "#0284c7",
     fontWeight: "700",
-
     borderBottom:
-      "1px solid rgba(255,255,255,.06)",
+      "1px solid #f1f5f9",
+    whiteSpace: "nowrap",
   }}
 >
   ₹{Number(employee.salary).toLocaleString()}
@@ -1186,77 +1186,41 @@ Employee
 
              <td
   style={{
-    color: "#37FFD7",
+    color: "#0891b2",
     fontWeight: "800",
     padding: "18px",
 
     textShadow:
-      "0 0 10px rgba(55,255,215,.35)",
+      "none",
 
     borderBottom:
-      "1px solid rgba(255,255,255,.06)",
+      "1px solid #f1f5f9",
   }}
 >
   ₹{Number(employee.payable_salary).toLocaleString(undefined,{
     maximumFractionDigits:2
   })}
-</td>
-              <td>
-  <button
-    onClick={() => handleEdit(employee)}
-
-    style={actionButton}
-
-    onMouseEnter={(e)=>{
-
-        e.currentTarget.style.transform=
-        "translateY(-2px)";
-
-    }}
-
-    onMouseLeave={(e)=>{
-
-        e.currentTarget.style.transform=
-        "translateY(0)";
-
-    }}
->
-
-⚙️
-
-</button>
-</td>
-
-              <td>
-
-                <button
-style={pdfActionButton}
-
-onMouseEnter={(e)=>{
-
-e.currentTarget.style.transform=
-"translateY(-2px)";
-
-}}
-
-onMouseLeave={(e)=>{
-
-e.currentTarget.style.transform=
-"translateY(0)";
-
-}}
-
->
-
-📄
-
-</button>
-
-              </td>
-              <td>
-
-  
-
+</td><td style={{ padding: "18px", borderBottom: "1px solid #f1f5f9" }}>
+  <div style={{ display: "flex", gap: "6px", justifyContent: "center" }}>
+    <button
+      onClick={() => openEditModal(employee)}
+      title="Edit Salary Components"
+      style={editActionBtn}
+      onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+      onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+    >
+      ✏️ Edit
+    </button>
+    <button
+      onClick={() => handleEdit(employee)}
+      title="Payroll Settings"
+      style={settingsBtn}
+      onMouseEnter={(e) => e.currentTarget.style.transform = "translateY(-2px)"}
+      onMouseLeave={(e) => e.currentTarget.style.transform = "translateY(0)"}
+    >
+      ⚙️
+    </button>
+  </div>
 </td>
 
             </tr>
@@ -1267,7 +1231,7 @@ e.currentTarget.style.transform=
 
       </table>
 
-    </GlassScrollArea>
+    </div>
 
 </>
       
@@ -1283,11 +1247,10 @@ e.currentTarget.style.transform=
 >
   <div>
     <h2
-      style={{
-        margin: 0,
-        fontSize: "30px",
-        fontWeight: "700",
-        color: "#f8fafc",
+      style={{    margin: 0,
+    fontSize: "30px",
+    fontWeight: "700",
+    color: textColor("primary"),
       }}
     >
       Increment History
@@ -1296,7 +1259,7 @@ e.currentTarget.style.transform=
     <p
       style={{
         marginTop: "8px",
-        color: "#94a3b8",
+        color: textColor("secondary"),
         fontSize: "15px",
       }}
     >
@@ -1328,9 +1291,9 @@ e.currentTarget.style.transform=
         style={{
           padding: "10px 16px",
           borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,.08)",
-          background: "rgba(255,255,255,.04)",
-          color: "#f8fafc",
+          border: "1px solid #d1d5db",
+          background: "#ffffff",
+          color: "#0f172a",
           fontSize: "14px",
           fontWeight: "600",
           outline: "none",
@@ -1356,9 +1319,9 @@ e.currentTarget.style.transform=
         style={{
           padding: "10px 16px",
           borderRadius: "12px",
-          border: "1px solid rgba(255,255,255,.08)",
-          background: "rgba(255,255,255,.04)",
-          color: "#f8fafc",
+          border: "1px solid #d1d5db",
+          background: "#ffffff",
+          color: "#0f172a",
           fontSize: "14px",
           fontWeight: "600",
           outline: "none",
@@ -1377,15 +1340,12 @@ e.currentTarget.style.transform=
   height={420}
   style={{
     borderRadius: "24px",
-    border: "1px solid rgba(255,255,255,.08)",
-    background:
-      "linear-gradient(180deg, rgba(17,24,39,.72), rgba(15,23,42,.72))",
-    backdropFilter: "blur(22px)",
-    WebkitBackdropFilter: "blur(22px)",
-    boxShadow: "0 15px 40px rgba(0,0,0,.28)",
+    border: "1px solid #e2e8f0",
+    background: "#ffffff",
+    boxShadow: "0 1px 3px rgba(0,0,0,.08)",
   }}
 >
-  <table style={tableStyle}>
+  <table style={{ ...tableStyle, color: textColor('primary') }}>
     <thead>
 
 <tr style={tableHeaderRow}>
@@ -1427,22 +1387,14 @@ e.currentTarget.style.transform=
             <tr
 key={item.id}
 
-style={rowStyle}
-
-onMouseEnter={(e)=>{
-
-e.currentTarget.style.background=
-"rgba(55,255,215,.05)";
-e.currentTarget.style.boxShadow =
-"0 8px 22px rgba(0,0,0,.18)";
+style={rowStyle}onMouseEnter={(e)=>{
+e.currentTarget.style.background="rgba(37,99,235,.05)";
+e.currentTarget.style.boxShadow="inset 4px 0 #2563eb";
 }}
 
 onMouseLeave={(e)=>{
-
-e.currentTarget.style.background=
-"transparent";
-e.currentTarget.style.boxShadow =
-"none";
+e.currentTarget.style.background="transparent";
+e.currentTarget.style.boxShadow="none";
 }}
 
 >
@@ -1450,7 +1402,7 @@ e.currentTarget.style.boxShadow =
               <td
   style={{
     padding: "18px 16px",
-    borderBottom: "1px solid rgba(255,255,255,.06)",
+    borderBottom: "1px solid #f1f5f9",
   }}
 >
   <div
@@ -1465,16 +1417,13 @@ e.currentTarget.style.boxShadow =
         width: "38px",
         height: "38px",
         borderRadius: "50%",
-        background:
-          "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+        background: "linear-gradient(135deg,#2563eb,#3b82f6)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#08111d",
+        color: "#ffffff",
         fontWeight: "700",
         fontSize: "15px",
-        boxShadow:
-          "0 0 16px rgba(55,255,215,.30)",
       }}
     >
       {(item.employee_name || "?")
@@ -1484,31 +1433,24 @@ e.currentTarget.style.boxShadow =
 
     <span
       style={{
-        color: "#f8fafc",
-        fontWeight: "600",
-      }}
-    >
-      {item.employee_name || "-"}
-    </span>
+    color: textColor("primary"),
+    fontWeight: "600",
+  }}
+>
+  {item.employee_name || "-"}
+</span>
   </div>
 </td>
 
 <td style={tdStyle}>
 <div
 style={{
-
-display:"inline-block",
-
-padding:"7px 14px",
-
-borderRadius:"999px",
-
-background:"rgba(255,255,255,.05)",
-
-color:"#94a3b8",
-
-fontWeight:"600",
-
+  display:"inline-block",
+  padding:"7px 14px",
+  borderRadius:"999px",
+  background:"#f1f5f9",
+  color:"#475569",
+  fontWeight:"600",
 }}
 >
 
@@ -1562,11 +1504,11 @@ padding:"7px 14px",
 borderRadius:"999px",
 
 background:
-"rgba(55,255,215,.10)",
+"rgba(34,197,94,.10)",
 
 border:"1px solid rgba(34,197,94,.25)",
 
-color:"#22c55e",
+color:"#16a34a",
 
 fontWeight:"700",
 
@@ -1583,10 +1525,8 @@ fontWeight:"700",
               <td
                 style={{
   ...tdStyle,
-  color: "#37FFD7",
+  color: "#059669",
   fontWeight: "800",
-  textShadow:
-    "0 0 10px rgba(55,255,215,.30)",
 }}
               >
                 ₹{
@@ -1599,22 +1539,17 @@ fontWeight:"700",
               <td
   style={{
     ...tdStyle,
-    color: "#cbd5e1",
+    color: "#64748b",
     fontWeight: "500",
   }}
 >
 <div
 style={{
-
-display:"inline-block",
-
-padding:"6px 14px",
-
-borderRadius:"999px",
-
-background:"rgba(255,255,255,.04)",
-
-color:"#cbd5e1",
+  display:"inline-block",
+  padding:"6px 14px",
+  borderRadius:"999px",
+  background:"#f1f5f9",
+  color:"#64748b",
 
 }}
 >
@@ -1638,79 +1573,116 @@ color:"#cbd5e1",
 
 </GlassScrollArea>
 </>
-          {editingEmployee && (
+          {editingEmployee && (() => {
+  const gross = Number(editingEmployee?.salary || 0);
+  const basicDA = editBasicDA !== '' ? Number(editBasicDA) : editingEmployee?.basic_da || 0;
+  const hra = editHRA !== '' ? Number(editHRA) : editingEmployee?.hra || 0;
+  const conveyance = editConveyance !== '' ? Number(editConveyance) : editingEmployee?.conveyance_allowance || 0;
+  const medical = editMedical !== '' ? Number(editMedical) : editingEmployee?.medical_allowance || 0;
+  const other = editOtherAllowance !== '' ? Number(editOtherAllowance) : editingEmployee?.other_allowance || 0;
+  const pf = editPF !== '' ? Number(editPF) : editingEmployee?.pf || 0;
+  const bonus = Number(editBonus || 0);
+  const deduction = Number(editDeduction || 0);
+  const totalEarnings = basicDA + hra + conveyance + medical + other + bonus;
+  const totalDeductions = pf + deduction;
+  const netPay = Math.max(0, totalEarnings - totalDeductions);
 
-  <div style={modalOverlay}>
+  return (
+  <div style={getModalOverlay()}>
+    <div style={{ ...getModalBox(), width: '580px', maxHeight: '85vh', overflowY: 'auto' }}>
+      <h2 style={{ marginBottom: '20px', color: textColor('primary'), fontSize: '24px', fontWeight: '700' }}>
+        ✏️ Edit Salary Components
+      </h2>
 
-    <div style={modalBox}>
-
-      <h2
-  style={{
-    marginBottom: '25px',
-    color: '#f8fafc',
-    fontSize: '28px'
-  }}
->
-  Edit Payroll
-</h2>
-
-      <label>
-        Bonus
-      </label>
-
-      <input
-        type="number"
-        value={editBonus}
-        onChange={(e) =>
-          setEditBonus(e.target.value)
-        }
-        style={modalInput}
-      />
-
-      <label>
-        Deduction
-      </label>
-
-      <input
-        type="number"
-        value={editDeduction}
-        onChange={(e) =>
-          setEditDeduction(e.target.value)
-        }
-        style={modalInput}
-      />
-
-      <div
-        style={{
-          display: 'flex',
-          gap: '10px',
-          marginTop: '20px'
-        }}
-      >
-
-        <button
-          onClick={savePayrollChanges}
-          style={saveButton}
-        >
-          Save
-        </button>
-
-        <button
-          onClick={() =>
-            setEditingEmployee(null)
-          }
-          style={cancelButton}
-        >
-          Cancel
-        </button>
-
+      {/* Employee Info */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '20px', padding: '14px', borderRadius: '14px', background: 'rgba(0,0,0,.02)', border: '1px solid #e2e8f0'}}>
+        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg,#0891b2,#0284c7)', display: 'flex', justifyContent: 'center', alignItems: 'center', color: '#fff', fontWeight: '700', fontSize: '16px' }}>
+          {editingEmployee?.name?.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style={{ fontWeight: '700', color: textColor('primary'), fontSize: '16px' }}>{editingEmployee?.name}</div>
+          <div style={{ fontSize: '12px', color: textColor('secondary') }}>Gross Salary: ₹{gross.toLocaleString()}</div>
+        </div>
       </div>
 
+      {/* Salary Components - Editable */}
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#0891b2', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>💰 Salary Components</div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Basic + DA</label>
+            <input type="number" value={editBasicDA} onChange={(e) => setEditBasicDA(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.basic_da || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>HRA</label>
+            <input type="number" value={editHRA} onChange={(e) => setEditHRA(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.hra || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Conveyance</label>
+            <input type="number" value={editConveyance} onChange={(e) => setEditConveyance(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.conveyance_allowance || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Medical</label>
+            <input type="number" value={editMedical} onChange={(e) => setEditMedical(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.medical_allowance || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Other Allowance</label>
+            <input type="number" value={editOtherAllowance} onChange={(e) => setEditOtherAllowance(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.other_allowance || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>PF</label>
+            <input type="number" value={editPF} onChange={(e) => setEditPF(e.target.value)} placeholder={`Auto: ₹${editingEmployee?.pf || 0}`} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Bonus & Deduction */}
+      <div style={{ marginBottom: '12px' }}>
+        <div style={{ fontSize: '11px', fontWeight: '700', color: '#16a34a', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>📊 Bonus & Deductions</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Bonus</label>
+            <input type="number" value={editBonus} onChange={(e) => setEditBonus(e.target.value)} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+          <div>
+            <label style={{ color: textColor('secondary'), fontSize: '12px', fontWeight: '600' }}>Extra Deduction</label>
+            <input type="number" value={editDeduction} onChange={(e) => setEditDeduction(e.target.value)} style={{ ...getModalInput(), marginTop: '4px', marginBottom: '0' }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Live Preview */}
+      <div style={{ padding: '16px', borderRadius: '14px', background: 'rgba(34,197,94,.04)', border: '1px solid rgba(34,197,94,.2)', marginTop: '16px' }}>
+        <div style={{ fontSize: '12px', color: '#22c55e', fontWeight: '700', marginBottom: '10px' }}>📊 Live Preview</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
+          <span style={{ color: textColor('secondary') }}>Basic + DA: <strong style={{ color: textColor('primary') }}>₹{basicDA.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>HRA: <strong style={{ color: textColor('primary') }}>₹{hra.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>Conveyance: <strong style={{ color: textColor('primary') }}>₹{conveyance.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>Medical: <strong style={{ color: textColor('primary') }}>₹{medical.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>Other: <strong style={{ color: textColor('primary') }}>₹{other.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>PF: <strong style={{ color: '#ef4444' }}>₹{pf.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>Bonus: <strong style={{ color: '#22c55e' }}>₹{bonus.toLocaleString()}</strong></span>
+          <span style={{ color: textColor('secondary') }}>Extra Deduction: <strong style={{ color: '#ef4444' }}>₹{deduction.toLocaleString()}</strong></span>
+        </div>
+        <div style={{ borderTop: '1px solid rgba(34,197,94,.15)', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontSize: '13px', color: textColor('secondary') }}>Total Earnings: <strong style={{ color: '#22c55e' }}>₹{totalEarnings.toLocaleString()}</strong></span>
+          <span style={{ fontSize: '13px', color: textColor('secondary') }}>Total Deductions: <strong style={{ color: '#ef4444' }}>₹{totalDeductions.toLocaleString()}</strong></span>
+        </div>
+        <div style={{ marginTop: '8px', textAlign: 'right' }}>
+          <span style={{ fontSize: '15px', fontWeight: '800', color: '#0891b2'}}>Net Pay: ₹{netPay.toLocaleString()}</span>
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+        <button onClick={savePayrollChanges} style={{ ...saveButton, flex: 1 }}>💾 Save Changes</button>
+        <button onClick={() => setEditingEmployee(null)} style={cancelButton}>Cancel</button>
+      </div>
     </div>
-
   </div>
-
-)}
+  );
+})()}
 {showPayrollModal && (
   <div
     style={{
@@ -1735,21 +1707,21 @@ color:"#cbd5e1",
   overflowY: "auto",
 
   background:
-    "linear-gradient(180deg,#172033,#101827)",
+    "#ffffff",
 
-  color: "#fff",
+  color: textColor('primary'),
 
   borderRadius: "24px",
 
   padding: "30px",
 
   border:
-    "1px solid rgba(55,255,215,.12)",
+    "1px solid #e2e8f0",
 
   backdropFilter: "blur(20px)",
 
   boxShadow:
-    "0 0 45px rgba(0,212,255,.10)",
+    "0 12px 40px rgba(0,0,0,.1)",
 }}
     >
       <div
@@ -1763,7 +1735,7 @@ style={{
 fontSize:"12px",
 letterSpacing:"2px",
 fontWeight:"700",
-color:"#37FFD7",
+color: "#0891b2",
 }}
 >
 
@@ -1776,6 +1748,7 @@ style={{
 margin:"8px 0",
 fontSize:"32px",
 fontWeight:"800",
+color: textColor('primary'),
 }}
 >
 
@@ -1786,7 +1759,7 @@ Payroll Settings
 <p
 style={{
 margin:0,
-color:"#94a3b8",
+color: textColor('secondary'),
 }}
 >
 
@@ -1804,8 +1777,8 @@ Configure employee salary components.
     marginBottom: "24px",
     padding: "18px",
     borderRadius: "18px",
-    background: "rgba(255,255,255,.03)",
-    border: "1px solid rgba(255,255,255,.06)",
+    background: "rgba(0,0,0,.02)",
+    border: "1px solid #e2e8f0",
   }}
 >
   <div
@@ -1814,11 +1787,11 @@ Configure employee salary components.
       height: "48px",
       borderRadius: "50%",
       background:
-        "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+        "linear-gradient(135deg,#0891b2,#0284c7)",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
-      color: "#08111d",
+      color: "#ffffff",
       fontWeight: "700",
       fontSize: "18px",
     }}
@@ -1827,19 +1800,19 @@ Configure employee salary components.
   </div>
 
   <div>
-    <div
-      style={{
+    <div      style={{
         fontSize: "18px",
         fontWeight: "700",
+        color: textColor('primary'),
       }}
-    >
+>
       {selectedEmployee?.name}
     </div>
 
     <div
       style={{
         fontSize: "13px",
-        color: "#94a3b8",
+        color: textColor('secondary'),
       }}
     >
       Employee Payroll Configuration
@@ -1862,27 +1835,25 @@ Configure employee salary components.
 
   borderRadius: "18px",
 
-  background: "rgba(255,255,255,.03)",
+  background: "rgba(0,0,0,.02)",
 
-  border: "1px solid rgba(255,255,255,.06)",
+  border: "1px solid #e2e8f0",
 
   transition: "all .25s ease",
 }}
-onMouseEnter={(e) => {
-  e.currentTarget.style.background =
-    "rgba(55,255,215,.05)";
+onMouseEnter={(e) => {    e.currentTarget.style.background =
+    "rgba(8,145,178,.05)";
   e.currentTarget.style.border =
-    "1px solid rgba(55,255,215,.18)";
+    "1px solid rgba(8,145,178,.18)";
 }}
 
-onMouseLeave={(e) => {
-  e.currentTarget.style.background =
-    "rgba(255,255,255,.03)";
+onMouseLeave={(e) => {    e.currentTarget.style.background =
+    "rgba(0,0,0,.02)";
   e.currentTarget.style.border =
-    "1px solid rgba(255,255,255,.06)";
+    "1px solid #e2e8f0";
 }}
   >
-    <span style={{ fontWeight: "500" }}>{option.label}</span>
+    <span style={{ fontWeight: "500", color: textColor('primary') }}>{option.label}</span>
 
 <div
   style={{
@@ -1904,7 +1875,7 @@ onMouseLeave={(e) => {
 
         background: payrollSettings[option.key]
             ? "linear-gradient(135deg,#06b6d4,#2563eb)"
-            : "rgba(255,255,255,.04)",
+            : "#f1f5f9",
 
         color: payrollSettings[option.key]
             ? "#fff"
@@ -1927,7 +1898,7 @@ onMouseLeave={(e) => {
 
         background: !payrollSettings[option.key]
             ? "linear-gradient(135deg,#ef4444,#dc2626)"
-            : "rgba(255,255,255,.04)",
+            : "#f1f5f9",
 
         color: !payrollSettings[option.key]
             ? "#fff"
@@ -1956,7 +1927,7 @@ onMouseLeave={(e) => {
 
   minWidth: "120px",
 
-  color: "#cbd5e1",
+  color: "#475569",
 }}
   >
     Cancel
@@ -1982,12 +1953,12 @@ onMouseLeave={(e) => {
 
     // Refresh payroll data
     const payrollResponse = await apiFetch(
-      `${API_BASE}/api/payroll`
+      `${API_BASE}/api/payroll/monthly?month=${selectedMonth}&year=${selectedYear}`
     );
 
     const payrollData = await payrollResponse.json();
 
-    setPayroll(payrollData);
+    setPayroll(Array.isArray(payrollData) ? payrollData : []);
 
     setShowPayrollModal(false);
 
@@ -2006,12 +1977,12 @@ onMouseLeave={(e) => {
     "linear-gradient(135deg,#06b6d4,#2563eb)",
 
   border:
-    "1px solid rgba(55,255,215,.18)",
+    "1px solid #2563eb",
 
   color: "#fff",
 
   boxShadow:
-    "0 0 24px rgba(55,255,215,.18)",
+    "0 0 24px rgba(6,182,212,.18)",
 }}
 >
   Save Changes
@@ -2037,29 +2008,13 @@ onMouseLeave={(e) => {
 
 }
 
-const headerStyle = {
-  background: '#0f172a',
-  color: '#cbd5e1',
-  padding: '18px',
-  textAlign: 'center',
-  fontWeight: '600',
-  fontSize: '15px',
-  borderBottom: '1px solid #334155'
-}
 const tableStyle = {
-
     width:"100%",
-
     minWidth:"1700px",
-
     borderCollapse:"separate",
-
     borderSpacing:"0",
-
-    color:"#f8fafc",
-
+    color:"#0f172a",
     textAlign:"center",
-
 }
 
 const rowStyle = {
@@ -2069,82 +2024,57 @@ const rowStyle = {
   cursor: "pointer",
 
 };
-const actionButton={
-
-width:"42px",
-
-height:"42px",
-
-borderRadius:"12px",
-
-border:"1px solid rgba(55,255,215,.18)",
-
-background:
-"rgba(255,255,255,.05)",
-
-color:"#37FFD7",
-
-fontSize:"18px",
-
-cursor:"pointer",
-
-transition:".25s",
-
-}
-const pdfActionButton={
-
-width:"42px",
-
-height:"42px",
-
-borderRadius:"12px",
-
-border:"1px solid rgba(59,130,246,.20)",
-
-background:
-"rgba(255,255,255,.05)",
-
-color:"#38bdf8",
-
-fontSize:"18px",
-
-cursor:"pointer",
-
-transition:".25s",
-
-}
-const modalOverlay = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  width: '100%',
-  height: '100%',
-  background: 'rgba(0,0,0,0.5)',
-  display: 'flex',
-  justifyContent: 'center',
-  alignItems: 'center'
-}
-
-const modalBox = {
-  background: '#1e293b',
-  color: '#f8fafc',
-  padding: '35px',
-  borderRadius: '20px',
-  width: '500px',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.45)'
-}
-const modalInput = {
-  width: '100%',
-  padding: '12px',
-  marginTop: '8px',
-  marginBottom: '15px',
-  border: '1px solid #475569',
+const editActionBtn = {
+  padding: '8px 14px',
   borderRadius: '10px',
-  background: '#0f172a',
-  color: '#f8fafc',
-  outline: 'none'
+  border: '1px solid #0891b2',
+  background: 'rgba(8,145,178,.08)',
+  color: '#0891b2',
+  fontSize: '13px',
+  fontWeight: '600',
+  cursor: 'pointer',
+  transition: '.25s',
+  whiteSpace: 'nowrap',
+}
+const settingsBtn = {
+  width: '36px',
+  height: '36px',
+  borderRadius: '10px',
+  border: '1px solid #d1d5db',
+  background: '#ffffff',
+  color: '#2563eb',
+  fontSize: '16px',
+  cursor: 'pointer',
+  transition: '.25s',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+}
+function getModalOverlay() {
+  return {
+    position: 'fixed',
+    top: 0, left: 0, width: '100%', height: '100%',
+    background: 'rgba(15,23,42,.35)',
+    display: 'flex', justifyContent: 'center', alignItems: 'center',
+    zIndex: 99999
+  };
+}
+function getModalBox() {
+  return {
+    background: '#ffffff',
+    color: textColor('primary'),
+    padding: '35px', borderRadius: '20px', width: '500px',
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+  };
+}
+function getModalInput() {
+  return {
+    width: '100%', padding: '12px', marginTop: '8px', marginBottom: '15px',
+    border: '1px solid #d1d5db',
+    borderRadius: '10px', background: '#ffffff',
+    color: textColor('primary'), outline: 'none'
+  };
 }
 
 const saveButton = {
@@ -2173,40 +2103,20 @@ const cardContainer = {
 };
 
 const searchInput={
-
 width: "420px",
-
-height:"48px",
-
-padding:"0 18px",
-
-borderRadius:"14px",
-
-border:
-"1px solid rgba(255,255,255,.08)",
-
-background:
-"rgba(255,255,255,.04)",
-
-backdropFilter:"blur(18px)",
-
-color:"#fff",
-
-fontSize:"14px",
-
-outline:"none",
-
-transition:".25s",
-
+height: "48px",
+padding: "0 18px",
+borderRadius: "14px",
+border: "1px solid #d1d5db",
+background: "#ffffff",
+color: "#0f172a",
+fontSize: "14px",
+outline: "none",
+transition: ".25s",
+boxSizing: "border-box",
 }
 const tdStyle = {
   padding: "16px"
-}
-const incrementTableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  textAlign: "center",
-  color: "#f8fafc"
 }
 const tableHeaderRow = {
 
@@ -2221,105 +2131,41 @@ const tableHeader = {
   position: "sticky",
   top: 0,
   zIndex: 10,
-
-  background: "rgba(15,23,42,.95)",
-
-  backdropFilter: "blur(18px)",
-
-  color: "#cbd5e1",
-
+  background: "#f8fafc",
+  color: "#475569",
   fontWeight: "700",
-
   fontSize: "13px",
-
   textTransform: "uppercase",
-
   letterSpacing: "1px",
-
   padding: "18px",
-
-  borderBottom: "1px solid rgba(255,255,255,.08)",
-
+  borderBottom: "1px solid #e2e8f0",
   whiteSpace: "nowrap",
 };
-const toolbarButton={
-
-height:"48px",
-
-padding:"0 22px",
-
-borderRadius:"14px",
-
-border:"1px solid rgba(55,255,215,.18)",
-
-background:
-"rgba(255,255,255,.04)",
-
-backdropFilter:"blur(18px)",
-
-color:"#37FFD7",
-
-fontWeight:"700",
-
-cursor:"pointer",
-
-transition:".25s",
-
-}
 const glassButton = {
   padding: "12px 22px",
-
   borderRadius: "16px",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
-  backdropFilter: "blur(18px)",
-
-  WebkitBackdropFilter: "blur(18px)",
-
-  color: "#f8fafc",
-
+  border: "1px solid #e2e8f0",
+  background: "#ffffff",
+  color: "#0f172a",
   fontWeight: 600,
-
   cursor: "pointer",
-
   transition: "all .25s ease",
-
   display: "flex",
-
   alignItems: "center",
-
   justifyContent: "center",
-
   gap: "8px",
-
-  boxShadow:
-    "0 12px 30px rgba(0,0,0,.25)"
+  boxShadow: "0 1px 3px rgba(0,0,0,.08)",
 };
 const toggleButton = {
-
 width: "74px",
-
 height: "36px",
-
-border: "1px solid rgba(255,255,255,.08)",
-
+border: "1px solid #d1d5db",
 borderRadius: "12px",
-
 cursor: "pointer",
-
 fontWeight: "700",
-
 fontSize: "13px",
-
 transition: ".25s",
-
-backdropFilter: "blur(12px)",
-
-color: "#fff",
+color: "#0f172a",
 
 };
 export default Payroll

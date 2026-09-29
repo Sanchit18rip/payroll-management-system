@@ -9,7 +9,7 @@ export default function TermsModal({
       {open && (
         <div style={termsOverlay}>
           <div style={termsBox}>
-            <h2 style={{ color: '#f8fafc', marginTop: 0, marginBottom: '14px' }}>
+            <h2 style={{ color: '#0f172a', marginTop: 0, marginBottom: '14px' }}>
               Terms &amp; Conditions
             </h2>
             <div style={termsTextBox}>
@@ -72,7 +72,7 @@ export default function TermsModal({
               <p>These Terms and Conditions shall be governed by the laws of India. Any disputes shall be subject to the jurisdiction of the courts of Mumbai, Maharashtra.</p>
               <br />
               
-              <hr style={{ borderColor: '#334155', margin: '15px 0' }} />
+              <hr style={{ borderColor: '#e2e8f0', margin: '15px 0' }} />
               
               <p><strong>User Consent</strong></p>
               <p>By clicking "I Agree", you confirm that:</p>
@@ -121,23 +121,23 @@ const termsOverlay = {
 };
 
 const termsBox = {
-  background: '#1e293b',
-  border: '1px solid #334155',
+  background: '#ffffff',
+  border: '1px solid #e2e8f0',
   borderRadius: '20px',
   padding: '32px',
   maxWidth: '560px',
   width: '100%',
-  boxShadow: '0 8px 40px rgba(0,0,0,0.5)'
+  boxShadow: '0 8px 40px rgba(0,0,0,0.15)'
 };
 
 const termsTextBox = {
-  background: '#0f172a',
-  border: '1px solid #334155',
+  background: '#f8fafc',
+  border: '1px solid #e2e8f0',
   borderRadius: '12px',
   padding: '16px 18px',
   maxHeight: '220px',
   overflowY: 'auto',
-  color: '#94a3b8',
+  color: '#475569',
   fontSize: '13px',
   lineHeight: '1.7',
   marginBottom: '18px'

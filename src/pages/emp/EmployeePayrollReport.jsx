@@ -1,20 +1,20 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { apiFetch, API_BASE } from '../../api'
 import useEmployeeData from './useEmployeeData'
 import { styles, colors, radius, formatCurrency, getMonthName } from './theme'
+import { generatePayslipPDF } from '../../utils/payslipPdf'
 import { FileText, BarChart3, Download } from 'lucide-react'
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function EmployeePayrollReport() {
-  const { loading: dataLoading, errorMsg, employee, payableSalary } = useEmployeeData()
+  const { loading: dataLoading, errorMsg, employee } = useEmployeeData()
   const now = new Date()
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [year, setYear] = useState(now.getFullYear())
   const [payroll, setPayroll] = useState(null)
   const [loading, setLoading] = useState(false)
   const [tab, setTab] = useState('payslip')
-  const slipRef = useRef(null)
 
   useEffect(() => {
     if (!employee?.id) return
@@ -24,17 +24,45 @@ function EmployeePayrollReport() {
       .finally(() => setLoading(false))
   }, [employee?.id, month, year])
 
-  const downloadPDF = () => {
-    const el = slipRef.current
-    if (!el) return
-    import('html2canvas').then(({ default: html2canvas }) => {
-      html2canvas(el, { backgroundColor: '#ffffff', scale: 2, useCORS: true }).then(canvas => {
-        const link = document.createElement('a')
-        link.download = `Payslip_${employee.name}_${getMonthName(month)}_${year}.png`
-        link.href = canvas.toDataURL('image/png')
-        link.click()
-      })
-    })
+  // Build the salary object in the same shape the HR payslip PDF expects
+  const buildSalaryForPdf = () => {
+    if (!payroll) return null
+    return {
+      fixedGrossSalary: Number(payroll.earnings?.gross_salary) || 0,
+      basicDA: Number(payroll.earnings?.basic_da) || 0,
+      earnBasic: Number(payroll.earnings?.basic_da) || 0,
+      earnHRA: Number(payroll.earnings?.hra) || 0,
+      earnConv: Number(payroll.earnings?.conveyance) || 0,
+      earnMed: Number(payroll.earnings?.medical) || 0,
+      earnOther: Number(payroll.earnings?.other_allowance) || 0,
+      earnGross: Number(payroll.earnings?.gross_salary) || 0,
+      hraFull: Number(payroll.earnings?.hra) || 0,
+      convFull: Number(payroll.earnings?.conveyance) || 0,
+      medFull: Number(payroll.earnings?.medical) || 0,
+      otherFull: Number(payroll.earnings?.other_allowance) || 0,
+      pf: Number(payroll.deductions?.pf) || 0,
+      esic: Number(payroll.deductions?.esic) || 0,
+      pt: Number(payroll.deductions?.professional_tax) || 0,
+      lwf: Number(payroll.deductions?.lwf) || 0,
+      tds: Number(payroll.deductions?.tds) || 0,
+      totalDed: Number(payroll.deductions?.total_deduction) || 0,
+      netPayable: Number(payroll.payable_salary) || 0,
+      gratuity: Number(payroll.employer_contributions?.gratuity) || 0,
+    }
+  }
+
+  // Same payslip PDF as HR side (Talent Corner format + stamp/signature)
+  const downloadPDF = async () => {
+    try {
+      const salary = buildSalaryForPdf()
+      if (!salary || !employee) { alert('Payslip data is not available.'); return }
+      const monthName = getMonthName(month)
+      const period = `${monthName} ${year}`
+      await generatePayslipPDF(employee, salary, period, monthName, year)
+    } catch (err) {
+      console.error('Payslip download error:', err)
+      alert('Failed to generate payslip.')
+    }
   }
 
   if (dataLoading) return <div style={styles.centerScreen}><div style={{ color: colors.text.secondary }}>Loading...</div></div>
@@ -48,7 +76,7 @@ function EmployeePayrollReport() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(15,23,42,0.5)', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f1f5f9', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
         {[['payslip', 'View Payslip', FileText], ['yearly', 'Yearly Summary', BarChart3]].map(([k, l, Icon]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 18px', borderRadius: radius.sm, border: 'none', background: tab === k ? 'rgba(99,102,241,0.2)' : 'transparent', color: tab === k ? colors.text.primary : colors.text.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={14} /> {l}</button>
         ))}
@@ -72,11 +100,11 @@ function EmployeePayrollReport() {
         loading ? (
           <div style={styles.sectionCard}><p style={{ color: colors.text.muted }}>Loading payslip...</p></div>
         ) : payroll ? (
-          <div ref={slipRef} style={{ background: '#ffffff', borderRadius: radius.xl, padding: 40, maxWidth: 700, margin: '0 auto', color: '#1a1a1a', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: '#ffffff', borderRadius: radius.xl, padding: 40, maxWidth: 700, margin: '0 auto', color: '#1a1a1a', boxShadow: '0 4px 24px rgba(0,0,0,0.15)' }}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #6366f1', paddingBottom: 20, marginBottom: 24 }}>
               <div>
-                <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#1e293b' }}>Talent Pay Corner</h2>
+                <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 700, color: '#1e293b' }}>Talent Corner HR Services Pvt Ltd.</h2>
                 <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>Payslip for {getMonthName(month)} {year}</p>
               </div>
               <div style={{ textAlign: 'right' }}>

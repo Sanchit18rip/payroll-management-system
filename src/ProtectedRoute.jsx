@@ -62,8 +62,8 @@ if (!session) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#0f172a",
-          color: "#f8fafc",
+          background: "#f0f4f8",
+          color: "#0f172a",
           fontSize: "18px",
           fontWeight: "600",
         }}

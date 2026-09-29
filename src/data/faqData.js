@@ -110,14 +110,14 @@ export const faqData = [
     audience: 'employee',
     keywords: ['work from home', 'wfh', 'remote attendance'],
     question: 'How do I mark Work From Home attendance?',
-    answer: 'When marking attendance, select "Work From Home" instead of Office, then open the camera. The geofence (location) check is skipped for WFH. Face verification is still required — show your live face and blink when prompted.'
+    answer: 'When marking attendance, select "Work From Home" instead of Office, then open the camera. The geofence (location) check is skipped for WFH. Face verification is still required — show your live face to the camera.'
   },
   {
     id: 'emp-exit-attendance',
     audience: 'employee',
     keywords: ['mark exit', 'check out', 'exit attendance', 'clock out'],
     question: 'How do I mark my exit / clock out?',
-    answer: 'After checking in, a "Mark My Exit" button will appear on your dashboard. Click it, show your face to the camera, blink for liveness check, and your exit time will be recorded automatically.'
+    answer: 'After checking in, a "Mark My Exit" button will appear on your dashboard. Click it, show your face to the camera, and your exit time will be recorded automatically.'
   },
   {
     id: 'emp-monthly-leaves',

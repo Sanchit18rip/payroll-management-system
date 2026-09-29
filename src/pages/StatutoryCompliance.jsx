@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { apiFetch, API_BASE } from "../api";
+import { getFallbackFinancialYears, pickDefaultFinancialYear } from "../utils/financialYear";
 import * as XLSX from "xlsx";
 import { Download } from "lucide-react";
+import { textColor as txColor } from "../styles/adminTheme";
 
 const formatNumberWithCommas = (number) => {
     if (number == null) return "N/A";
@@ -35,9 +37,9 @@ const StatutoryCompliance = () => {
                 ]);
                 const years = await yearsRes.json();
                 const emps = await empRes.json();
-                setAvailableYears(years.length ? years : ["2024-2025", "2025-2026"]);
+                setAvailableYears(years.length ? years : getFallbackFinancialYears());
                 setEmployees(emps);
-                if (years.length) setFinancialYear(years[0]);
+                setFinancialYear(pickDefaultFinancialYear(years));
             } catch (err) {
                 console.error(err);
             } finally {
@@ -48,22 +50,24 @@ const StatutoryCompliance = () => {
     }, []);
 
     const calculateSalary = (employee, monthIndex) => {
-        const fgs = employee.gross_salary || employee.salary || 0;
-        const basic = employee.basic_da || Math.round(fgs * 0.5);
+        const fgs = Number(employee.gross_salary) || Number(employee.salary) || 0;
+        const basic = Number(employee.basic_da) || Math.round(fgs * 0.5);
         const dim = getDaysInMonth(monthIndex, financialYear);
         const eb = Math.round((basic / dim) * dim);
         const hra = employee.hra_enabled ? Math.round(basic * 0.5) : 0;
         const eh = Math.round((hra / dim) * dim);
-        const conv = employee.conveyance_enabled ? (employee.conveyance_allowance || 1200) : 0;
+        const conv = employee.conveyance_enabled ? (Number(employee.conveyance_allowance) || 1200) : 0;
         const ec = Math.round((conv / dim) * dim);
-        const med = employee.medical_enabled ? (employee.medical_allowance || 1000) : 0;
+        const med = employee.medical_enabled ? (Number(employee.medical_allowance) || 1000) : 0;
         const em = Math.round((med / dim) * dim);
         const other = employee.other_expense_enabled ? Math.round(fgs - basic - hra - conv - med) : 0;
         const eo = Math.round((other / dim) * dim);
         const eg = Math.round(eb + eh + ec + em + eo);
         const pfW = Math.round(eg - eh);
         const pf = (employee.employee_pf_enabled && employee.employer_pf_enabled && pfW < 15000) ? Math.round(pfW * 0.12) : (employee.employee_pf_enabled && employee.employer_pf_enabled ? 1800 : 0);
-        const pt = employee.professional_tax_enabled ? ((eg > 25000) ? 200 : 0) : 0;
+        const isMale = (employee.gender || '').toLowerCase() === 'male';
+        // PT threshold is based on the employee's fixed monthly gross salary, not earned components
+        const pt = isMale ? 200 : (fgs > 25000 ? 200 : 0);
         const esicEnabled = employee.esic_enabled ?? false;
         const esic = (esicEnabled && eg < 21000) ? Math.round(eg * 0.0075) : 0;
         const lwfEnabled = employee.lwf_enabled ?? false;
@@ -104,9 +108,9 @@ const StatutoryCompliance = () => {
         return (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div></div>);
     }
 
-    const selectStyle = { padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.08)", background: "rgba(255,255,255,.04)", color: "#f8fafc", fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer", width: "100%" };
-    const thStyle = { padding: "16px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#94a3b8", borderBottom: "1px solid rgba(255,255,255,.06)", whiteSpace: "nowrap", background: "rgba(255,255,255,.02)", letterSpacing: ".3px", textTransform: "uppercase", position: "sticky", top: 0 };
-    const tdStyle = { padding: "14px", fontSize: "13px", color: "#cbd5e1", borderBottom: "1px solid rgba(255,255,255,.04)", whiteSpace: "nowrap" };
+    const selectStyle = { padding: "12px 16px", borderRadius: "12px", border: "1px solid #d1d5db", background: "#ffffff", color: txColor('primary'), fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer", width: "100%" };
+    const thStyle = { padding: "16px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: txColor('secondary'), borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap", background: "#f8fafc", letterSpacing: ".3px", textTransform: "uppercase", position: "sticky", top: 0 };
+    const tdStyle = { padding: "14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9", whiteSpace: "nowrap" };
 
     const reportOptions = [
         { id: "PF", label: "Provident Fund" },
@@ -122,27 +126,27 @@ const StatutoryCompliance = () => {
             {/* Controls */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: "16px", marginBottom: "24px", alignItems: "flex-end" }}>
                 <div style={{ flex: "1", minWidth: "200px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", color: "#94a3b8", fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Financial Year</label>
+                    <label style={{ display: "block", marginBottom: "8px", color: txColor('secondary'), fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Financial Year</label>
                     <select value={financialYear} onChange={(e) => setFinancialYear(e.target.value)} style={selectStyle}>
                         {availableYears.map(y => <option key={y} value={y}>{y}</option>)}
                     </select>
                 </div>
                 <div style={{ flex: "1", minWidth: "200px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", color: "#94a3b8", fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Month</label>
+                    <label style={{ display: "block", marginBottom: "8px", color: txColor('secondary'), fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Month</label>
                     <select value={selectedMonth || ""} onChange={(e) => setSelectedMonth(e.target.value || null)} style={selectStyle}>
                         <option value="">All Months</option>
                         {monthsList.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                 </div>
                 <div style={{ flex: "1", minWidth: "200px" }}>
-                    <label style={{ display: "block", marginBottom: "8px", color: "#94a3b8", fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Report Type</label>
+                    <label style={{ display: "block", marginBottom: "8px", color: txColor('secondary'), fontSize: "13px", fontWeight: "600", letterSpacing: ".3px" }}>Report Type</label>
                     <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                         {reportOptions.map(opt => (
                             <button key={opt.id} onClick={() => setSelectedReport(opt.id)} style={{
                                 padding: "10px 18px", borderRadius: "10px",
-                                border: selectedReport === opt.id ? "1px solid rgba(55,255,215,.35)" : "1px solid rgba(255,255,255,.08)",
-                                background: selectedReport === opt.id ? "linear-gradient(135deg,rgba(6,182,212,.2),rgba(37,99,235,.2))" : "rgba(255,255,255,.03)",
-                                color: selectedReport === opt.id ? "#37FFD7" : "#94a3b8",
+                                border: selectedReport === opt.id ? ( "1px solid rgba(8,145,178,.35)") : ( "1px solid #d1d5db"),
+                                background: selectedReport === opt.id ? ( "linear-gradient(135deg,rgba(8,145,178,.1),rgba(2,132,199,.1))") : ( "rgba(255,255,255,.8)"),
+                                color: selectedReport === opt.id ? ( "#0891b2") : txColor('secondary'),
                                 cursor: "pointer", fontWeight: "600", fontSize: "12px", letterSpacing: ".2px", transition: "all .25s ease",
                             }}>
                                 {opt.label}
@@ -155,12 +159,12 @@ const StatutoryCompliance = () => {
             {/* Download Button */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
                 <button onClick={() => downloadExcel(selectedReport)} style={{
-                    padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(55,255,215,.25)",
-                    background: "rgba(255,255,255,.05)", color: "#fff", backdropFilter: "blur(14px)",
+                    padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(8,145,178,.25)",
+                    background: "#ffffff", color: txColor('primary'), backdropFilter: "blur(14px)",
                     cursor: "pointer", fontWeight: "600", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px", transition: ".3s",
                 }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.border = "1px solid rgba(55,255,215,.4)"; e.currentTarget.style.boxShadow = "0 0 22px rgba(55,255,215,.12)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.border = "1px solid rgba(255,255,255,.08)"; e.currentTarget.style.boxShadow = "none"; }}
+                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
                 >
                     <Download size={16} /> Download as Excel
                 </button>
@@ -168,8 +172,8 @@ const StatutoryCompliance = () => {
 
             {/* Table */}
             {selectedReport && (
-                <div style={{ borderRadius: "20px", border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.02)", overflow: "hidden" }}>
-                    <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
+                <div style={{ borderRadius: "20px", border: "1px solid #e2e8f0", background: "#ffffff", overflow: "hidden" }}>
+                    <div style={{ maxHeight: "60vh", overflowY: "auto", overflowX: "auto" }}>
                         <table style={{ width: "100%", borderCollapse: "collapse" }}>
                             <thead>
                                 <tr>
@@ -177,7 +181,7 @@ const StatutoryCompliance = () => {
                                     {selectedMonth === null
                                         ? monthsList.map(m => <th key={m} style={thStyle}>{m}</th>)
                                         : <th style={thStyle}>{selectedMonth}</th>}
-                                    {selectedMonth === null && <th style={{ ...thStyle, color: "#37FFD7" }}>Annual Total</th>}
+                                    {selectedMonth === null && <th style={{ ...thStyle, color: "#0891b2"}}>Annual Total</th>}
                                 </tr>
                             </thead>
                             <tbody>
@@ -185,11 +189,11 @@ const StatutoryCompliance = () => {
                                     const key = selectedReport.toLowerCase();
                                     return (
                                         <tr key={emp.id} style={{ transition: "background .2s" }}
-                                            onMouseEnter={e => e.currentTarget.style.background = "rgba(55,255,215,.04)"}
+                                            onMouseEnter={e => e.currentTarget.style.background = "rgba(8,145,178,.04)"}
                                             onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                                            <td style={{ ...tdStyle, fontWeight: "700", color: "#f8fafc" }}>
+                                            <td style={{ ...tdStyle, fontWeight: "700", color: txColor('primary') }}>
                                                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                                    <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg,#37FFD7,#0EA5E9)", display: "flex", alignItems: "center", justifyContent: "center", color: "#08111d", fontWeight: "700", fontSize: "13px", boxShadow: "0 0 14px rgba(55,255,215,.25)", flexShrink: 0 }}>
+                                                    <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "linear-gradient(135deg,#0891b2,#0284c7)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: "700", fontSize: "13px", boxShadow: "none", flexShrink: 0 }}>
                                                         {(emp.full_name || emp.name || "?").charAt(0).toUpperCase()}
                                                     </div>
                                                     <span>{emp.full_name || emp.name}</span>
@@ -208,7 +212,7 @@ const StatutoryCompliance = () => {
                                                     return null;
                                                 })}
                                             {selectedMonth === null && (
-                                                <td style={{ ...tdStyle, fontWeight: "800", color: "#37FFD7", textShadow: "0 0 10px rgba(55,255,215,.30)" }}>
+                                                <td style={{ ...tdStyle, fontWeight: "800", color: "#0891b2", textShadow: "none"}}>
                                                     {formatNumberWithCommas(Math.round(monthsList.reduce((sum, _, idx) => sum + (calculateSalary(emp, idx)[key] || 0), 0)))}
                                                 </td>
                                             )}

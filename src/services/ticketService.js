@@ -14,7 +14,7 @@ export async function getAllTickets(filter) {
   const { data, error } = await query
 
   if (error) {
-    console.log(error)
+    console.error(error)
     return []
   }
 
@@ -32,7 +32,7 @@ export async function updateTicket(id, updates) {
     .single()
 
   if (error) {
-    console.log(error)
+    console.error(error)
     throw error
   }
 
@@ -41,7 +41,6 @@ export async function updateTicket(id, updates) {
 }
 
 export async function createTicket({ employee_id, subject, description }) {
-   console.log('createTicket called with:', employee_id, subject, description)   
 
    const { data, error } = await supabase
     .from('tickets')
@@ -50,7 +49,7 @@ export async function createTicket({ employee_id, subject, description }) {
     .single()
 
   if (error) {
-    console.log(error)
+    console.error(error)
     throw error
   }
 
@@ -67,7 +66,7 @@ export async function getEmployeeChatHistory(employeeId) {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.log(error)
+    console.error(error)
     return []
   }
 
@@ -84,7 +83,7 @@ export async function addChatMessage({ employee_id, sender, message }) {
     .single()
 
   if (error) {
-    console.log(error)
+    console.error(error)
     throw error
   }
 

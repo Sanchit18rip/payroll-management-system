@@ -8,6 +8,23 @@ import CustomDropdown from "../components/CustomDropdown";
 import toast from "react-hot-toast";
 import GlassScrollArea from "../components/GlassScrollArea";
 import { apiFetch, API_BASE } from "../api";
+import {
+  glassButton as mkGlassBtn,
+  primaryButton as mkPrimaryBtn,
+  searchInputStyle as mkSearchInput,
+  inputStyle as mkInputStyle,
+  modalOverlay as mkModalOverlay,
+  employeeModal as mkEmployeeModal,
+  formContainer as mkFormContainer,
+  tableStyle as mkTableStyle,
+  headerStyle as mkHeaderStyle,
+  tdStyle as mkTdStyle,
+  paginationButton as mkPaginationBtn,
+  paginationInfo as mkPaginationInfo,
+  glassScrollAreaStyle as mkScrollArea,
+  textColor,
+  accentColor,
+} from "../styles/adminTheme";
 
 function Employees() {
 
@@ -42,7 +59,7 @@ const [employeeType, setEmployeeType] =
 useState('Direct')
 
 const [employmentStatus, setEmploymentStatus] =
-useState('Intern')
+useState('Permanent')
 const [
   internshipDuration,
   setInternshipDuration
@@ -63,6 +80,7 @@ const [dateOfBirth, setDateOfBirth] = useState('')
 const [uanNumber, setUanNumber] = useState('')
 const [pfAccountNumber, setPfAccountNumber] = useState('')
 const [esiRegistrationNumber, setEsiRegistrationNumber] = useState('')
+const [aadhaarNumber, setAadhaarNumber] = useState('')
 const [bankAccountNumber, setBankAccountNumber] = useState('')
 const [bankName, setBankName] = useState('')
 const [ifscCode, setIfscCode] = useState('')
@@ -502,6 +520,7 @@ useEffect(() => {
           date_of_birth: dateOfBirth || null,
           uan_number: uanNumber || null,
           pf_account_number: pfAccountNumber || null,
+          aadhaar_number: aadhaarNumber || null,
           esi_registration_number: esiRegistrationNumber || null,
           bank_account_number: bankAccountNumber || null,
           bank_name: bankName || null,
@@ -530,7 +549,7 @@ useEffect(() => {
 
       setEmployeeType('Direct')
 
-      setEmploymentStatus('Intern')
+      setEmploymentStatus('Permanent')
 
       setInternshipDuration('3 Months')
       setJoiningDate(null);
@@ -545,6 +564,7 @@ useEffect(() => {
       setDateOfBirth('');
       setUanNumber('');
       setPfAccountNumber('');
+      setAadhaarNumber('');
       setEsiRegistrationNumber('');
       setBankAccountNumber('');
       setBankName('');
@@ -681,6 +701,7 @@ setGender(employee.gender || '');
 setDateOfBirth(employee.date_of_birth || '');
 setUanNumber(employee.uan_number || '');
 setPfAccountNumber(employee.pf_account_number || '');
+setAadhaarNumber(employee.aadhaar_number || '');
 setEsiRegistrationNumber(employee.esi_registration_number || '');
 setBankAccountNumber(employee.bank_account_number || '');
 setBankName(employee.bank_name || '');
@@ -745,7 +766,7 @@ const updateEmployee = () => {
     setPhone("");
     setDesignation("");
     setEmployeeType("Direct");
-    setEmploymentStatus("Intern");
+    setEmploymentStatus("Permanent");
     setInternshipDuration("3 Months");
     setJoiningDate(null);
     setConfirmationDate(null);
@@ -821,10 +842,20 @@ const currentEmployees =
 
 const totalPages = Math.ceil(
   filteredEmployees.length / employeesPerPage
-);
+);  const _glassBtn = mkGlassBtn();
+  const _primaryBtn = mkPrimaryBtn();
+  const _searchInput = mkSearchInput();
+  const _inputStyle = mkInputStyle();
+  const _modalOverlay = mkModalOverlay();
+  const _employeeModal = mkEmployeeModal();
+  const _formContainer = mkFormContainer();
+  const _tableStyle = mkTableStyle({ minWidth: "1800px" });
+  const _headerStyle = mkHeaderStyle();
+  const _tdStyle = mkTdStyle();
+  const _scrollArea = mkScrollArea({ marginTop: "24px", maxHeight: "650px" });
 
   return (
-  
+    
     <div>
 
       <div
@@ -841,7 +872,7 @@ const totalPages = Math.ceil(
         margin: 0,
         fontSize: "42px",
         fontWeight: 800,
-        color: "var(--text-primary, #f8fafc)",
+        color: textColor("primary"),
       }}
     >
       👥 Employee Management
@@ -850,7 +881,7 @@ const totalPages = Math.ceil(
     <p
       style={{
         marginTop: "10px",
-        color: "var(--text-secondary, rgba(255,255,255,.6))",
+        color: textColor("secondary"),
         fontSize: "16px",
       }}
     >
@@ -864,7 +895,64 @@ const totalPages = Math.ceil(
       gap: "12px",
     }}
   >
-    <label style={glassButton}>
+    <button
+      onClick={async () => {
+        try {
+          toast.loading("Fetching employees from Sarthi360...");
+          const response = await apiFetch(`${API_BASE}/api/sarthi360/employees`);
+          const data = await response.json();
+          toast.dismiss();
+          if (!response.ok) throw new Error(data.error || "Failed to fetch");
+          const employees = Array.isArray(data) ? data : data.data || data.employees || [];
+          if (employees.length === 0) { toast.error("No employees found in Sarthi360"); return; }
+          const confirmed = window.confirm(`Found ${employees.length} employees in Sarthi360.\n\nImport all?`);
+          if (!confirmed) return;
+          toast.loading("Importing employees...");
+          // Send only needed fields to reduce payload size
+          const lightEmployees = employees.map(emp => ({
+            firstName: emp.firstName, middleName: emp.middleName, lastName: emp.lastName, name: emp.name,
+            email: emp.email, phone: emp.phone, gender: emp.gender, dateOfBirth: emp.dateOfBirth,
+            designation: emp.designation, department: emp.department, employeeProfile: emp.employeeProfile,
+            joiningDate: emp.joiningDate, branchOfficeName: emp.branchOfficeName, locationOfBranch: emp.locationOfBranch,
+            aadharCardNo: emp.aadharCardNo, panCard: emp.panCard, uanNumber: emp.uanNumber,
+            pfNumber: emp.pfNumber, esiRegistrationNumber: emp.esiRegistrationNumber,
+            bankACNumber: emp.bankACNumber, bankName: emp.bankName, ifsc: emp.ifsc,
+            basicSalary: emp.basicSalary, hra: emp.hra, conveyanceAllowance: emp.conveyanceAllowance,
+            medicalAllowance: emp.medicalAllowance, epfEmployee: emp.epfEmployee, epfEmployer: emp.epfEmployer
+          }));
+          const importRes = await apiFetch(`${API_BASE}/api/sarthi360/import`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ employees: lightEmployees })
+          });
+          const importText = await importRes.text();
+          let importData;
+          try { importData = JSON.parse(importText); } catch (cause) {
+            console.error("Import response (not JSON):", importText.substring(0, 500));
+            throw new Error("Server returned non-JSON response. Check if backend is running.", { cause });
+          }
+          toast.dismiss();
+          if (!importRes.ok) throw new Error(importData.error || "Import failed");
+          if (importData.errors && importData.errors.length > 0) {
+            console.error("Import errors:", importData.errors);
+          }
+          const msg = importData.imported > 0
+            ? `Imported ${importData.imported} employees! Skipped: ${importData.skipped}`
+            : `Imported: ${importData.imported || 0}, Skipped: ${importData.skipped || 0}. Errors: ${(importData.errors || []).length}. Check console.`;
+          if (importData.imported > 0) toast.success(msg);
+          else toast.error(msg);
+          await fetchEmployees();
+        } catch (err) {
+          toast.dismiss();
+          toast.error(err.message || "Sarthi360 import failed");
+        }
+      }}
+      style={{..._glassBtn, background: "linear-gradient(135deg,#22c55e,#16a34a)", color: "white", border: "none"}}
+    >
+      🔄 Fetch from Sarthi360
+    </button>
+
+    <label style={_glassBtn}>
       📤 Import CSV
 
       <input
@@ -877,7 +965,7 @@ const totalPages = Math.ceil(
 
     <button
       onClick={exportCSV}
-      style={glassButton}
+      style={_glassBtn}
     >
       📥 Export CSV
     </button>
@@ -938,7 +1026,7 @@ const totalPages = Math.ceil(
   placeholder="🔍 Search employees..."
   value={searchTerm}
   onChange={(e) => setSearchTerm(e.target.value)}
-  style={searchStyle}
+  style={_searchInput}
 />
 
     <CustomDropdown
@@ -961,7 +1049,6 @@ const totalPages = Math.ceil(
   options={[
     "All Status",
     "Intern",
-    "Probation",
     "Permanent",
   ]}
 />
@@ -969,16 +1056,16 @@ const totalPages = Math.ceil(
 
   <button
     onClick={() => setShowEmployeeModal(true)}
-    style={addEmployeeButton}
+    style={_primaryBtn}
   >
     + Add Employee
   </button>
 </div>
       {showEmployeeModal && (
 
-<div style={modalOverlay}>
+<div style={_modalOverlay}>
 
-<div style={employeeModal}>
+<div style={_employeeModal}>
 
 <div
   style={{
@@ -991,7 +1078,7 @@ const totalPages = Math.ceil(
   <h2
     style={{
       margin: 0,
-      color: "#f8fafc",
+      color: textColor("primary"),
       fontSize: "28px",
     }}
   >
@@ -1006,7 +1093,7 @@ const totalPages = Math.ceil(
     style={{
       background: "transparent",
       border: "none",
-      color: "#fff",
+      color: textColor("primary"),
       fontSize: "28px",
       cursor: "pointer",
     }}
@@ -1015,9 +1102,9 @@ const totalPages = Math.ceil(
   </button>
 </div>
 
-<div style={formContainer}>
+<div style={_formContainer}>
 <div style={formGrid}>
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   👤 Personal Information
 </h3>
       <input
@@ -1030,14 +1117,14 @@ const totalPages = Math.ceil(
       e.target.value
     )
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
         <input
           type="text"
           placeholder="Employee Name"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          style={inputStyle}
+          style={_inputStyle}
         />
         <input
   type="email"
@@ -1046,7 +1133,7 @@ const totalPages = Math.ceil(
   onChange={(e)=>
     setEmail(e.target.value)
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
 
 <input
@@ -1056,9 +1143,9 @@ const totalPages = Math.ceil(
   onChange={(e)=>
     setPhone(e.target.value)
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   💼 Employment Details
 </h3>
 <input
@@ -1068,7 +1155,7 @@ const totalPages = Math.ceil(
   onChange={(e)=>
     setDesignation(e.target.value)
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
 <CustomDropdown
   value={employeeType}
@@ -1084,7 +1171,7 @@ const totalPages = Math.ceil(
   placeholder="Department"
   value={department}
   onChange={(e) => setDepartment(e.target.value)}
-  style={inputStyle}
+  style={_inputStyle}
 />
 
 <CustomDropdown
@@ -1092,7 +1179,7 @@ const totalPages = Math.ceil(
   onChange={setEmploymentStatus}
   placeholder="Employment Status"
   options={[
-    "Probation",
+    "Permanent",
     "Intern",
   ]}
 />
@@ -1139,7 +1226,8 @@ const totalPages = Math.ceil(
     placeholder="Joining Date"
     style={{
       ...inputStyle,
-      paddingRight: "50px"
+      paddingRight: "50px",
+      ..._inputStyle,
     }}
   />
 
@@ -1199,7 +1287,7 @@ const totalPages = Math.ceil(
       e.target.value
     )
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
 
 <input
@@ -1211,9 +1299,9 @@ const totalPages = Math.ceil(
       e.target.value
     )
   }
-  style={inputStyle}
+  style={_inputStyle}
 />
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   💰 Salary Details
 </h3>
         <input
@@ -1221,15 +1309,15 @@ const totalPages = Math.ceil(
           placeholder="Basic Salary"
           value={salary}
           onChange={(e) => setSalary(e.target.value)}
-          style={inputStyle}
+          style={_inputStyle}
         />
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   💼 Personal & Bank Details
 </h3>
 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
   <div>
-    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Gender</label>
-    <select value={gender} onChange={(e) => setGender(e.target.value)} style={inputStyle}>
+    <label style={{ display: 'block', marginBottom: '4px', color: textColor('secondary'), fontSize: '11px', fontWeight: '600' }}>Gender</label>
+    <select value={gender} onChange={(e) => setGender(e.target.value)} style={_inputStyle}>
       <option value="">Select</option>
       <option value="Male">Male</option>
       <option value="Female">Female</option>
@@ -1237,33 +1325,34 @@ const totalPages = Math.ceil(
     </select>
   </div>
   <div>
-    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Date of Birth</label>
-    <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={inputStyle} />
+    <label style={{ display: 'block', marginBottom: '4px', color: textColor('secondary'), fontSize: '11px', fontWeight: '600' }}>Date of Birth</label>
+    <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={_inputStyle} />
   </div>
 </div>
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   🏦 Bank & PF Details
 </h3>
 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-  <input type="text" placeholder="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="Bank Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="IFSC Code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="PAN Number" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="UAN Number" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="PF Account Number" value={pfAccountNumber} onChange={(e) => setPfAccountNumber(e.target.value)} style={inputStyle} />
-  <input type="text" placeholder="ESI Registration Number" value={esiRegistrationNumber} onChange={(e) => setEsiRegistrationNumber(e.target.value)} style={inputStyle} />
+  <input type="text" placeholder="Bank Name" value={bankName} onChange={(e) => setBankName(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="Bank Account Number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="IFSC Code" value={ifscCode} onChange={(e) => setIfscCode(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="PAN Number" value={panNumber} onChange={(e) => setPanNumber(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="UAN Number" value={uanNumber} onChange={(e) => setUanNumber(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="PF Account Number" value={pfAccountNumber} onChange={(e) => setPfAccountNumber(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="Aadhaar Card Number" value={aadhaarNumber} onChange={(e) => setAadhaarNumber(e.target.value)} style={_inputStyle} />
+  <input type="text" placeholder="ESI Registration Number" value={esiRegistrationNumber} onChange={(e) => setEsiRegistrationNumber(e.target.value)} style={_inputStyle} />
 </div>
-<h3 style={sectionTitle}>
+<h3 style={{ gridColumn: '1 / -1', margin: '10px 0 5px', fontSize: '18px', fontWeight: '700', color: accentColor(), paddingBottom: '10px', borderBottom: '1px solid #e2e8f0' }}>
   📅 Work Period
 </h3>
 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
   <div>
-    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Work Start Date</label>
-    <input type="date" value={workStartDate} onChange={(e) => setWorkStartDate(e.target.value)} style={inputStyle} />
+    <label style={{ display: 'block', marginBottom: '4px', color: textColor('secondary'), fontSize: '11px', fontWeight: '600' }}>Work Start Date</label>
+    <input type="date" value={workStartDate} onChange={(e) => setWorkStartDate(e.target.value)} style={_inputStyle} />
   </div>
   <div>
-    <label style={{ display: 'block', marginBottom: '4px', color: '#94a3b8', fontSize: '11px', fontWeight: '600' }}>Work End Date</label>
-    <input type="date" value={workEndDate} onChange={(e) => setWorkEndDate(e.target.value)} style={inputStyle} />
+    <label style={{ display: 'block', marginBottom: '4px', color: textColor('secondary'), fontSize: '11px', fontWeight: '600' }}>Work End Date</label>
+    <input type="date" value={workEndDate} onChange={(e) => setWorkEndDate(e.target.value)} style={_inputStyle} />
   </div>
 </div>
         </div>
@@ -1278,9 +1367,9 @@ const totalPages = Math.ceil(
   width: "100%",
 
   background:
-    "linear-gradient(135deg,#37FFD7,#0EA5E9)",
+    "linear-gradient(135deg,#0891b2,#0284c7)",
 
-  color: "#08111d",
+  color: "#ffffff",
 
   border: "none",
 
@@ -1297,7 +1386,7 @@ const totalPages = Math.ceil(
   fontWeight: "700",
 
   boxShadow:
-    "0 12px 30px rgba(55,255,215,.35)",
+    "0 2px 8px rgba(8,145,178,.18)",
 
   transition: "all .25s ease",
 }}
@@ -1325,7 +1414,7 @@ const totalPages = Math.ceil(
     alignItems: "center",
     marginTop: "20px",
     padding: "0 10px",
-    color: "#cbd5e1",
+    color: textColor("subtle"),
   }}
 >
   <span>
@@ -1354,38 +1443,13 @@ const totalPages = Math.ceil(
       onClick={() =>
         setCurrentPage(currentPage - 1)
       }
-      style={paginationButton}
+      style={mkPaginationBtn()}
     >
       ◀ Previous
     </button>
 
     <span
-      style={{
-  minWidth: "80px",
-
-  display: "flex",
-
-  justifyContent: "center",
-
-  alignItems: "center",
-
-  padding: "10px 18px",
-
-  borderRadius: "12px",
-
-  background:
-    "rgba(55,255,215,.08)",
-
-  border:
-    "1px solid rgba(55,255,215,.20)",
-
-  color: "#37FFD7",
-
-  fontWeight: "700",
-
-  boxShadow:
-    "0 4px 12px rgba(55,255,215,.12)",
-}}
+      style={mkPaginationInfo()}
     >
       {currentPage} / {totalPages || 1}
     </span>
@@ -1398,74 +1462,63 @@ const totalPages = Math.ceil(
       onClick={() =>
         setCurrentPage(currentPage + 1)
       }
-      style={paginationButton}
+      style={mkPaginationBtn()}
     >
       Next ▶
     </button>
   </div>
 </div>
       <GlassScrollArea
-    style={{
-        marginTop: "24px",
-        maxHeight: "650px",
-        borderRadius: "24px",
-        background:
-            "linear-gradient(180deg,#1e293b,#172033)",
-        border:
-            "1px solid rgba(255,255,255,.08)",
-        boxShadow:
-            "0 18px 40px rgba(0,0,0,.35)",
-    }}
+    style={_scrollArea}
 >
-  <table style={tableStyle}>
+  <table style={_tableStyle}>
 
         <thead>
   <tr>
-    <th style={{ ...headerStyle, width: "140px" }}>
+    <th style={{ ..._headerStyle, width: "140px" }}>
   Employee Code
 </th>
-
-<th style={{ ...headerStyle, width: "260px" }}>
+    <th style={{ ..._headerStyle, width: "260px" }}>
   Name
 </th>
 
-<th style={{ ...headerStyle, width: "180px" }}>
+<th style={{ ..._headerStyle, width: "180px" }}>
   Designation
 </th>
 
-<th style={{ ...headerStyle, width: "140px" }}>
+<th style={{ ..._headerStyle, width: "140px" }}>
   Department
 </th>
 
-<th style={{ ...headerStyle, width: "140px" }}>
+<th style={{ ..._headerStyle, width: "140px" }}>
   Type
 </th>
 
-<th style={{ ...headerStyle, width: "150px" }}>
+<th style={{ ..._headerStyle, width: "150px" }}>
   Status
 </th>
 
-<th style={{ ...headerStyle, width: "150px" }}>
+<th style={{ ..._headerStyle, width: "150px" }}>
   Joining Date
 </th>
 
-<th style={{ ...headerStyle, width: "180px" }}>
+<th style={{ ..._headerStyle, width: "180px" }}>
   Experience
 </th>
 
-<th style={{ ...headerStyle, width: "260px" }}>
+<th style={{ ..._headerStyle, width: "260px" }}>
   Email
 </th>
 
-<th style={{ ...headerStyle, width: "170px" }}>
+<th style={{ ..._headerStyle, width: "170px" }}>
   Phone
 </th>
 
-<th style={{ ...headerStyle, width: "150px" }}>
+<th style={{ ..._headerStyle, width: "150px" }}>
   Salary
 </th>
 
-<th style={{ ...headerStyle, width: "140px" }}>
+<th style={{ ..._headerStyle, width: "140px" }}>
   Action
 </th>
   </tr>
@@ -1482,35 +1535,26 @@ const totalPages = Math.ceil(
 
   background:
     index % 2 === 0
-      ? "rgba(255,255,255,.015)"
+      ? "rgba(0,0,0,.015)"
       : "transparent",
 }}
   onMouseEnter={(e) => {
-  e.currentTarget.style.background =
-  "rgba(55,255,215,.06)";
-
-  e.currentTarget.style.boxShadow =
-  `
-    inset 4px 0 #37FFD7,
-    0 0 18px rgba(55,255,215,.08)
-  `;
+  e.currentTarget.style.background = "rgba(37,99,235,.05)";
+  e.currentTarget.style.boxShadow = "inset 4px 0 #2563eb";
 }}
   onMouseLeave={(e) => {
-  e.currentTarget.style.background =
-    "transparent";
-
-  e.currentTarget.style.boxShadow =
-    "none";
+  e.currentTarget.style.background = "transparent";
+  e.currentTarget.style.boxShadow = "none";
 }}
 >
 
-              <td style={tdStyle}>
+              <td style={_tdStyle}>
   {employee.employee_code}
 </td>
 
               <td
   style={{
-    ...tdStyle,
+    ..._tdStyle,
     textAlign: "left",
   }}
 >
@@ -1527,8 +1571,8 @@ const totalPages = Math.ceil(
         height: "44px",
         borderRadius: "50%",
         background:
-  "linear-gradient(135deg,#22D3EE,#2563EB)",
-        color: "#08111d",
+  "linear-gradient(135deg,#0891b2,#0284c7)",
+        color: "#ffffff",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
@@ -1544,14 +1588,14 @@ const totalPages = Math.ceil(
   </div>
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.designation}
 </td>
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.department}
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   <div
     style={{
       display: "flex",
@@ -1584,7 +1628,7 @@ const totalPages = Math.ceil(
   </div>
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   <div
     style={{
       display: "flex",
@@ -1619,30 +1663,30 @@ const totalPages = Math.ceil(
   </span>
   </div>
 </td>
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.joining_date
     ? employee.joining_date
         .split("T")[0]
     : "-"}
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.previous_experience || "-"}
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.email}
 </td>
 
-<td style={tdStyle}>
+<td style={_tdStyle}>
   {employee.phone}
 </td>
 
 <td
   style={{
-    ...tdStyle,
+    ..._tdStyle,
 
-    color: "#37FFD7",
+    color: accentColor(),
 
     fontWeight: "700",
 
@@ -1653,7 +1697,7 @@ const totalPages = Math.ceil(
 >
   ₹{employee.salary}
 </td>
-              <td style={tdStyle}>
+              <td style={_tdStyle}>
   <div
     style={{
       display: "flex",
@@ -1671,12 +1715,12 @@ const totalPages = Math.ceil(
 
     borderRadius: "12px",
 
-    border: "1px solid rgba(255,255,255,.08)",
+    border: "1px solid rgba(0,0,0,.12)",
 
     background:
       "linear-gradient(145deg,#f59e0b,#d97706)",
 
-    color: "#fff",
+    color: "#ffffff",
 
     cursor: "pointer",
 
@@ -1706,12 +1750,12 @@ const totalPages = Math.ceil(
 
     borderRadius: "12px",
 
-    border: "1px solid rgba(255,255,255,.08)",
+    border: "1px solid rgba(0,0,0,.12)",
 
     background:
       "linear-gradient(145deg,#ef4444,#dc2626)",
 
-    color: "#fff",
+    color: "#ffffff",
 
     cursor: "pointer",
 
@@ -1751,15 +1795,23 @@ const totalPages = Math.ceil(
     {
   showDeleteModal && (
 
-    <div style={modalOverlay}>
+    <div style={_modalOverlay}>
 
-      <div style={modalBox}>
+      <div style={{
+  background: '#ffffff',
+  color: textColor('primary'),
+  padding: '30px',
+  borderRadius: '20px',
+  width: '420px',
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+}}>
 
-        <h2>
+        <h2 style={{ color: textColor('primary') }}>
           Delete Employee
         </h2>
 
-        <p>
+        <p style={{ color: textColor('secondary') }}>
           Are you sure you want to
           delete this employee?
 
@@ -1830,316 +1882,28 @@ const totalPages = Math.ceil(
   )
 }
 
-const formContainer = {
-  background: '#1e293b',
-  padding: '24px',
-  borderRadius: '20px',
-  marginBottom: '24px',
-  border: '1px solid #334155',
-  boxShadow:
-    '0 8px 32px rgba(0,0,0,0.35)'
-}
-
 const inputStyle = {
   width: '100%',
   padding: '14px',
   marginBottom: '16px',
   borderRadius: '12px',
-  border: '1px solid #475569',
-  background: '#0f172a',
-  color: '#f8fafc',
+  border: '1px solid #d1d5db',
+  background: '#ffffff',
+  color: '#0f172a',
   fontSize: '15px',
   outline: 'none'
 }
-const buttonStyle = {
-  padding: '12px 20px',
-  background: '#2563eb',
-  color: 'white',
-  border: 'none',
-  borderRadius: '10px',
-  cursor: 'pointer'
-}
-
-const deleteButton = {
-  padding: '8px 14px',
-  background: 'red',
-  color: 'white',
-  border: 'none',
-  borderRadius: '8px',
-  cursor: 'pointer'
-}
-
-const tableStyle = {
-  width: "100%",
-  minWidth: "1800px",
-
-  tableLayout: "fixed",
-
-  background: "transparent",
-
-  color: "#f8fafc",
-
-  borderCollapse: "separate",
-
-  borderSpacing: 0,
-};
-const modalOverlay = {
-
-  position: "fixed",
-
-  top: 0,
-  left: 0,
-
-  width: "100%",
-  height: "100%",
-
-  background:
-    "rgba(0,0,0,0.5)",
-
-  display: "flex",
-
-  justifyContent: "center",
-
-  alignItems: "center",
-
-  zIndex: 1000
-
-};
-
-const modalBox = {
-  background: "#1e293b",
-
-  color: "#f8fafc",
-
-  padding: "30px",
-
-  borderRadius: "20px",
-
-  width: "420px",
-
-  border: "1px solid #334155",
-
-  boxShadow:
-    "0 8px 32px rgba(0,0,0,0.4)"
-};
-const headerStyle = {
-  position: "sticky",
-  top: 0,
-  zIndex: 100,
-
-  background:
-    "linear-gradient(180deg,#111827,#0f172a)",
-
-  backdropFilter: "blur(12px)",
-  WebkitBackdropFilter: "blur(12px)",
-
-  color: "#f8fafc",
-
-  fontWeight: "700",
-
-  fontSize: "14px",
-
-  textTransform: "uppercase",
-
-  letterSpacing: "1px",
-
-  padding: "18px",
-
-  textAlign: "center",
-
-  borderBottom:
-    "1px solid rgba(255,255,255,.08)",
-  boxShadow:
-  "0 6px 15px rgba(0,0,0,.18)",
-};
-const tdStyle = {
-  padding: "18px 16px",
-
-  textAlign: "center",
-
-  verticalAlign: "middle",
-
-  borderBottom:
-    "1px solid rgba(255,255,255,.06)",
-};
-const glassButton = {
-  padding: "12px 22px",
-
-  borderRadius: "16px",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
-  backdropFilter: "blur(18px)",
-
-  WebkitBackdropFilter: "blur(18px)",
-
-  color: "#f8fafc",
-
-  fontWeight: 600,
-
-  cursor: "pointer",
-
-  transition: "all .25s ease",
-
-  display: "flex",
-
-  alignItems: "center",
-
-  justifyContent: "center",
-
-  gap: "8px",
-
-  boxShadow:
-    "0 12px 30px rgba(0,0,0,.25)"
-};
 const cardContainer = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
   gap: "24px",
   marginBottom: "35px",
 };
-const searchStyle = {
-  flex: 1,
 
-  padding: "14px 18px",
-
-  borderRadius: "16px",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
-  color: "#f8fafc",
-
-  fontSize: "15px",
-
-  outline: "none",
-
-  backdropFilter: "blur(18px)",
-};
-const filterStyle = {
-  padding: "14px 18px",
-  borderRadius: "16px",
-  border: "1px solid rgba(255,255,255,.08)",
-
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-
-  color: "#f8fafc",
-
-  minWidth: "190px",
-
-  outline: "none",
-
-  cursor: "pointer",
-
-  backdropFilter: "blur(18px)",
-  WebkitBackdropFilter: "blur(18px)",
-
-  appearance: "none",
-  WebkitAppearance: "none",
-  MozAppearance: "none",
-
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M1.5 5.5l6 6 6-6'/%3E%3C/svg%3E")`,
-
-  backgroundRepeat: "no-repeat",
-
-  backgroundPosition: "right 15px center",
-
-  paddingRight: "45px",
-};
-const addEmployeeButton = {
-  padding: "14px 24px",
-
-  borderRadius: "16px",
-
-  border: "none",
-
-  background:
-    "linear-gradient(135deg,#37FFD7,#0EA5E9)",
-
-  color: "#08111d",
-
-  fontWeight: 700,
-
-  fontSize: "15px",
-
-  cursor: "pointer",
-
-  boxShadow:
-    "0 12px 30px rgba(55,255,215,.35)",
-
-  transition: "all .25s ease",
-};
-const employeeModal = {
-  width: "90%",
-  maxWidth: "900px",
-  maxHeight: "90vh",
-
-  overflowY: "auto",
-
-  padding: "30px",
-
-  borderRadius: "24px",
-
-  background:
-    "linear-gradient(145deg, rgba(17,24,39,.95), rgba(30,41,59,.95))",
-
-  border: "1px solid rgba(255,255,255,.08)",
-
-  backdropFilter: "blur(22px)",
-
-  WebkitBackdropFilter: "blur(22px)",
-
-  boxShadow:
-    "0 25px 70px rgba(0,0,0,.55)",
-};
 const formGrid = {
   display: "grid",
   gridTemplateColumns: "repeat(2, 1fr)",
   gap: "18px",
   marginBottom: "24px",
 };
-const sectionTitle = {
-  gridColumn: "1 / -1",
-
-  margin: "10px 0 5px",
-
-  fontSize: "18px",
-
-  fontWeight: "700",
-
-  color: "#37FFD7",
-
-  paddingBottom: "10px",
-
-  borderBottom: "1px solid rgba(255,255,255,.08)",
-};
-const paginationButton = {
-  padding: "10px 18px",
-  borderRadius: "12px",
-  border: "1px solid rgba(255,255,255,.08)",
-  background:
-    "linear-gradient(145deg, rgba(255,255,255,.06), rgba(255,255,255,.02))",
-  color: "#f8fafc",
-  cursor: "pointer",
-  fontWeight: "600",
-  transition: "all .25s ease",
-};
-const Spinner = () => (
-  <div
-    style={{
-      width: "18px",
-      height: "18px",
-      border: "2px solid rgba(255,255,255,.25)",
-      borderTop: "2px solid #37FFD7",
-      borderRadius: "50%",
-      animation: "spin .7s linear infinite",
-    }}
-  />
-);
 export default Employees

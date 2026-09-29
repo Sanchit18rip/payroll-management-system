@@ -43,7 +43,7 @@ function EmployeePayroll() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(15,23,42,0.5)', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f1f5f9', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
         {[['current', 'Monthly Payroll', Wallet], ['increments', 'Increment History', TrendingUp]].map(([k, l, Icon]) => (
           <button key={k} onClick={() => setTab(k)} style={{ padding: '8px 18px', borderRadius: radius.sm, border: 'none', background: tab === k ? 'rgba(99,102,241,0.2)' : 'transparent', color: tab === k ? colors.text.primary : colors.text.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}><Icon size={14} /> {l}</button>
         ))}

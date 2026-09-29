@@ -1,12 +1,10 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { useTheme } from "../context/ThemeContext";
 
 function LogoutModal({
   open,
   onCancel,
   onConfirm,
 }) {
-  const { isDark } = useTheme();
 
   return (
     <AnimatePresence>
@@ -19,7 +17,7 @@ function LogoutModal({
           style={{
             position: "fixed",
             inset: 0,
-            background: isDark ? "rgba(2,6,23,.72)" : "rgba(0,0,0,.35)",
+            background: "rgba(0,0,0,.35)",
             backdropFilter: "blur(12px)",
             WebkitBackdropFilter: "blur(12px)",
             display: "flex",
@@ -52,19 +50,13 @@ function LogoutModal({
               maxWidth: "90%",
               padding: "34px",
               borderRadius: "28px",
-              background: isDark
-                ? "linear-gradient(145deg, rgba(255,255,255,.07), rgba(255,255,255,.03))"
-                : "#ffffff",
+              background: "#ffffff",
               backdropFilter: "blur(30px)",
               WebkitBackdropFilter: "blur(30px)",
-              border: isDark
-                ? "1px solid rgba(255,255,255,.08)"
-                : "1px solid rgba(0,0,0,0.08)",
-              boxShadow: isDark
-                ? "0 25px 70px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06)"
-                : "0 25px 70px rgba(0,0,0,.12)",
+              border: "1px solid rgba(0,0,0,0.08)",
+              boxShadow: "0 25px 70px rgba(0,0,0,.12)",
               textAlign: "center",
-              color: isDark ? "#fff" : "#0f172a",
+              color: "#0f172a",
             }}
           >
             <div style={{
@@ -79,14 +71,14 @@ function LogoutModal({
 
             <h2 style={{
               margin: 0, fontSize: 30, fontWeight: 700,
-              color: isDark ? "#f8fafc" : "#0f172a",
+              color: "#0f172a",
             }}>
               Confirm Logout
             </h2>
 
             <p style={{
               marginTop: 15, marginBottom: 32,
-              color: isDark ? "rgba(255,255,255,.65)" : "#64748b",
+              color: "#64748b",
               lineHeight: 1.7, fontSize: 15,
             }}>
               Are you sure you want to logout?
@@ -99,9 +91,9 @@ function LogoutModal({
               <button
                 style={{
                   flex: 1, padding: "14px", borderRadius: "16px",
-                  border: isDark ? "1px solid rgba(255,255,255,.08)" : "1px solid rgba(0,0,0,0.1)",
-                  background: isDark ? "rgba(255,255,255,.05)" : "rgba(0,0,0,0.05)",
-                  color: isDark ? "#fff" : "#0f172a",
+                  border: "1px solid rgba(0,0,0,0.1)",
+                  background: "rgba(0,0,0,0.05)",
+                  color: "#0f172a",
                   cursor: "pointer", fontWeight: 600, transition: ".25s", fontSize: "14px",
                 }}
                 onClick={onCancel}

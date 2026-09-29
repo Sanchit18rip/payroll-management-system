@@ -4,21 +4,7 @@ import { supabase } from '../../supabaseClient'
 import useEmployeeData from './useEmployeeData'
 import { styles, colors, radius, getMonthName, statusBadge } from './theme'
 import * as faceapi from 'face-api.js'
-import { Camera, CalendarDays, BarChart3, CheckCircle2, XCircle, Plane, Clock, Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react'
-
-const OFFICE_LAT = 19.0760
-const OFFICE_LNG = 72.8777
-const OFFICE_RADIUS = 200
-function distMeters(la1, lo1, la2, lo2) {
-  const R = 6371000, toR = d => d * Math.PI / 180
-  const dLat = toR(la2 - la1), dLng = toR(lo2 - lo1)
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toR(la1)) * Math.cos(toR(la2)) * Math.sin(dLng / 2) ** 2
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-}
-function eyeAR(pts) {
-  const d = (a, b) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2)
-  return (d(pts[1], pts[5]) + d(pts[2], pts[4])) / (2 * d(pts[0], pts[3]))
-}
+import { Camera, CalendarDays, BarChart3, CheckCircle2, XCircle, Plane, Clock, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const DAYS_IN_WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -46,8 +32,8 @@ function AttendanceCalendar({ selectedDate, onSelect, attendanceMap, month, year
 
   return (
     <div style={{
-      background: 'rgba(15,23,42,0.6)',
-      border: '1px solid rgba(148,163,184,0.1)',
+      background: '#f8fafc',
+      border: '1px solid #e2e8f0',
       borderRadius: radius.md,
       padding: 18,
       minWidth: 300,
@@ -150,7 +136,6 @@ function EmployeeAttendance() {
   const [selectedDate, setSelectedDate] = useState(now.toLocaleDateString('en-CA'))
   const [monthlyData, setMonthlyData] = useState({ attendance: [], summary: {} })
   const [yearlyData, setYearlyData] = useState([])
-  const [monthLoading, setMonthLoading] = useState(false)
 
   // FRAS state
   const [modelsLoaded, setModelsLoaded] = useState(false)
@@ -160,14 +145,14 @@ function EmployeeAttendance() {
   const [cameraMessage, setCameraMessage] = useState('')
   const [liveMatchFound, setLiveMatchFound] = useState(false)
   const [liveDetectedName, setLiveDetectedName] = useState('')
-  const [liveDetectedCode, setLiveDetectedCode] = useState('')
   const [attendanceType, setAttendanceType] = useState('')
-  const [geofenceChecking, setGeofenceChecking] = useState(false)
-  const [blinkDetected, setBlinkDetected] = useState(false)
   const videoRef = useRef(null)
   const streamRef = useRef(null)
   const detectionRef = useRef(null)
-  const eyeRef = useRef('open')
+
+  // Manual (no-camera) check-in / check-out
+  const [manualBusy, setManualBusy] = useState(false)
+  const [manualMsg, setManualMsg] = useState('')
 
   useEffect(() => { if (employee) setFaceEnrolled(!!employee.face_descriptor) }, [employee])
 
@@ -178,7 +163,7 @@ function EmployeeAttendance() {
         await faceapi.nets.faceLandmark68Net.loadFromUri(`${import.meta.env.BASE_URL}models`)
         await faceapi.nets.tinyFaceDetector.loadFromUri(`${import.meta.env.BASE_URL}models`)
         setModelsLoaded(true)
-      } catch (e) { console.log('Models failed', e) }
+      } catch (e) { console.error('Models failed', e) }
     }
     load()
   }, [])
@@ -186,15 +171,13 @@ function EmployeeAttendance() {
   // Load monthly attendance
   const refreshMonthly = useCallback(() => {
     if (!employee?.id) return
-    setMonthLoading(true)
     apiFetch(`${API_BASE}/api/employee-attendance/${employee.id}/monthly?month=${selectedMonth}&year=${selectedYear}`)
       .then(r => r.json()).then(setMonthlyData).catch(() => setMonthlyData({ attendance: [], summary: {} }))
-      .finally(() => setMonthLoading(false))
   }, [employee?.id, selectedMonth, selectedYear])
 
   useEffect(() => { refreshMonthly() }, [refreshMonthly])
 
-  // Also refresh when attendance prop changes (after self-mark)
+  // Also refresh when attendance prop changes (after self-mark / self-mark-exit)
   useEffect(() => { refreshMonthly() }, [attendance?.length, refreshMonthly])
 
   // Load yearly attendance
@@ -208,7 +191,7 @@ function EmployeeAttendance() {
   const stopCamera = () => {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
-    setCameraMode(null); setCameraMessage(''); setLiveMatchFound(false); setBlinkDetected(false); eyeRef.current = 'open'
+    setCameraMode(null); setCameraMessage(''); setLiveMatchFound(false)
   }
 
   const openCamera = async (mode) => {
@@ -230,18 +213,14 @@ function EmployeeAttendance() {
   useEffect(() => {
     if (['mark', 'exit', 'liveness'].includes(cameraMode) && modelsLoaded && employee?.face_descriptor) {
       const empName = employee.name
-      const empCode = employee.employee_code || `EMP${String(employee.id).padStart(4, '0')}`
       const empDescriptor = employee.face_descriptor
       detectionRef.current = setInterval(async () => {
         if (!videoRef.current) return
         const det = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor()
         if (!det) { setLiveMatchFound(false); return }
-        const avg = (eyeAR(det.landmarks.getLeftEye()) + eyeAR(det.landmarks.getRightEye())) / 2
-        if (avg < 0.22) eyeRef.current = 'closed'
-        else { if (eyeRef.current === 'closed') setBlinkDetected(true); eyeRef.current = 'open' }
         const stored = new Float32Array(JSON.parse(empDescriptor))
         const dist = faceapi.euclideanDistance(stored, det.descriptor)
-        if (dist < 0.6) { setLiveMatchFound(true); setLiveDetectedName(empName); setLiveDetectedCode(empCode) }
+        if (dist < 0.6) { setLiveMatchFound(true); setLiveDetectedName(empName) }
         else { setLiveMatchFound(false) }
       }, 1500)
     }
@@ -277,22 +256,18 @@ function EmployeeAttendance() {
     if (!desc) { setCameraBusy(false); return }
     const stored = new Float32Array(JSON.parse(employee.face_descriptor))
     if (faceapi.euclideanDistance(stored, desc) >= 0.6) { setCameraMessage('Face not recognized.'); setCameraBusy(false); return }
-    if (!blinkDetected) { setCameraMessage('Please blink to confirm liveness.'); setCameraBusy(false); return }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      try {
-        const { latitude: lat, longitude: lng } = pos.coords
-        const du = captureSnapshot(), blob = dataUrlBlob(du)
-        const fn = `${employee.id}_${Date.now()}.jpg`
-        const { error: ue } = await supabase.storage.from('attendance-photos').upload(fn, blob)
-        if (ue) throw ue
-        const { data: url } = supabase.storage.from('attendance-photos').getPublicUrl(fn)
-        const res = await apiFetch(`${API_BASE}/api/attendance/self-mark`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, photo_url: url.publicUrl, latitude: lat, longitude: lng, face_match: true, attendance_type: attendanceType }) })
-        const r = await res.json()
-        if (!res.ok) { setCameraMessage(r.message || 'Failed.'); setCameraBusy(false); return }
-        alert('Attendance marked!'); stopCamera(); loadDashboard(employee.id)
-      } catch { setCameraMessage('Something went wrong.'); }
-      setCameraBusy(false)
-    }, () => { setCameraMessage('Location access required.'); setCameraBusy(false) })
+    try {
+      const du = captureSnapshot(), blob = dataUrlBlob(du)
+      const fn = `${employee.id}_${Date.now()}.jpg`
+      const { error: ue } = await supabase.storage.from('attendance-photos').upload(fn, blob)
+      if (ue) throw ue
+      const { data: url } = supabase.storage.from('attendance-photos').getPublicUrl(fn)
+      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, photo_url: url.publicUrl, face_match: true, attendance_type: attendanceType }) })
+      const r = await res.json()
+      if (!res.ok) { setCameraMessage(r.message || 'Failed.'); setCameraBusy(false); return }
+      alert('Attendance marked!'); stopCamera(); loadDashboard(employee.id); refreshMonthly()
+    } catch { setCameraMessage('Something went wrong.'); }
+    setCameraBusy(false)
   }
 
   const submitExit = async () => {
@@ -301,13 +276,32 @@ function EmployeeAttendance() {
     if (!desc) { setCameraBusy(false); return }
     const stored = new Float32Array(JSON.parse(employee.face_descriptor))
     if (faceapi.euclideanDistance(stored, desc) >= 0.6) { setCameraMessage('Face not recognized.'); setCameraBusy(false); return }
-    if (!blinkDetected) { setCameraMessage('Please blink.'); setCameraBusy(false); return }
-    navigator.geolocation.getCurrentPosition(async pos => {
-      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark-exit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, latitude: pos.coords.latitude, longitude: pos.coords.longitude, face_match: true }) })
+    const res = await apiFetch(`${API_BASE}/api/attendance/self-mark-exit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, face_match: true }) })
+    const r = await res.json()
+    if (!res.ok) { setCameraMessage(r.message || 'Failed.'); setCameraBusy(false); return }      alert('Exit marked!'); stopCamera(); loadDashboard(employee.id); refreshMonthly(); setCameraBusy(false)
+  }
+
+  const manualCheckIn = async () => {
+    if (!attendanceType) return alert('Select Office or WFH first.')
+    setManualBusy(true); setManualMsg('')
+    try {
+      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, face_match: false, attendance_type: attendanceType }) })
       const r = await res.json()
-      if (!res.ok) { setCameraMessage(r.message || 'Failed.'); setCameraBusy(false); return }
-      alert('Exit marked!'); stopCamera(); loadDashboard(employee.id); setCameraBusy(false)
-    }, () => { setCameraMessage('Location required.'); setCameraBusy(false) })
+      if (!res.ok) { setManualMsg(r.message || 'Failed to mark.'); setManualBusy(false); return }
+      alert('Checked in!'); await loadDashboard(employee.id); refreshMonthly()
+    } catch (e) { setManualMsg(e.message || 'Something went wrong.') }
+    setManualBusy(false)
+  }
+
+  const manualCheckOut = async () => {
+    setManualBusy(true); setManualMsg('')
+    try {
+      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark-exit`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ employee_id: employee.id, face_match: false }) })
+      const r = await res.json()
+      if (!res.ok) { setManualMsg(r.message || 'Failed to mark.'); setManualBusy(false); return }
+      alert('Checked out!'); await loadDashboard(employee.id); refreshMonthly()
+    } catch (e) { setManualMsg(e.message || 'Something went wrong.') }
+    setManualBusy(false)
   }
 
   if (dataLoading) return <div style={styles.centerScreen}><div style={{ color: colors.text.secondary }}>Loading...</div></div>
@@ -317,20 +311,31 @@ function EmployeeAttendance() {
   const todayRecord = attendance.find(r => new Date(r.attendance_date).toLocaleDateString('en-CA') === todayStr)
   const isCheckedIn = todayRecord?.status === 'Present'
   const isCheckedOut = !!todayRecord?.check_out_time
+  const checkInTime = todayRecord?.check_in_time || todayRecord?.marked_at
+  const durationText = (checkInTime && todayRecord?.check_out_time)
+    ? (() => {
+        const diff = new Date(todayRecord.check_out_time) - new Date(checkInTime)
+        const hrs = Math.floor(diff / 3600000)
+        const mins = Math.floor((diff % 3600000) / 60000)
+        return `${hrs}h ${mins}m`
+      })()
+    : null
 
   // Build attendance map — merge API data + useEmployeeData attendance
   const attMap = {}
   // First load all monthly API records
   monthlyData.attendance?.forEach(a => {
     const d = new Date(a.attendance_date).toLocaleDateString('en-CA')
-    attMap[d] = a
+    attMap[d] = { ...a, check_in_time: a.check_in_time || a.marked_at }
   })
   // Then merge real-time attendance from useEmployeeData (covers today etc.)
   attendance?.forEach(a => {
     const d = new Date(a.attendance_date).toLocaleDateString('en-CA')
-    // Only override if not already present, or if the record has check_in_time (more data)
-    if (!attMap[d] || (a.check_in_time && !attMap[d].check_in_time)) {
-      attMap[d] = a
+    // Normalize check_in_time from either source
+    const normalized = { ...a, check_in_time: a.check_in_time || a.marked_at }
+    // Only override if not already present, or if the new record has more data (check_in_time)
+    if (!attMap[d] || (normalized.check_in_time && !attMap[d].check_in_time)) {
+      attMap[d] = normalized
     }
   })
 
@@ -423,7 +428,7 @@ function EmployeeAttendance() {
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'rgba(15,23,42,0.5)', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: '#f1f5f9', borderRadius: radius.md, padding: 4, width: 'fit-content', border: colors.border.card }}>
         {[['fras', 'Mark Attendance', Camera], ['monthly', 'Monthly View', CalendarDays], ['yearly', 'Yearly Summary', BarChart3]].map(([key, label, Icon]) => (
           <button key={key} onClick={() => setTab(key)} style={{ padding: '8px 18px', borderRadius: radius.sm, border: 'none', background: tab === key ? 'rgba(99,102,241,0.2)' : 'transparent', color: tab === key ? colors.text.primary : colors.text.muted, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6 }}>
             <Icon size={14} /> {label}
@@ -433,8 +438,79 @@ function EmployeeAttendance() {
 
       {/* FRAS Tab */}
       {tab === 'fras' && (
-        <div style={styles.sectionCard}>
-          <h2 style={styles.sectionTitle}>Face Recognition Attendance</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Manual Attendance (no camera) */}
+          <div style={styles.sectionCard}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+              <div>
+                <h2 style={{ ...styles.sectionTitle, margin: 0 }}>Manual Attendance (No Camera)</h2>
+                <p style={{ color: colors.text.muted, fontSize: 13, margin: '6px 0 0' }}>Check in / check out without the camera. Office attendance is always marked manually.</p>
+              </div>
+              <span style={statusBadge(todayRecord?.status || 'Not Marked')}>{todayRecord?.status || 'Not Marked'}</span>
+            </div>
+
+            {/* Today's record — table like the HR side */}
+            <div style={{ overflowX: 'auto', border: colors.border.card, borderRadius: radius.sm, marginBottom: 18 }}>
+              <table style={{ ...styles.table, minWidth: 560 }}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Date</th>
+                    <th style={styles.th}>Status</th>
+                    <th style={styles.th}>Type</th>
+                    <th style={styles.th}>Check In</th>
+                    <th style={styles.th}>Check Out</th>
+                    <th style={styles.th}>Duration</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={styles.td}>{new Date(todayStr + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', weekday: 'short' })}</td>
+                    <td style={styles.td}><span style={statusBadge(todayRecord?.status || 'Not Marked')}>{todayRecord?.status || 'Not Marked'}</span></td>
+                    <td style={styles.td}>{todayRecord?.attendance_type || '-'}</td>
+                    <td style={styles.td}>{checkInTime ? new Date(checkInTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                    <td style={styles.td}>{todayRecord?.check_out_time ? new Date(todayRecord.check_out_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                    <td style={styles.td}>{durationText || '-'}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Actions */}
+            {isCheckedIn && isCheckedOut ? (
+              <p style={{ color: '#22c55e', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, margin: 0 }}>
+                <CheckCircle2 size={16} color="#22c55e" /> Checked in and checked out for today.
+              </p>
+            ) : isCheckedIn && !isCheckedOut ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                <span style={{ color: colors.text.muted, fontSize: 13 }}>Working from {todayRecord?.attendance_type || '—'} today</span>
+                <button onClick={manualCheckOut} disabled={manualBusy} style={{ ...styles.primaryBtn, opacity: manualBusy ? 0.6 : 1 }}>
+                  {manualBusy ? 'Please wait...' : '⏰ Check Out'}
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, flexWrap: 'wrap' }}>
+                <div>
+                  <label style={styles.label}>Where are you working from?</label>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    {['Office', 'WFH'].map(t => (
+                      <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, color: colors.text.primary, fontSize: 13, cursor: 'pointer' }}>
+                        <input type="radio" name="manualAttType" value={t} checked={attendanceType === t} onChange={e => setAttendanceType(e.target.value)} /> {t}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={manualCheckIn} disabled={manualBusy || !attendanceType} style={{ ...styles.primaryBtn, opacity: (manualBusy || !attendanceType) ? 0.6 : 1 }}>
+                  {manualBusy ? 'Please wait...' : '✅ Check In'}
+                </button>
+              </div>
+            )}
+            {manualMsg && <p style={{ color: '#f87171', fontSize: 13, marginTop: 10, marginBottom: 0 }}>{manualMsg}</p>}
+          </div>
+
+          {/* Face Recognition — WFH only */}
+          {attendanceType === 'WFH' ? (
+          <div style={styles.sectionCard}>
+          <h2 style={styles.sectionTitle}>Face Recognition Attendance (WFH)</h2>
           {!faceEnrolled ? (
             <div>
               <p style={{ color: colors.badge.warning.text, fontSize: 13, marginBottom: 12 }}>Enroll your face once to start marking attendance.</p>
@@ -459,54 +535,39 @@ function EmployeeAttendance() {
             ) : (
               <div>
                 <video ref={videoRef} autoPlay muted style={{ width: '100%', maxWidth: 360, borderRadius: radius.md, background: '#000' }} />
-                <div style={{ marginTop: 10, padding: 10, background: 'rgba(2,6,23,0.5)', borderRadius: radius.sm, textAlign: 'center', border: colors.border.subtle }}>
+                <div style={{ marginTop: 10, padding: 10, background: '#f8fafc', borderRadius: radius.sm, textAlign: 'center', border: colors.border.subtle }}>
                   {liveMatchFound ? <span style={{ color: '#22c55e', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={14} color="#22c55e" /> {liveDetectedName}</span> : <span style={{ color: '#fbbf24', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}><Search size={14} color="#fbbf24" /> Detecting face...</span>}
-                  {liveMatchFound && !blinkDetected && <p style={{ color: '#fbbf24', fontSize: 11, margin: '4px 0 0' }}>Blink to confirm liveness</p>}
                 </div>
                 {cameraMessage && <p style={{ color: '#f87171', fontSize: 13, marginTop: 8 }}>{cameraMessage}</p>}
                 <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                  {liveMatchFound && blinkDetected && <button onClick={submitExit} disabled={cameraBusy} style={{ ...styles.primaryBtn, opacity: cameraBusy ? 0.6 : 1 }}>{cameraBusy ? 'Verifying...' : 'Mark Exit'}</button>}
+                  {liveMatchFound && <button onClick={submitExit} disabled={cameraBusy} style={{ ...styles.primaryBtn, opacity: cameraBusy ? 0.6 : 1 }}>{cameraBusy ? 'Verifying...' : 'Mark Exit'}</button>}
                   <button onClick={stopCamera} style={styles.secondaryBtn}>Cancel</button>
                 </div>
               </div>
             )
           ) : cameraMode !== 'mark' ? (
             <div>
-              <label style={styles.label}>Where are you working from?</label>
-              <div style={{ display: 'flex', gap: 12, marginBottom: 14 }}>
-                {['Office', 'WFH'].map(t => (
-                  <label key={t} style={{ display: 'flex', alignItems: 'center', gap: 6, color: colors.text.primary, fontSize: 13, cursor: 'pointer' }}>
-                    <input type="radio" name="attType" value={t} checked={attendanceType === t} onChange={e => setAttendanceType(e.target.value)} /> {t}
-                  </label>
-                ))}
-              </div>
-              <button onClick={() => {
-                if (!attendanceType) return alert('Select Office or WFH first.')
-                if (attendanceType === 'Office') {
-                  setGeofenceChecking(true)
-                  navigator.geolocation.getCurrentPosition(pos => {
-                    setGeofenceChecking(false)
-                    if (distMeters(pos.coords.latitude, pos.coords.longitude, OFFICE_LAT, OFFICE_LNG) > OFFICE_RADIUS) return alert('You must be within office premises.')
-                    openCamera('mark')
-                  }, () => { setGeofenceChecking(false); alert('Location access required.') })
-                } else openCamera('mark')
-              }} disabled={geofenceChecking} style={{ ...styles.primaryBtn, opacity: geofenceChecking ? 0.6 : 1 }}>
-                {geofenceChecking ? 'Checking location...' : 'Mark My Attendance'}
-              </button>
+              <p style={{ color: colors.text.muted, fontSize: 13, marginBottom: 12 }}>Open your camera to mark your WFH attendance with face recognition.</p>
+              <button onClick={() => openCamera('mark')} style={styles.primaryBtn}>📷 Mark with Camera</button>
             </div>
           ) : (
             <div>
               <video ref={videoRef} autoPlay muted style={{ width: '100%', maxWidth: 360, borderRadius: radius.md, background: '#000' }} />
-              <div style={{ marginTop: 10, padding: 10, background: 'rgba(2,6,23,0.5)', borderRadius: radius.sm, textAlign: 'center', border: colors.border.subtle }}>
+              <div style={{ marginTop: 10, padding: 10, background: '#f8fafc', borderRadius: radius.sm, textAlign: 'center', border: colors.border.subtle }}>
                 {liveMatchFound ? <span style={{ color: '#22c55e', fontWeight: 600, fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={14} color="#22c55e" /> {liveDetectedName}</span> : <span style={{ color: '#fbbf24', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4 }}><Search size={14} color="#fbbf24" /> Detecting face...</span>}
-                {liveMatchFound && !blinkDetected && <p style={{ color: '#fbbf24', fontSize: 11, margin: '4px 0 0' }}>Blink to confirm</p>}
               </div>
               {cameraMessage && <p style={{ color: '#f87171', fontSize: 13, marginTop: 8 }}>{cameraMessage}</p>}
               <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
-                {liveMatchFound && blinkDetected && <button onClick={submitMark} disabled={cameraBusy} style={{ ...styles.primaryBtn, opacity: cameraBusy ? 0.6 : 1 }}>{cameraBusy ? 'Verifying...' : 'Mark Present'}</button>}
+                {liveMatchFound && <button onClick={submitMark} disabled={cameraBusy} style={{ ...styles.primaryBtn, opacity: cameraBusy ? 0.6 : 1 }}>{cameraBusy ? 'Verifying...' : 'Mark Present'}</button>}
                 <button onClick={stopCamera} style={styles.secondaryBtn}>Cancel</button>
               </div>
             </div>
+          )}
+          </div>
+          ) : (
+            <p style={{ color: colors.text.muted, fontSize: 13, background: '#f8fafc', border: colors.border.subtle, borderRadius: radius.md, padding: 12 }}>
+              ℹ️ Face (camera) attendance is only available for <strong>Work From Home (WFH)</strong>. For Office, use <strong>Manual Check In</strong> above.
+            </p>
           )}
         </div>
       )}
@@ -606,7 +667,7 @@ function EmployeeAttendance() {
             {/* Daily Records Table */}
             <div style={styles.sectionCard}>
               <h2 style={styles.sectionTitle}>Daily Records — {getMonthName(selectedMonth)} {selectedYear}</h2>
-              <div style={{ maxHeight: 350, overflowY: 'auto', borderRadius: radius.sm, scrollbarWidth: 'thin' }}>
+              <div style={{ maxHeight: 350, overflowY: 'auto', overflowX: 'auto', borderRadius: radius.sm, scrollbarWidth: 'thin' }}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
@@ -623,16 +684,22 @@ function EmployeeAttendance() {
                     )}
                     {allRecords.filter(r => {
                       const rd = new Date(r.attendance_date)
-                      return rd.getMonth() + 1 === selectedMonth && rd.getFullYear() === selectedYear
-                    }).sort((a, b) => new Date(b.attendance_date) - new Date(a.attendance_date)).map((a, i) => (
-                      <tr key={i} style={{ cursor: 'pointer' }} onClick={() => setSelectedDate(new Date(a.attendance_date).toLocaleDateString('en-CA'))}>
-                        <td style={styles.td}>{a.attendance_date}</td>
-                        <td style={{ ...styles.td, color: colors.text.muted, fontSize: 12 }}>{new Date(a.attendance_date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })}</td>
+                      return !isNaN(rd.getTime()) && rd.getMonth() + 1 === selectedMonth && rd.getFullYear() === selectedYear
+                    }).sort((a, b) => new Date(b.attendance_date) - new Date(a.attendance_date)).map((a, i) => {
+                      const ad = new Date(a.attendance_date)
+                      const validDate = !isNaN(ad.getTime())
+                      const dateLabel = validDate ? ad.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : String(a.attendance_date)
+                      const dayLabel = validDate ? ad.toLocaleDateString('en-IN', { weekday: 'short' }) : '-'
+                      return (
+                      <tr key={i} style={{ cursor: 'pointer' }} onClick={() => validDate && setSelectedDate(ad.toLocaleDateString('en-CA'))}>
+                        <td style={styles.td}>{dateLabel}</td>
+                        <td style={{ ...styles.td, color: colors.text.muted, fontSize: 12 }}>{dayLabel}</td>
                         <td style={styles.td}><span style={statusBadge(a.status)}>{a.status}</span></td>
                         <td style={styles.td}>{a.check_in_time ? new Date(a.check_in_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                         <td style={styles.td}>{a.check_out_time ? new Date(a.check_out_time).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

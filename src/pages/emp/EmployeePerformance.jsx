@@ -48,7 +48,7 @@ function EmployeePerformance() {
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.08)" />
                   <XAxis dataKey="review" stroke={colors.text.muted} fontSize={12} />
                   <YAxis domain={[0, 5]} stroke={colors.text.muted} fontSize={12} />
-                  <Tooltip contentStyle={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: radius.sm, fontSize: 13 }} />
+                  <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: radius.sm, fontSize: 13 }} />
                   <Bar dataKey="rating" fill="#f59e0b" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -63,7 +63,7 @@ function EmployeePerformance() {
               <p style={{ color: colors.text.muted, textAlign: 'center', padding: 20 }}>No reviews yet.</p>
             ) : (
               performance.map(p => (
-                <div key={p.id} style={{ background: 'rgba(2,6,23,0.4)', border: colors.border.subtle, borderRadius: radius.md, padding: 14, marginBottom: 8 }}>
+                <div key={p.id} style={{ background: '#f8fafc', border: colors.border.subtle, borderRadius: radius.md, padding: 14, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 15, display: 'flex', alignItems: 'center', gap: 4 }}>{p.rating} <Star size={14} color="#f59e0b" fill="#f59e0b" /></span>

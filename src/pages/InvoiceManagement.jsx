@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { apiFetch, API_BASE } from "../api";
 import toast from "react-hot-toast";
-import { Download, Plus, Edit, Trash2, X, Search } from "lucide-react";
+import { Plus, Edit, Trash2, X, Search } from "lucide-react";
+import { textColor as txColor } from "../styles/adminTheme";
 
 const formatCurrency = (num) => {
     if (num == null) return "0";
@@ -38,7 +39,6 @@ const InvoiceManagement = () => {
     const [searchTerm, setSearchTerm] = useState("");
     const [filterYear, setFilterYear] = useState("");
     const [filterStatus, setFilterStatus] = useState("");
-    const [activeTab, setActiveTab] = useState("all");
 
     const fetchInvoices = async () => {
         try {
@@ -62,9 +62,27 @@ const InvoiceManagement = () => {
 
     const handleSearch = () => { fetchInvoices(); };
 
+    const getFinancialYear = (dateStr) => {
+        if (!dateStr) return "";
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return "";
+        const month = d.getMonth(); // 0-indexed
+        const year = d.getFullYear();
+        // Indian FY: Apr-Mar. Apr-Dec = year-year+1, Jan-Mar = year-1-year
+        if (month >= 3) return `${year}-${year + 1}`;
+        return `${year - 1}-${year}`;
+    };
+
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setForm(prev => ({ ...prev, [name]: value }));
+        setForm(prev => {
+            const updated = { ...prev, [name]: value };
+            // Auto-fill financial year from due_date or bill_date if financial_year is empty
+            if ((name === "due_date" || name === "bill_date") && !prev.financial_year) {
+                updated.financial_year = getFinancialYear(value);
+            }
+            return updated;
+        });
 
         // Auto-calculate totals when key fields change
         if (["salary_cost", "service_charge", "employer_statutory", "cgst", "sgst", "igst"].includes(name)) {
@@ -149,8 +167,8 @@ const InvoiceManagement = () => {
 
     const financialYears = [...new Set(invoices.map(i => i.financial_year).filter(Boolean))].sort().reverse();
 
-    const inputStyle = { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "#f8fafc", fontSize: "13px", outline: "none", boxSizing: "border-box" };
-    const labelStyle = { display: "block", marginBottom: "4px", color: "#94a3b8", fontSize: "11px", fontWeight: "600", letterSpacing: ".3px" };
+    const inputStyle = { width: "100%", padding: "10px 14px", borderRadius: "10px", border: "1px solid #d1d5db", background: "#ffffff", color: txColor("primary"), fontSize: "13px", outline: "none", boxSizing: "border-box" };
+    const labelStyle = { display: "block", marginBottom: "4px", color: txColor("secondary"), fontSize: "11px", fontWeight: "600", letterSpacing: ".3px" };
 
     if (loading) {
         return (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div></div>);
@@ -161,11 +179,11 @@ const InvoiceManagement = () => {
             {/* Header */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
                 <div>
-                    <h2 style={{ fontSize: "24px", fontWeight: "800", color: "#f8fafc", margin: 0 }}>Invoice Management</h2>
-                    <p style={{ color: "#64748b", fontSize: "13px", margin: "4px 0 0" }}>Manage recruitment invoices and billing</p>
+                    <h2 style={{ fontSize: "24px", fontWeight: "800", color: txColor("primary"), margin: 0 }}>Invoice Management</h2>
+                    <p style={{ color: txColor("secondary"), fontSize: "13px", margin: "4px 0 0" }}>Manage recruitment invoices and billing</p>
                 </div>
                 <button onClick={() => { setShowForm(true); setEditingId(null); setForm({ ...emptyInvoice }); }}
-                    style={{ padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(34,197,94,.3)", background: "linear-gradient(135deg,rgba(34,197,94,.2),rgba(16,185,129,.2))", color: "#22c55e", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}>
+                    style={{ padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(22,163,74,.3)", background: "linear-gradient(135deg,rgba(22,163,74,.1),rgba(16,185,129,.1))", color: "#16a34a", cursor: "pointer", fontWeight: "700", fontSize: "13px", display: "flex", alignItems: "center", gap: "8px" }}>
                     <Plus size={16} /> Add Invoice
                 </button>
             </div>
@@ -173,14 +191,14 @@ const InvoiceManagement = () => {
             {/* Stats Cards */}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" }}>
                 {[
-                    { label: "Total Invoices", value: stats.total, color: "#37FFD7" },
-                    { label: "Total Amount", value: `Rs.${formatCurrency(stats.totalAmount)}`, color: "#37FFD7" },
+                    { label: "Total Invoices", value: stats.total, color: "#0891b2" },
+                    { label: "Total Amount", value: `Rs.${formatCurrency(stats.totalAmount)}`, color: "#0891b2" },
                     { label: "Paid", value: stats.paid, color: "#22c55e" },
                     { label: "Pending", value: stats.pending, color: "#eab308" },
-                    { label: "Our Share", value: `Rs.${formatCurrency(stats.ourShare)}`, color: "#37FFD7" },
+                    { label: "Our Share", value: `Rs.${formatCurrency(stats.ourShare)}`, color: "#0891b2" },
                 ].map((stat, i) => (
-                    <div key={i} style={{ padding: "20px", borderRadius: "16px", border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.02)" }}>
-                        <div style={{ color: "#64748b", fontSize: "11px", fontWeight: "600", letterSpacing: ".5px", textTransform: "uppercase" }}>{stat.label}</div>
+                    <div key={i} style={{ padding: "20px", borderRadius: "16px", border: "1px solid #e2e8f0", background: "#ffffff", boxShadow: "0 1px 3px rgba(0,0,0,.06)"}}>
+                        <div style={{ color: txColor("secondary"), fontSize: "11px", fontWeight: "600", letterSpacing: ".5px", textTransform: "uppercase" }}>{stat.label}</div>
                         <div style={{ color: stat.color, fontSize: "22px", fontWeight: "800", marginTop: "6px" }}>{stat.value}</div>
                     </div>
                 ))}
@@ -189,7 +207,7 @@ const InvoiceManagement = () => {
             {/* Filters */}
             <div style={{ display: "flex", gap: "12px", marginBottom: "20px", flexWrap: "wrap", alignItems: "center" }}>
                 <div style={{ flex: 1, minWidth: "200px", position: "relative" }}>
-                    <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b" }} />
+                    <Search size={16} style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: txColor("muted") }} />
                     <input type="text" placeholder="Search by client, candidate, invoice number..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                         style={{ ...inputStyle, paddingLeft: "36px" }} />
                 </div>
@@ -207,18 +225,18 @@ const InvoiceManagement = () => {
 
             {/* Invoice Form Modal */}
             {showForm && (
-                <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "flex-start", overflowY: "auto", padding: "40px 20px" }}
+                <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.35)", zIndex: 9999, display: "flex", justifyContent: "center", alignItems: "flex-start", overflowY: "auto", padding: "40px 20px" }}
                     onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}>
-                    <div style={{ background: "#0f172a", borderRadius: "20px", border: "1px solid rgba(255,255,255,.08)", padding: "32px", width: "100%", maxWidth: "900px", maxHeight: "85vh", overflowY: "auto", overflowX: "hidden" }}>
+                    <div style={{ background: "#ffffff", borderRadius: "20px", border: "1px solid #e2e8f0", padding: "32px", width: "100%", maxWidth: "900px", maxHeight: "85vh", overflowY: "auto", overflowX: "hidden", boxShadow: "0 12px 40px rgba(0,0,0,.1)"}}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-                            <h3 style={{ fontSize: "20px", fontWeight: "700", color: "#f8fafc", margin: 0 }}>{editingId ? "Edit Invoice" : "Add New Invoice"}</h3>
-                            <button onClick={handleCancel} style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer" }}><X size={24} /></button>
+                            <h3 style={{ fontSize: "20px", fontWeight: "700", color: txColor("primary"), margin: 0 }}>{editingId ? "Edit Invoice" : "Add New Invoice"}</h3>
+                            <button onClick={handleCancel} style={{ background: "none", border: "none", color: txColor("secondary"), cursor: "pointer" }}><X size={24} /></button>
                         </div>
 
                         <form onSubmit={handleSubmit}>
                             {/* Section: Bill Details */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>BILL DETAILS</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>BILL DETAILS</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Invoice Number</label><input name="invoice_number" value={form.invoice_number} onChange={handleChange} style={inputStyle} required /></div>
                                     <div><label style={labelStyle}>Bill Date</label><input name="bill_date" type="date" value={form.bill_date?.split("T")[0] || ""} onChange={handleChange} style={inputStyle} /></div>
@@ -240,7 +258,7 @@ const InvoiceManagement = () => {
 
                             {/* Section: Client Details */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>CLIENT DETAILS</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>CLIENT DETAILS</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Client Name</label><input name="client_name" value={form.client_name} onChange={handleChange} style={inputStyle} required /></div>
                                     <div><label style={labelStyle}>Contact Person</label><input name="contact_person" value={form.contact_person} onChange={handleChange} style={inputStyle} /></div>
@@ -258,7 +276,7 @@ const InvoiceManagement = () => {
 
                             {/* Section: Candidate Details */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>CANDIDATE DETAILS</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>CANDIDATE DETAILS</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Candidate Name</label><input name="candidate_name" value={form.candidate_name} onChange={handleChange} style={inputStyle} /></div>
                                     <div><label style={labelStyle}>Candidate Phone</label><input name="candidate_phone" value={form.candidate_phone} onChange={handleChange} style={inputStyle} /></div>
@@ -273,7 +291,7 @@ const InvoiceManagement = () => {
 
                             {/* Section: Franchise & BD */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>FRANCHISE & BUSINESS DEVELOPMENT</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>FRANCHISE & BUSINESS DEVELOPMENT</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Franchise Name</label><input name="franchise_name" value={form.franchise_name} onChange={handleChange} style={inputStyle} /></div>
                                     <div><label style={labelStyle}>Team Leader</label><input name="team_leader" value={form.team_leader} onChange={handleChange} style={inputStyle} /></div>
@@ -284,7 +302,7 @@ const InvoiceManagement = () => {
 
                             {/* Section: Financial */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>FINANCIAL DETAILS</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>FINANCIAL DETAILS</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Service Charge (%)</label><input name="service_charge_percent" value={form.service_charge_percent} onChange={handleChange} style={inputStyle} /></div>
                                     <div><label style={labelStyle}>Service Charge (Amount)</label><input name="service_charge" type="number" value={form.service_charge} onChange={handleChange} style={inputStyle} /></div>
@@ -300,7 +318,7 @@ const InvoiceManagement = () => {
                                         </select>
                                     </div>
                                     <div><label style={labelStyle}>Subtotal</label><input name="subtotal" type="number" value={form.subtotal} onChange={handleChange} style={inputStyle} readOnly /></div>
-                                    <div><label style={labelStyle}>Total Amount</label><input name="total_amount" type="number" value={form.total_amount} onChange={handleChange} style={{ ...inputStyle, fontWeight: "700", color: "#37FFD7" }} readOnly /></div>
+                                    <div><label style={labelStyle}>Total Amount</label><input name="total_amount" type="number" value={form.total_amount} onChange={handleChange} style={{ ...inputStyle, fontWeight: "700", color: "#0891b2"}} readOnly /></div>
                                     <div><label style={labelStyle}>Credit Period (Days)</label><input name="credit_period" value={form.credit_period} onChange={handleChange} style={inputStyle} /></div>
                                     <div><label style={labelStyle}>Replacement Period (Days)</label><input name="replacement_period" value={form.replacement_period} onChange={handleChange} style={inputStyle} /></div>
                                 </div>
@@ -308,7 +326,7 @@ const InvoiceManagement = () => {
 
                             {/* Section: Payment & Revenue */}
                             <div style={{ marginBottom: "20px" }}>
-                                <div style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>PAYMENT & REVENUE SPLIT</div>
+                                <div style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginBottom: "12px", letterSpacing: ".5px" }}>PAYMENT & REVENUE SPLIT</div>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
                                     <div><label style={labelStyle}>Our Share</label><input name="our_share" type="number" value={form.our_share} onChange={handleChange} style={inputStyle} /></div>
                                     <div><label style={labelStyle}>Franchisee Share</label><input name="franchisee_share" type="number" value={form.franchisee_share} onChange={handleChange} style={inputStyle} /></div>
@@ -337,8 +355,8 @@ const InvoiceManagement = () => {
                             </div>
 
                             {/* Submit Buttons */}
-                            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px", paddingTop: "20px", borderTop: "1px solid rgba(255,255,255,.06)" }}>
-                                <button type="button" onClick={handleCancel} style={{ padding: "12px 24px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.1)", background: "rgba(255,255,255,.05)", color: "#94a3b8", cursor: "pointer", fontWeight: "600" }}>Cancel</button>
+                            <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end", marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #e2e8f0"}}>
+                                <button type="button" onClick={handleCancel} style={{ padding: "12px 24px", borderRadius: "12px", border: "1px solid #d1d5db", background: "#ffffff", color: txColor('secondary'), cursor: "pointer", fontWeight: "600" }}>Cancel</button>
                                 <button type="submit" style={{ padding: "12px 32px", borderRadius: "12px", border: "none", background: "linear-gradient(135deg,#22c55e,#10b981)", color: "#fff", cursor: "pointer", fontWeight: "700", fontSize: "14px" }}>{editingId ? "Update Invoice" : "Create Invoice"}</button>
                             </div>
                         </form>
@@ -347,13 +365,13 @@ const InvoiceManagement = () => {
             )}
 
             {/* Invoice Table */}
-            <div style={{ borderRadius: "20px", border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.02)", overflow: "hidden" }}>
+            <div style={{ borderRadius: "20px", border: "1px solid #e2e8f0", background: "#ffffff", overflow: "hidden" }}>
                 <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "70vh" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                             <tr>
                                 {["Invoice #", "Client", "Candidate", "Total Amount", "Our Share", "Status", "Due Date", "Financial Year", "Actions"].map(h => (
-                                    <th key={h} style={{ padding: "14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#64748b", borderBottom: "1px solid rgba(255,255,255,.06)", whiteSpace: "nowrap", background: "rgba(255,255,255,.02)", letterSpacing: ".3px", textTransform: "uppercase" }}>{h}</th>
+                                    <th key={h} style={{ padding: "14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: txColor('secondary'), borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap", background: "#f8fafc", letterSpacing: ".3px", textTransform: "uppercase", position: "sticky", top: 0, zIndex: 5 }}>{h}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -363,20 +381,21 @@ const InvoiceManagement = () => {
                             ) : invoices.map(inv => {
                                 const sc = getStatusColor(inv.status || inv.lifecycle_state);
                                 return (
-                                    <tr key={inv.id} style={{ transition: "background .2s" }} onMouseEnter={e => e.currentTarget.style.background = "rgba(55,255,215,.04)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#f8fafc", fontWeight: "600", borderBottom: "1px solid rgba(255,255,255,.04)" }}>{inv.invoice_number || "N/A"}</td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#cbd5e1", borderBottom: "1px solid rgba(255,255,255,.04)" }}>{inv.client_name || "N/A"}</td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#cbd5e1", borderBottom: "1px solid rgba(255,255,255,.04)" }}>{inv.candidate_name || "-"}</td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#37FFD7", fontWeight: "700", borderBottom: "1px solid rgba(255,255,255,.04)" }}>Rs.{formatCurrency(inv.total_amount)}</td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#37FFD7", borderBottom: "1px solid rgba(255,255,255,.04)" }}>Rs.{formatCurrency(inv.our_share)}</td>
-                                        <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
+                                    <tr key={inv.id} style={{ transition: "background .2s" }}                                        onMouseEnter={e => e.currentTarget.style.background = "rgba(8,145,178,.04)"}
+                                        onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: txColor('primary'), fontWeight: "600", borderBottom: "1px solid #f1f5f9"}}>{inv.invoice_number || "N/A"}</td>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9"}}>{inv.client_name || "N/A"}</td>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9"}}>{inv.candidate_name || "-"}</td>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#0891b2", fontWeight: "700", borderBottom: "1px solid #f1f5f9"}}>Rs.{formatCurrency(inv.total_amount)}</td>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#0891b2", borderBottom: "1px solid #f1f5f9"}}>Rs.{formatCurrency(inv.our_share)}</td>
+                                        <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9"}}>
                                             <span style={{ padding: "4px 12px", borderRadius: "8px", background: sc.bg, color: sc.color, fontSize: "11px", fontWeight: "700" }}>{inv.status || inv.lifecycle_state || "N/A"}</span>
                                         </td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#cbd5e1", borderBottom: "1px solid rgba(255,255,255,.04)" }}>{inv.due_date ? new Date(inv.due_date).toLocaleDateString("en-GB") : "N/A"}</td>
-                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: "#cbd5e1", borderBottom: "1px solid rgba(255,255,255,.04)" }}>{inv.financial_year || "N/A"}</td>
-                                        <td style={{ padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,.04)" }}>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9"}}>{inv.due_date ? new Date(inv.due_date).toLocaleDateString("en-GB") : "N/A"}</td>
+                                        <td style={{ padding: "12px 14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9"}}>{inv.financial_year || "N/A"}</td>
+                                        <td style={{ padding: "12px 14px", borderBottom: "1px solid #f1f5f9"}}>
                                             <div style={{ display: "flex", gap: "8px" }}>
-                                                <button onClick={() => handleEdit(inv)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid rgba(55,255,215,.3)", background: "rgba(55,255,215,.1)", color: "#37FFD7", cursor: "pointer" }}><Edit size={14} /></button>
+                                                <button onClick={() => handleEdit(inv)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid rgba(8,145,178,.3)", background: "rgba(8,145,178,.1)", color: "#0891b2", cursor: "pointer" }}><Edit size={14} /></button>
                                                 <button onClick={() => handleDelete(inv.id)} style={{ padding: "6px 10px", borderRadius: "8px", border: "1px solid rgba(239,68,68,.3)", background: "rgba(239,68,68,.1)", color: "#ef4444", cursor: "pointer" }}><Trash2 size={14} /></button>
                                             </div>
                                         </td>

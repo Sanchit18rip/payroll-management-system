@@ -6,13 +6,11 @@ import NotificationBell from '../../components/NotificationBell'
 import ChatbotWidget from '../../components/ChatbotWidget'
 import { styles, colors, radius, formatCurrency, statusBadge } from './theme'
 import {
-  LayoutDashboard,
   CalendarDays,
   Wallet,
   Plane,
   BarChart3,
   ClipboardList,
-  UserCircle,
   FileText,
   Briefcase,
   AlertTriangle,
@@ -33,10 +31,10 @@ function getTimeGreeting() {
 
 function getTimeHeroAccent() {
   const h = new Date().getHours()
-  if (h >= 5 && h < 12) return 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(139,92,246,0.1), rgba(15,23,42,0.6))'
-  if (h >= 12 && h < 17) return 'linear-gradient(135deg, rgba(56,189,248,0.15), rgba(139,92,246,0.1), rgba(15,23,42,0.6))'
-  if (h >= 17 && h < 21) return 'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(236,72,153,0.1), rgba(15,23,42,0.6))'
-  return 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(56,189,248,0.08), rgba(15,23,42,0.6))'
+  if (h >= 5 && h < 12) return 'linear-gradient(135deg, rgba(251,191,36,0.15), rgba(139,92,246,0.1), rgba(15,23,42,0.06))'
+  if (h >= 12 && h < 17) return 'linear-gradient(135deg, rgba(56,189,248,0.15), rgba(139,92,246,0.1), rgba(15,23,42,0.06))'
+  if (h >= 17 && h < 21) return 'linear-gradient(135deg, rgba(249,115,22,0.18), rgba(236,72,153,0.1), rgba(15,23,42,0.06))'
+  return 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(56,189,248,0.08), rgba(15,23,42,0.06))'
 }
 
 function StatCard({ icon, label, value, sub, color, animDelay }) {
@@ -54,9 +52,9 @@ function StatCard({ icon, label, value, sub, color, animDelay }) {
 
 function QuickAction({ icon: Icon, label, path, color = colors.text.primary }) {
   return (
-    <a href={`#${path}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px 12px', background: 'rgba(15,23,42,0.4)', border: colors.border.card, borderRadius: radius.lg, textDecoration: 'none', transition: 'all 0.15s ease', cursor: 'pointer' }}
-      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.1)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)' }}
-      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(15,23,42,0.4)'; e.currentTarget.style.borderColor = 'rgba(148,163,184,0.12)' }}
+    <a href={`#${path}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px 12px', background: '#ffffff', border: colors.border.card, borderRadius: radius.lg, textDecoration: 'none', transition: 'all 0.15s ease', cursor: 'pointer' }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)' }}
+      onMouseLeave={e => { e.currentTarget.style.background = '#ffffff'; e.currentTarget.style.borderColor = '#e2e8f0' }}
     >
       {Icon && <Icon size={20} style={{ color }} />}
       <span style={{ fontSize: 12, fontWeight: 600, color }}>{label}</span>
@@ -68,6 +66,46 @@ function EmployeeHome() {
   const greet = getTimeGreeting()
   const { loading, errorMsg, employee, payableSalary, attendanceSummary, leaveBalance, performance, leaves, attendance, workLogSummary, increments, loadDashboard } = useEmployeeData()
   const [showTerms, setShowTerms] = useState(false)
+  const [manualBusy, setManualBusy] = useState(false)
+  const [manualType, setManualType] = useState('Office')
+
+  const manualCheckIn = async () => {
+    setManualBusy(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id: employee.id, face_match: false, attendance_type: manualType }),
+      })
+      const r = await res.json()
+      if (!res.ok) throw new Error(r.message || 'Failed to check in.')
+      alert('Checked in!')
+      await loadDashboard(employee.id)
+    } catch (err) {
+      alert(err.message || 'Something went wrong.')
+    } finally {
+      setManualBusy(false)
+    }
+  }
+
+  const manualCheckOut = async () => {
+    setManualBusy(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/api/attendance/self-mark-exit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employee_id: employee.id, face_match: false }),
+      })
+      const r = await res.json()
+      if (!res.ok) throw new Error(r.message || 'Failed to check out.')
+      alert('Checked out!')
+      await loadDashboard(employee.id)
+    } catch (err) {
+      alert(err.message || 'Something went wrong.')
+    } finally {
+      setManualBusy(false)
+    }
+  }
   const [termsAccepted, setTermsAccepted] = useState(true)
   const [termsChecked, setTermsChecked] = useState(false)
   const [acceptingTerms, setAcceptingTerms] = useState(false)
@@ -136,7 +174,7 @@ function EmployeeHome() {
         <div style={styles.overlay}>
           <div style={styles.modal}>
             <h2 style={{ color: colors.text.primary, marginTop: 0, fontSize: 18 }}>Terms &amp; Conditions</h2>
-            <div style={{ background: 'rgba(2,6,23,0.5)', border: '1px solid rgba(148,163,184,0.1)', borderRadius: radius.md, padding: '14px 16px', maxHeight: 200, overflowY: 'auto', color: colors.text.secondary, fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: radius.md, padding: '14px 16px', maxHeight: 200, overflowY: 'auto', color: colors.text.secondary, fontSize: 13, lineHeight: 1.7, marginBottom: 16 }}>
               <p><strong>Talent Pay Corner - Terms & Conditions</strong></p>
               <p>Welcome to Talent Pay Corner. By using this platform you agree to provide accurate information, maintain login confidentiality, and use the platform only for authorized purposes.</p>
               <p>All payroll and employee information is confidential. Governing law: India, jurisdiction: Mumbai, Maharashtra.</p>
@@ -153,9 +191,9 @@ function EmployeeHome() {
       )}
 
       {/* Hero */}
-      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, padding: '24px 28px', borderRadius: radius.xl, background: getTimeHeroAccent(), backdropFilter: 'blur(16px)', border: colors.border.card, boxShadow: '0 4px 24px rgba(0,0,0,0.3)', position: 'relative', zIndex: 10 }}>
+      <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, padding: '24px 28px', borderRadius: radius.xl, background: getTimeHeroAccent(), backdropFilter: 'blur(16px)', border: colors.border.card, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', position: 'relative', zIndex: 10 }}>
         <div>
-          <h1 style={{ fontSize: 30, margin: '0 0 4px', fontWeight: 700, background: 'linear-gradient(120deg, #38bdf8, #818cf8, #e879f9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <h1 style={{ fontSize: 30, margin: '0 0 4px', fontWeight: 700, background: 'linear-gradient(120deg, #0369a1, #4f46e5, #a21caf)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
             {greet.text}, {employee.name}
           </h1>
           <p style={{ color: colors.text.secondary, fontSize: 14, margin: '0 0 8px' }}>{employee.department || 'Department'} • {employee.email}</p>
@@ -199,9 +237,25 @@ function EmployeeHome() {
         <div style={styles.summaryGrid}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: isCheckedIn ? (isCheckedOut ? 'rgba(34,197,94,0.08)' : 'rgba(56,189,248,0.08)') : 'rgba(148,163,184,0.06)', borderRadius: radius.md, border: `1px solid ${isCheckedIn ? (isCheckedOut ? 'rgba(34,197,94,0.2)' : 'rgba(56,189,248,0.2)') : 'rgba(148,163,184,0.1)'}` }}>
             {isCheckedIn ? (isCheckedOut ? <CheckCircle2 size={20} color="#22c55e" /> : <Clock size={20} color="#06b6d4" />) : <CalendarX size={20} color="#94a3b8" />}
-            <div>
+            <div style={{ flex: 1 }}>
               <p style={{ color: colors.text.secondary, fontSize: 11, textTransform: 'uppercase', margin: 0 }}>Attendance</p>
               <p style={{ color: colors.text.primary, fontSize: 14, fontWeight: 600, margin: '2px 0 0' }}>{isCheckedIn ? (isCheckedOut ? 'Completed' : 'Checked In') : 'Not Marked'}</p>
+              {isCheckedIn && !isCheckedOut && (
+                <button onClick={manualCheckOut} disabled={manualBusy} style={{ marginTop: 8, padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                  {manualBusy ? 'Please wait...' : '⏰ Check Out'}
+                </button>
+              )}
+              {!isCheckedIn && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <select value={manualType} onChange={e => setManualType(e.target.value)} style={{ padding: '6px 8px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#ffffff', color: colors.text.primary, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    <option value="Office">Office</option>
+                    <option value="WFH">WFH</option>
+                  </select>
+                  <button onClick={manualCheckIn} disabled={manualBusy} style={{ padding: '6px 14px', borderRadius: 10, border: '1px solid rgba(34,197,94,0.3)', background: 'rgba(34,197,94,0.1)', color: '#22c55e', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {manualBusy ? 'Please wait...' : '✅ Check In'}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: todayWL ? (Number(todayWL.completed) > 0 ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)') : 'rgba(148,163,184,0.06)', borderRadius: radius.md, border: `1px solid ${todayWL ? (Number(todayWL.completed) > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)') : 'rgba(148,163,184,0.1)'}` }}>
@@ -219,7 +273,7 @@ function EmployeeHome() {
             </div>
           </div>
           {latestLeave && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(15,23,42,0.4)', borderRadius: radius.md, border: colors.border.card }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#f1f5f9', borderRadius: radius.md, border: colors.border.card }}>
               <Mail size={20} color="#06b6d4" />
               <div>
                 <p style={{ color: colors.text.secondary, fontSize: 11, textTransform: 'uppercase', margin: 0 }}>Latest Leave</p>
@@ -276,7 +330,7 @@ function EmployeeHome() {
                 <Pie data={pieData} dataKey="value" outerRadius={70} innerRadius={35} paddingAngle={3}>
                   {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i]} />)}
                 </Pie>
-                <Tooltip contentStyle={{ background: 'rgba(15,23,42,0.9)', border: '1px solid rgba(148,163,184,0.15)', borderRadius: 8, fontSize: 13 }} />
+                <Tooltip contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 13 }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </div>
@@ -292,7 +346,7 @@ function EmployeeHome() {
               <p style={{ color: colors.text.muted, fontSize: 13 }}>No performance reviews yet.</p>
             ) : (
               performance.slice(0, 5).map(p => (
-                <div key={p.id} style={{ background: 'rgba(2,6,23,0.4)', border: colors.border.subtle, borderRadius: radius.md, padding: 12, marginBottom: 8 }}>
+                <div key={p.id} style={{ background: '#f8fafc', border: colors.border.subtle, borderRadius: radius.md, padding: 12, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#f59e0b', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 4 }}>{p.rating} <Star size={14} color="#f59e0b" fill="#f59e0b" /></span>
                     <span style={{ color: colors.text.muted, fontSize: 11 }}>{p.created_at ? new Date(p.created_at).toLocaleDateString('en-IN') : ''}</span>
@@ -310,7 +364,7 @@ function EmployeeHome() {
               <p style={{ color: colors.text.muted, fontSize: 13 }}>No increments recorded yet.</p>
             ) : (
               increments.slice(0, 3).map(inc => (
-                <div key={inc.id} style={{ background: 'rgba(2,6,23,0.4)', border: colors.border.subtle, borderRadius: radius.md, padding: 12, marginBottom: 8 }}>
+                <div key={inc.id} style={{ background: '#f8fafc', border: colors.border.subtle, borderRadius: radius.md, padding: 12, marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ color: '#22c55e', fontWeight: 700, fontSize: 14 }}>+{formatCurrency(inc.increment_amount)} ({Number(inc.increment_percent || 0)}%)</span>
                     <span style={{ color: colors.text.muted, fontSize: 11 }}>{inc.effective_date ? new Date(inc.effective_date).toLocaleDateString('en-IN') : ''}</span>

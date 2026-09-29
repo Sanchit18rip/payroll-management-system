@@ -1,118 +1,67 @@
-.payrollHero{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
-    padding:35px 0;
-    margin-bottom:35px;
-
-    background:transparent;
-    border:none;
-    border-radius:0;
-
-    backdrop-filter:none;
-    box-shadow:none;
-}
-.heroBadge{
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
-
-    padding:8px 18px;
-
-    border-radius:999px;
-
-    background:rgba(0,212,255,.08);
-
-    border:1px solid rgba(0,212,255,.18);
-
-    color:#4dd8ff;
-
-    font-size:12px;
-    font-weight:700;
-    letter-spacing:2px;
-}
-.heroTitle{
-    margin:0;
-    font-size:48px;
-    font-weight:800;
-    color:#fff;
-    line-height:1.1;
+.payrollHero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 35px 0;
+  margin-bottom: 35px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
 }
 
-.heroSubtitle{
-    margin-top:15px;
-    max-width:550px;
-    color:#94a3b8;
-    font-size:16px;
-    line-height:1.8;
-}
-.heroRight{
-
-display:flex;
-
-flex-direction:column;
-
-align-items:flex-end;
-
-gap:18px;
-
-}
-.heroRight{
-
-display:flex;
-
-flex-direction:column;
-
-align-items:flex-end;
-
-gap:18px;
-
-}
-.exportButton{
-    padding:14px 28px;
-
-    border-radius:14px;
-
-    border:1px solid rgba(0,212,255,.25);
-
-    background:rgba(255,255,255,.05);
-
-    color:#fff;
-
-    backdrop-filter:blur(14px);
-
-    cursor:pointer;
-
-    transition:.35s;
+.heroBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: rgba(37,99,235,0.08);
+  border: 1px solid rgba(37,99,235,0.2);
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
 }
 
-.exportButton:hover{
-    background:#00d4ff;
-    color:#08111d;
-    transform:translateY(-4px);
-    box-shadow:0 0 30px rgba(0,212,255,.45);
+.heroTitle {
+  margin: 0;
+  font-size: 48px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.1;
 }
 
-/* Light theme overrides */
-[data-theme="light"] .heroBadge {
-    background: rgba(37,99,235,0.08);
-    border: 1px solid rgba(37,99,235,0.2);
-    color: #2563eb;
+.heroSubtitle {
+  margin-top: 15px;
+  max-width: 550px;
+  color: #475569;
+  font-size: 16px;
+  line-height: 1.8;
 }
-[data-theme="light"] .heroTitle {
-    color: #0f172a;
+
+.heroRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 18px;
 }
-[data-theme="light"] .heroSubtitle {
-    color: #475569;
+
+.exportButton {
+  padding: 14px 28px;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.04);
+  color: #0f172a;
+  cursor: pointer;
+  transition: .35s;
+  font-weight: 600;
+  font-size: 14px;
 }
-[data-theme="light"] .exportButton {
-    background: rgba(0,0,0,0.04);
-    border: 1px solid rgba(0,0,0,0.1);
-    color: #0f172a;
-}
-[data-theme="light"] .exportButton:hover {
-    background: #2563eb;
-    color: #ffffff;
-    box-shadow: 0 0 15px rgba(37,99,235,0.2);
+
+.exportButton:hover {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  transform: translateY(-4px);
+  box-shadow: 0 0 15px rgba(37,99,235,0.2);
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Toaster } from "react-hot-toast";
 import {
   HashRouter,
@@ -6,8 +6,7 @@ import {
   Route,
   useLocation,
 } from "react-router-dom";
-import { ThemeProvider, useTheme } from "./context/ThemeContext";
-import ThemeToggle from "./components/ThemeToggle";
+import { ThemeProvider } from "./context/ThemeContext";
 import Sidebar from "./components/Sidebar";
 import EmployeeSidebar from "./components/EmployeeSidebar";
 import AIAssistant from "./components/AIAssistant";
@@ -21,15 +20,13 @@ import Reports from "./pages/Reports";
 import PayrollReport from "./pages/PayrollReport";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import OutsourcedEmployees from "./pages/OutsourcedEmployees";
-import ThirdPartyPayroll from "./pages/ThirdPartyPayroll";
 import LoginAnimation from "./components/LoginAnimation";
 import HRDocuments from "./pages/HRDocuments";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import LogoutModal from "./components/LogoutModal";
 import { supabase } from "./supabaseClient";
 import WorkLogs from "./pages/WorkLogs";
-import InvoiceManagement from "./pages/InvoiceManagement";
+import AdminApprovals from "./pages/AdminApprovals";
 import ProtectedRoute from "./ProtectedRoute";
 
 import EmployeeHome from "./pages/emp/EmployeeHome";
@@ -46,14 +43,40 @@ function AppContent() {
   const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
-  const { isDark } = useTheme();
 
   const hideSidebar = ["/", "/login", "/signup", "/login-animation"].includes(location.pathname);
 
+  // ---------------------------------------------------------
+  // React to Supabase auth lifecycle events.
+  //
+  // When Supabase rejects a stored session's refresh token
+  // (400 "Invalid Refresh Token" — e.g. the project's JWT
+  // secret was rotated or the auth database was restored from
+  // an older dump), the client emits SIGNED_OUT after dropping
+  // the dead session. Clear our own session markers and send
+  // the user back to login if they are on a protected page,
+  // instead of leaving a half-dead session that keeps failing.
+  // ---------------------------------------------------------
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        localStorage.removeItem("payroll_keep_signed_in");
+        sessionStorage.removeItem("payroll_session_only");
+        const isPublicPage = ["/", "/login", "/signup", "/login-animation"].includes(location.pathname);
+        if (!isPublicPage) {
+          window.location.hash = "#/login";
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [location.pathname]);
+
   const hrPages = [
     "/dashboard", "/employees", "/attendance", "/payroll", "/payroll-report",
-    "/leave", "/performance", "/reports", "/outsourced-employees",
-    "/hr-documents", "/employee-profile", "/work-logs", "/invoices",
+    "/leave", "/performance", "/reports", "/hr-documents", "/employee-profile",
+    "/work-logs", "/approvals",
   ].includes(location.pathname);
 
   const empPages = [
@@ -77,32 +100,21 @@ function AppContent() {
 
   return (
     <>
-      {/* Theme Toggle - always top right */}
-      {!hideSidebar && (
-        <div style={{
-          position: "fixed",
-          top: 16,
-          right: 20,
-          zIndex: 9999,
-        }}>
-          <ThemeToggle />
-        </div>
-      )}
       <Toaster
         position="top-right"
         reverseOrder={false}
         toastOptions={{
           duration: 3000,
           style: {
-            background: isDark ? "#1e293b" : "#ffffff",
-            color: isDark ? "#f8fafc" : "#0f172a",
-            border: isDark ? "1px solid rgba(55,255,215,.15)" : "1px solid rgba(0,0,0,0.08)",
+            background: "#ffffff",
+            color: "#0f172a",
+            border: "1px solid rgba(0,0,0,0.08)",
             borderRadius: "14px",
-            boxShadow: isDark ? "0 12px 35px rgba(0,0,0,.35)" : "0 12px 35px rgba(0,0,0,.1)",
+            boxShadow: "0 12px 35px rgba(0,0,0,.1)",
             padding: "14px 18px",
             fontWeight: "600",
           },
-          success: { iconTheme: { primary: "#37FFD7", secondary: isDark ? "#08111d" : "#ffffff" } },
+          success: { iconTheme: { primary: "#16a34a", secondary: "#ffffff"} },
           error: { iconTheme: { primary: "#ef4444", secondary: "#ffffff" } },
         }}
       />
@@ -139,12 +151,10 @@ function AppContent() {
           <Route path="/leave" element={<ProtectedRoute allowedRoles={["hr", "employee"]}><Leave /></ProtectedRoute>} />
           <Route path="/performance" element={<ProtectedRoute allowedRoles={["hr"]}><Performance /></ProtectedRoute>} />
           <Route path="/reports" element={<ProtectedRoute allowedRoles={["hr"]}><Reports /></ProtectedRoute>} />
-          <Route path="/outsourced-employees" element={<ProtectedRoute allowedRoles={["hr"]}><OutsourcedEmployees /></ProtectedRoute>} />
-          <Route path="/third-party-payroll" element={<ProtectedRoute allowedRoles={["hr"]}><ThirdPartyPayroll /></ProtectedRoute>} />
           <Route path="/hr-documents" element={<ProtectedRoute allowedRoles={["hr"]}><HRDocuments /></ProtectedRoute>} />
           <Route path="/employee-profile" element={<ProtectedRoute allowedRoles={["hr", "employee"]}><EmployeeProfile /></ProtectedRoute>} />
           <Route path="/work-logs" element={<ProtectedRoute allowedRoles={["hr", "employee"]}><WorkLogs /></ProtectedRoute>} />
-          <Route path="/invoices" element={<ProtectedRoute allowedRoles={["hr"]}><InvoiceManagement /></ProtectedRoute>} />
+          <Route path="/approvals" element={<ProtectedRoute allowedRoles={["hr"]}><AdminApprovals /></ProtectedRoute>} />
 
           <Route path="/employee-dashboard" element={<ProtectedRoute allowedRoles={["employee"]}><EmployeeHome /></ProtectedRoute>} />
           <Route path="/emp-attendance" element={<ProtectedRoute allowedRoles={["employee"]}><EmployeeAttendance /></ProtectedRoute>} />

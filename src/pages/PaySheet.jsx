@@ -1,8 +1,10 @@
-import React, { useState, useEffect, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { apiFetch, API_BASE } from "../api";
 import * as XLSX from "xlsx";
-import { Download, Calendar } from "lucide-react";
+import { Download } from "lucide-react";
 import SearchableDropdown from "../components/SearchableDropdown";
+import { getFallbackFinancialYears, pickDefaultFinancialYear } from "../utils/financialYear";
+import { textColor as txColor } from "../styles/adminTheme";
 
 const formatNumberWithCommas = (number) => {
     if (number == null) return "N/A";
@@ -31,8 +33,8 @@ const PaySheet = () => {
     const filteredEmployees = deptFilter === "All" ? employees : employees.filter(e => e.department === deptFilter);
 
     const calculateSalary = (employee, monthIndex) => {
-        const fgs = employee.gross_salary || employee.salary || 0;
-        const basic = employee.basic_da || Math.round(fgs * 0.5);
+        const fgs = Number(employee.gross_salary) || Number(employee.salary) || 0;
+        const basic = Number(employee.basic_da) || Math.round(fgs * 0.5);
         const dim = getDaysInMonth(monthIndex, selectedYear);
         const pd = dim;
 
@@ -51,7 +53,9 @@ const PaySheet = () => {
         const pfEnabled = employee.employee_pf_enabled ?? employee.epfEmployee ?? true;
         const empPfEnabled = employee.employer_pf_enabled ?? employee.epfEmployer ?? true;
         const pf = (pfEnabled && empPfEnabled && pfW < 15000) ? Math.round(pfW * 0.12) : (pfEnabled && empPfEnabled ? 1800 : 0);
-        const pt = (employee.professional_tax_enabled ?? employee.professionalTax ?? true) ? ((eg > 25000) ? 200 : 0) : 0;
+        const isMale = (employee.gender || '').toLowerCase() === 'male';
+        // PT threshold is based on the employee's fixed monthly gross salary, not earned components
+        const pt = isMale ? 200 : (fgs > 25000 ? 200 : 0);
         const esicEnabled = employee.esic_enabled ?? false;
         const esic = (esicEnabled && eg < 21000) ? Math.round(eg * 0.0075) : 0;
         const lwfEnabled = employee.lwf_enabled ?? false;
@@ -77,10 +81,10 @@ const PaySheet = () => {
             .then(async ([yearsRes, empRes]) => {
                 const years = await yearsRes.json();
                 const emps = await empRes.json();
-                const finalYears = years.length ? years : ["2024-2025", "2025-2026"];
+                const finalYears = years.length ? years : getFallbackFinancialYears();
                 setFinancialYears(finalYears);
                 setEmployees(emps);
-                if (!selectedYear) setSelectedYear(finalYears[0]);
+                if (!selectedYear) setSelectedYear(pickDefaultFinancialYear(finalYears));
             })
             .catch(err => console.error(err))
             .finally(() => setLoading(false));
@@ -107,7 +111,7 @@ const PaySheet = () => {
     }, [selectedYear, employees]);
 
     const handleDownloadExcel = () => {
-        let data = [];
+        let data;
         if (viewMode === "yearly") {
             data = employeeTotals.map(t => ({
                 "Employee ID": t.id, "Employee Name": t.name, "Fixed Gross": formatNumberWithCommas(t.fgs), "Basic+DA": formatNumberWithCommas(t.basic),
@@ -134,9 +138,9 @@ const PaySheet = () => {
         return (<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-600"></div></div>);
     }
 
-    const selectStyle = { padding: "12px 16px", borderRadius: "12px", border: "1px solid rgba(255,255,255,.08)", background: "rgba(255,255,255,.04)", color: "#f8fafc", fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer" };
-    const thStyle = { padding: "16px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: "#94a3b8", borderBottom: "1px solid rgba(255,255,255,.06)", whiteSpace: "nowrap", background: "rgba(255,255,255,.02)", letterSpacing: ".3px", textTransform: "uppercase" };
-    const tdStyle = { padding: "14px", fontSize: "13px", color: "#f8fafc", borderBottom: "1px solid rgba(255,255,255,.04)", whiteSpace: "nowrap" };
+    const selectStyle = { padding: "12px 16px", borderRadius: "12px", border: "1px solid #d1d5db", background: "#ffffff", color: txColor('primary'), fontSize: "13px", fontWeight: "600", outline: "none", cursor: "pointer" };
+    const thStyle = { padding: "16px 14px", textAlign: "left", fontSize: "12px", fontWeight: "700", color: txColor('secondary'), borderBottom: "1px solid #e2e8f0", whiteSpace: "nowrap", background: "#f8fafc", letterSpacing: ".3px", textTransform: "uppercase", position: "sticky", top: 0, zIndex: 5 };
+    const tdStyle = { padding: "14px", fontSize: "13px", color: txColor('primary'), borderBottom: "1px solid #f1f5f9", whiteSpace: "nowrap" };
 
     const columns = [
         { key: "name", label: "Employee", w: "180px" },
@@ -171,9 +175,9 @@ const PaySheet = () => {
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                     {["yearly", "monthly"].map(mode => (
                         <button key={mode} onClick={() => setViewMode(mode)} style={{
-                            padding: "12px 24px", borderRadius: "12px", border: viewMode === mode ? "1px solid rgba(55,255,215,.35)" : "1px solid rgba(255,255,255,.08)",
-                            background: viewMode === mode ? "linear-gradient(135deg,rgba(6,182,212,.25),rgba(37,99,235,.25))" : "rgba(255,255,255,.03)",
-                            color: viewMode === mode ? "#37FFD7" : "#94a3b8", cursor: "pointer", fontWeight: "700", fontSize: "13px", letterSpacing: ".3px",
+                            padding: "12px 24px", borderRadius: "12px", border: viewMode === mode ? ( "1px solid rgba(8,145,178,.35)") : ( "1px solid #d1d5db"),
+                            background: viewMode === mode ? ( "linear-gradient(135deg,rgba(8,145,178,.1),rgba(2,132,199,.1))") : ( "rgba(255,255,255,.8)"),
+                            color: viewMode === mode ? ( "#0891b2") : txColor('secondary'), cursor: "pointer", fontWeight: "700", fontSize: "13px", letterSpacing: ".3px",
                             transition: "all .3s ease",
                         }}>
                             {mode === "yearly" ? "Yearly" : "Monthly"}
@@ -187,7 +191,7 @@ const PaySheet = () => {
                             : monthsList.map((m, i) => <option key={i} value={i}>{m}</option>)}
                     </select>
                     <SearchableDropdown value={deptFilter} onChange={setDeptFilter} width={200} />
-                    <span style={{ color: "#37FFD7", fontSize: "13px", fontWeight: "700", marginLeft: "8px" }}>
+                    <span style={{ color: "#0891b2", fontSize: "13px", fontWeight: "700", marginLeft: "8px" }}>
                         {rows.length} Employees
                     </span>
                 </div>
@@ -205,7 +209,7 @@ const PaySheet = () => {
             </div>
 
             {/* Table */}
-            <div style={{ borderRadius: "20px", border: "1px solid rgba(255,255,255,.06)", background: "rgba(255,255,255,.02)", overflow: "hidden" }}>
+            <div style={{ borderRadius: "20px", border: "1px solid #e2e8f0", background: "#ffffff", overflow: "hidden" }}>
                 <div style={{ overflowX: "auto", overflowY: "auto", maxHeight: "70vh" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
@@ -218,18 +222,18 @@ const PaySheet = () => {
                         <tbody>
                             {rows.map((row, idx) => (
                                 <tr key={idx} style={{ transition: "background .2s" }}
-                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(55,255,215,.04)"}
+                                    onMouseEnter={e => e.currentTarget.style.background = "rgba(8,145,178,.04)"}
                                     onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
                                     {columns.map(col => (
                                         <td key={col.key} style={{
                                             ...tdStyle,
-                                            color: col.key === "name" ? "#f8fafc" : col.highlight ? "#37FFD7" : col.color || "#cbd5e1",
+                                            color: col.key === "name" ? txColor('primary') : col.highlight ? ( "#0891b2") : ( txColor('secondary')),
                                             fontWeight: col.key === "name" ? "700" : col.highlight ? "800" : "500",
-                                            textShadow: col.highlight ? "0 0 10px rgba(55,255,215,.30)" : "none",
+                                            textShadow: col.highlight ? ( "none") : "none",
                                         }}>
                                             {col.key === "name" ? (
                                                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                                                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg,#37FFD7,#0EA5E9)", display: "flex", alignItems: "center", justifyContent: "center", color: "#08111d", fontWeight: "700", fontSize: "14px", boxShadow: "0 0 14px rgba(55,255,215,.25)", flexShrink: 0 }}>
+                                                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg,#0891b2,#0284c7)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ffffff", fontWeight: "700", fontSize: "14px", boxShadow: "none", flexShrink: 0 }}>
                                                         {(row.name || "?").charAt(0).toUpperCase()}
                                                     </div>
                                                     <span>{row.name}</span>

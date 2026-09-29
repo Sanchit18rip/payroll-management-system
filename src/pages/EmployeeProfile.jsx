@@ -106,7 +106,7 @@ useEffect(() => {
 
     })
     .catch(err =>
-      console.log(err)
+      console.error(err)
     );
 
 }, [selectedEmployee]);
@@ -119,7 +119,7 @@ useEffect(() => {
       setEmployees(data)
     )
     .catch(err =>
-      console.log(err)
+      console.error(err)
     );
 
 }, []);
@@ -151,7 +151,7 @@ useEffect(() => {
       setLeaveData(data)
     )
     .catch(err =>
-      console.log(err));
+      console.error(err));
 
 }, [selectedEmployee]);
 
@@ -191,17 +191,11 @@ useEffect(() => {
     .then(res => res.json())
     .then(data => {
 
-    console.log("Selected Employee:", data);
-
-    console.log("Probation End Date:", data.probation_end_date);
-
-    console.log("Type:", typeof data.probation_end_date);
-
     setEmployeeData(data);
 
 })
     .catch(err =>
-      console.log(err));
+      console.error(err));
 
 }, [selectedEmployee]);
 const confirmEmployee = () => {
@@ -239,7 +233,7 @@ const confirmEmployee = () => {
 
     })
     .catch(err =>
-      console.log(err)
+      console.error(err)
     );
 
 };
@@ -251,8 +245,8 @@ const confirmEmployee = () => {
     padding: "35px",
     minHeight: "100vh",
     background:
-      "var(--bg-page, radial-gradient(circle at top right, rgba(55,255,215,.08), transparent 30%), #020617)",
-    color: "var(--text-primary, #e2e8f0)"
+      "var(--bg-page, #f0f4f8)",
+    color: "var(--text-primary, #0f172a)"
   }}
 >
 
@@ -570,7 +564,7 @@ color:"#22c55e"
 
 <div
 style={{
-color:"#94a3b8"
+color:"#64748b"
 }}
 >
 Overall Rating
@@ -611,7 +605,7 @@ marginBottom:"8px"
 <div
 style={{
 height:"10px",
-background:"#334155",
+background:"#e2e8f0",
 borderRadius:"999px",
 overflow:"hidden"
 }}
@@ -631,7 +625,7 @@ background:"#3b82f6"
 
 <div
 style={{
-background:"#0f172a",
+background:"#f8fafc",
 padding:"18px",
 borderRadius:"14px"
 }}
@@ -648,7 +642,7 @@ Manager Remarks
 
 <div
 style={{
-color:"#cbd5e1"
+color:"#475569"
 }}
 >
 {performanceData[0].manager_remarks}
@@ -694,12 +688,12 @@ payrollData && (
 
 <div
 style={{
-background:"#0f172a",
+background:"#f8fafc",
 padding:"20px",
 borderRadius:"18px",
 marginBottom:"20px",
 textAlign:"center",
-border:"1px solid #334155"
+border:"1px solid #e2e8f0"
 }}
 >
 
@@ -722,7 +716,7 @@ payrollData.salary
 <div
 style={{
 marginTop:"8px",
-color:"#94a3b8"
+color:"#64748b"
 }}
 >
 
@@ -887,7 +881,7 @@ display:"flex",
 justifyContent:"space-between",
 alignItems:"center",
 padding:"16px",
-background:"#0f172a",
+background:"#f8fafc",
 borderRadius:"14px",
 marginBottom:"12px"
 }}
@@ -906,7 +900,7 @@ fontWeight:"600"
 <div
 style={{
 fontSize:"13px",
-color:"#94a3b8"
+color:"#64748b"
 }}
 >
 HR Document
@@ -983,15 +977,15 @@ borderCollapse:"collapse"
 
 <tr>
 
-<th>Date</th>
+<th style={incrementThStyle}>Date</th>
 
-<th>Old</th>
+<th style={incrementThStyle}>Old</th>
 
-<th>%</th>
+<th style={incrementThStyle}>%</th>
 
-<th>Amount</th>
+<th style={incrementThStyle}>Amount</th>
 
-<th>New</th>
+<th style={incrementThStyle}>New</th>
 
 </tr>
 
@@ -1006,7 +1000,7 @@ incrementHistory.map(item=>(
 <tr
 key={item.id}
 style={{
-borderTop:"1px solid #334155"
+borderTop:"1px solid #e2e8f0"
 }}
 >
 
@@ -1159,13 +1153,29 @@ const fullWidthCard = {
   gridColumn: "1 / -1"
 };
 
+const incrementThStyle = {
+  textAlign: "left",
+  padding: "12px 14px",
+  fontSize: "12px",
+  fontWeight: "700",
+  color: "#475569",
+  textTransform: "uppercase",
+  letterSpacing: ".5px",
+  borderBottom: "1px solid #e2e8f0",
+  background: "#f8fafc",
+  position: "sticky",
+  top: 0,
+  zIndex: 5,
+  whiteSpace: "nowrap"
+};
+
 const cardStyle = {
-  background:"var(--bg-card-solid, #1e293b)",
+  background:"var(--bg-card-solid, #ffffff)",
   borderRadius:"22px",
   padding:"28px",
-  border:"var(--border-card, 1px solid #334155)",
-  color:"var(--text-primary, #f8fafc)",
-  boxShadow:"var(--shadow-card, 0 8px 25px rgba(0,0,0,.25))",
+  border:"var(--border-card, 1px solid #e2e8f0)",
+  color:"var(--text-primary, #0f172a)",
+  boxShadow:"var(--shadow-card, 0 1px 3px rgba(0,0,0,.08))",
   transition:
 "transform .25s ease, box-shadow .25s ease",
   cursor:"default"
@@ -1175,7 +1185,7 @@ const cardTitleStyle = {
   fontSize: "22px",
   fontWeight: "700",
   marginBottom: "20px",
-  color: "var(--text-primary, #ffffff)",
+  color: "var(--text-primary, #0f172a)",
   borderBottom: "2px solid var(--accent-blue, #3b82f6)",
   paddingBottom: "12px"
 };
@@ -1185,16 +1195,16 @@ const infoRow = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: "10px 0",
-  borderBottom: "1px solid var(--border-default, #334155)"
+  borderBottom: "1px solid var(--border-default, #e2e8f0)"
 };
 
 const labelStyle = {
-  color: "var(--text-secondary, #94a3b8)",
+  color: "var(--text-secondary, #475569)",
   fontWeight: "600"
 };
 
 const valueStyle = {
-  color: "var(--text-primary, #f8fafc)",
+  color: "var(--text-primary, #0f172a)",
   fontWeight: "700"
 };
 const metricGrid = {
@@ -1205,41 +1215,41 @@ const metricGrid = {
 };
 
 const metricCard = {
-  background: "var(--bg-input, #0f172a)",
-  border: "1px solid var(--border-default, #334155)",
+  background: "var(--bg-input, #f8fafc)",
+  border: "1px solid var(--border-default, #e2e8f0)",
   borderRadius: "14px",
   padding: "16px",
   textAlign: "center"
 };
 
 const metricValue = {
-  color: "var(--text-accent, #38bdf8)",
+  color: "var(--text-accent, #2563eb)",
   fontSize: "22px",
   fontWeight: "700"
 };
 
 const metricLabel = {
-  color: "var(--text-secondary, #94a3b8)",
+  color: "var(--text-secondary, #475569)",
   marginTop: "8px",
   fontSize: "14px"
 };
 const summaryCard={
-background:"var(--bg-input, #0f172a)",
+background:"var(--bg-input, #f8fafc)",
 padding:"24px",
 borderRadius:"16px",
 textAlign:"center",
-border:"1px solid var(--border-default, #334155)"
+border:"1px solid var(--border-default, #e2e8f0)"
 };
 
 const summaryNumber={
 fontSize:"34px",
 fontWeight:"700",
-color:"var(--accent-blue, #3b82f6)"
+color:"var(--accent-blue, #2563eb)"
 };
 
 const summaryText={
 marginTop:"8px",
-color:"var(--text-secondary, #94a3b8)"
+color:"var(--text-secondary, #475569)"
 };
 
 const successBadge={
@@ -1289,7 +1299,7 @@ zIndex:9999
 
 const modalBox={
 
-background:"var(--bg-card-solid, #1e293b)",
+background:"var(--bg-card-solid, #ffffff)",
 
 padding:"30px",
 
@@ -1297,12 +1307,12 @@ borderRadius:"20px",
 
 width:"430px",
 
-color:"var(--text-primary, #f8fafc)",
+color:"var(--text-primary, #0f172a)",
 
-border:"var(--border-card, 1px solid #334155)",
+border:"var(--border-card, 1px solid #e2e8f0)",
 
 boxShadow:
-"0 10px 35px rgba(0,0,0,.45)"
+"0 10px 35px rgba(0,0,0,.12)"
 
 };
 

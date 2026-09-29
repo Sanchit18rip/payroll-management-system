@@ -1,10 +1,8 @@
 import {
   Link,
-  useNavigate,
+  useLocation,
 } from 'react-router-dom'
 import { useState } from 'react'
-import { supabase } from '../supabaseClient'
-import { useTheme } from '../context/ThemeContext'
 import './Sidebar.css'
 import {
   LayoutDashboard,
@@ -16,9 +14,9 @@ import {
   ClipboardList,
   Building2,
   UserCircle,
-  LogOut,
   Menu,
   FileText,
+  UserCheck,
 } from "lucide-react";
 
 function Sidebar({
@@ -29,8 +27,7 @@ function Sidebar({
   const [collapsed, setCollapsed] =
     useState(false)
   const [showBrand, setShowBrand] = useState(false)
-  const { isDark } = useTheme()
-  const navigate = useNavigate()
+  const location = useLocation()
 const menuItems = [
   {
     title: "Dashboard",
@@ -88,34 +85,12 @@ const menuItems = [
     path: "/work-logs",
   },
   {
-    title: "Invoices",
-    icon: FileText,
-    path: "/invoices",
+    title: "Approvals",
+    icon: UserCheck,
+    path: "/approvals",
   },
 ];
 
-const handleLogout = async () => {
-
-  try {
-
-    await supabase.auth.signOut()
-    localStorage.removeItem('payroll_keep_signed_in')
-    sessionStorage.removeItem('payroll_session_only')
-
-    navigate('/login')
-
-  }
-
-  catch (error) {
-
-    console.error(
-      'Logout failed:',
-      error
-    )
-
-  }
-
-}
   return (
     <>
     <div
@@ -147,9 +122,8 @@ const handleLogout = async () => {
   </button>
 
   {!collapsed && (
-    <div className="sidebar-brand" onClick={() => setShowBrand(true)} style={{ cursor: 'pointer' }}>
-      <img src="/images/logo.png" alt="Logo" className="sidebar-logo" />
-      <span className="sidebar-title">Payroll</span>
+    <div className="sidebar-brand" onClick={() => setShowBrand(true)} style={{ cursor: 'pointer' }}>            <img src="/images/Logo.png" alt="Logo" className="sidebar-logo" />
+            <span className="sidebar-title">Payroll</span>
     </div>
   )}
 
@@ -157,12 +131,13 @@ const handleLogout = async () => {
 
       {menuItems.map((item) => {
   const Icon = item.icon;
+  const isActive = location.pathname === item.path;
 
   return (
     <Link
       key={item.path}
       to={item.path}
-      className="sidebar-link"
+      className={`sidebar-link ${isActive ? 'active' : ''}`}
     >
       <Icon size={20} />
 
@@ -197,9 +172,9 @@ const handleLogout = async () => {
             position: 'fixed',
             inset: 0,
             zIndex: 999999,
-            background: isDark ? 'rgba(2,6,23,0.85)' : 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(16px)',
-            WebkitBackdropFilter: 'blur(16px)',
+            background: 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -214,16 +189,14 @@ const handleLogout = async () => {
             }}
           >
             <img
-              src="/images/logo.png"
+              src="/images/Logo.png"
               alt="Logo"
               style={{
-                width: 140,
-                height: 140,
-                borderRadius: 32,
-                boxShadow: isDark
-                  ? '0 0 60px rgba(99,102,241,0.4), 0 20px 50px rgba(0,0,0,0.5)'
-                  : '0 0 40px rgba(59,130,246,0.2), 0 15px 40px rgba(0,0,0,0.1)',
-                marginBottom: 24,
+                width: 260,
+                height: 'auto',
+                objectFit: 'contain',
+                display: 'block',
+                margin: '0 auto 24px',
               }}
             />
             <h1
@@ -231,9 +204,7 @@ const handleLogout = async () => {
                 margin: 0,
                 fontSize: 42,
                 fontWeight: 800,
-                background: 'linear-gradient(90deg, #6366f1, #3b82f6, #8b5cf6)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
+                color: '#0f172a',
                 letterSpacing: '-1px',
               }}
             >
@@ -243,8 +214,8 @@ const handleLogout = async () => {
               style={{
                 margin: '12px 0 0',
                 fontSize: 16,
-                color: isDark ? '#94a3b8' : '#64748b',
-                fontWeight: 500,
+                color: '#0f172a',
+                fontWeight: 600,
               }}
             >
               Talent Pay Corner
@@ -253,7 +224,7 @@ const handleLogout = async () => {
               style={{
                 margin: '8px 0 0',
                 fontSize: 13,
-                color: isDark ? '#64748b' : '#94a3b8',
+                color: '#334155',
               }}
             >
               Click anywhere to close

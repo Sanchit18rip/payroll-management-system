@@ -36,10 +36,15 @@ class PayrollFormula {
 
   /**
    * Calculate professional tax based on gender and earned gross.
-   * Male: Rs.200 if earned gross > 25000
-   * Female: Rs.200 if earned gross > 25000
+   * Male:   Rs.200 always
+   * Female: Rs.200 if earned gross > 25000, else Rs.0
    */
   static professionalTax(earnedGross, gender) {
+    const g = (gender || '').toLowerCase();
+    if (g === 'male') {
+      return 200;
+    }
+    // Female: only if salary > 25000 (exactly 25000 is NOT taxable)
     if (earnedGross > 25000) {
       return 200;
     }
@@ -133,11 +138,8 @@ class PayrollFormula {
         ? PayrollFormula.esicEmployee(grossSalary, true)
         : 0;
 
-    // Professional Tax (Rs.200 if gross > 25000)
-    const professionalTax =
-      employee.professionalTaxEnabled
-        ? PayrollFormula.professionalTax(grossSalary, employee.gender)
-        : 0;
+    // Professional Tax: Male = Rs.200 always; Female = Rs.200 if gross > 25000
+    const professionalTax = PayrollFormula.professionalTax(grossSalary, employee.gender);
 
     // LWF Employee (Rs.25 in June/Dec only)
     const lwf =
@@ -190,7 +192,11 @@ class PayrollFormula {
 
     const annualCTC = monthlyCTC * 12;
 
-    const netPay = grossSalary - totalDeduction;
+    // Net pay = actual earnings (sum of components) minus deductions.
+    // NOTE: when other_expense_enabled is OFF the components do not sum to
+    // grossSalary, so net must be based on the earned total, not gross.
+    const totalEarnings = basicDA + hra + conveyance + medical + otherAllowance;
+    const netPay = totalEarnings - totalDeduction;
 
     const finalBonus =
       employee.incentiveEnabled ? bonus : 0;

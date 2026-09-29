@@ -18,11 +18,11 @@ padding:8px 16px;
 
 border-radius:50px;
 
-background:rgba(0,212,255,.08);
+background:rgba(37,99,235,.08);
 
-border:1px solid rgba(0,212,255,.25);
+border:1px solid rgba(37,99,235,.2);
 
-color:#55e6ff;
+color:#2563eb;
 
 font-size:12px;
 
@@ -34,12 +34,6 @@ margin-bottom:18px;
 
 }
 
-[data-theme="light"] .heroBadge {
-  background: rgba(37,99,235,0.08);
-  border-color: rgba(37,99,235,0.2);
-  color: #2563eb;
-}
-
 .heroTitle{
 
 margin:0;
@@ -48,14 +42,10 @@ font-size:52px;
 
 font-weight:800;
 
-color:white;
+color:#0f172a;
 
 letter-spacing:1px;
 
-}
-
-[data-theme="light"] .heroTitle {
-  color: #0f172a;
 }
 
 .heroSubtitle{
@@ -64,7 +54,7 @@ margin-top:12px;
 
 font-size:17px;
 
-color:#94a3b8;
+color:#475569;
 
 max-width:620px;
 
@@ -72,23 +62,16 @@ line-height:1.8;
 
 }
 
-[data-theme="light"] .heroSubtitle {
-  color: #475569;
-}
 /* ================================
-   CYBERPUNK ATTENDANCE CALENDAR
+   ATTENDANCE CALENDAR (LIGHT)
 ================================ */
 
 .attendance-calendar {
   width: 100%;
   border: none !important;
   background: transparent !important;
-  color: #f8fafc !important;
-  font-family: inherit;
-}
-
-[data-theme="light"] .attendance-calendar {
   color: #0f172a !important;
+  font-family: inherit;
 }
 
 /* Calendar navigation */
@@ -101,45 +84,31 @@ line-height:1.8;
 .attendance-calendar .react-calendar__navigation button {
   min-width: 40px;
   height: 40px;
-  border: 1px solid rgba(55, 255, 215, 0.12);
+  border: 1px solid rgba(0,0,0,0.08);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  color: #f8fafc;
+  background: rgba(255,255,255,0.9);
+  color: #0f172a;
   font-size: 14px;
   font-weight: 700;
   transition: all 0.2s ease;
 }
 
-[data-theme="light"] .attendance-calendar .react-calendar__navigation button {
-  border: 1px solid rgba(0,0,0,0.08);
-  background: rgba(255,255,255,0.9);
-  color: #0f172a;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__navigation button:hover {
+.attendance-calendar .react-calendar__navigation button:hover {
   background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.35);
   color: #2563eb;
 }
 
-.attendance-calendar .react-calendar__navigation button:hover {
-  background: rgba(55, 255, 215, 0.12);
-  border-color: rgba(55, 255, 215, 0.35);
-  color: #37FFD7;
-}
-
 .attendance-calendar .react-calendar__navigation button:disabled {
-  background: rgba(255, 255, 255, 0.02);
+  background: rgba(255, 255, 255, 0.5);
   color: #475569;
 }
 
 /* Month / year title */
 .attendance-calendar .react-calendar__navigation__label {
   flex: 1;
-  color: #37FFD7 !important;
-  font-weight: 700;
-}
-
-[data-theme="light"] .attendance-calendar .react-calendar__navigation__label {
   color: #2563eb !important;
+  font-weight: 700;
 }
 
 /* Weekday labels */
@@ -167,73 +136,44 @@ line-height:1.8;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
-  color: #cbd5e1;
+  color: #334155;
   font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
 }
 
-[data-theme="light"] .attendance-calendar .react-calendar__tile {
-  color: #334155;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__tile:hover {
-  background: rgba(37,99,235,0.06);
-  color: #2563eb;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__tile--now {
-  background: rgba(37,99,235,0.08);
-  border: 1px solid rgba(37,99,235,0.2);
-  color: #2563eb;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__tile--active {
-  background: linear-gradient(135deg, #2563eb, #4f46e5) !important;
-  color: #ffffff !important;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__month-view__weekdays {
-  color: #64748b;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__month-view__days__day--neighboringMonth {
-  color: #cbd5e1 !important;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__month-view__days__day--weekend {
-  color: #94a3b8;
-}
-[data-theme="light"] .attendance-calendar .react-calendar__tile:disabled {
-  color: #cbd5e1;
-}
-
 /* Hover */
 .attendance-calendar .react-calendar__tile:hover {
-  background: rgba(0, 212, 255, 0.08);
-  border-color: rgba(0, 212, 255, 0.25);
-  color: #ffffff;
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.25);
+  color: #2563eb;
 }
 
 /* Today */
 .attendance-calendar .react-calendar__tile--now {
-  background: rgba(55, 255, 215, 0.08);
-  border: 1px solid rgba(55, 255, 215, 0.35);
-  color: #37FFD7;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  color: #2563eb;
 }
 
 /* Selected date */
 .attendance-calendar .react-calendar__tile--active {
   background: linear-gradient(
     135deg,
-    rgba(0, 212, 255, 0.85),
-    rgba(37, 99, 235, 0.85)
+    #2563eb,
+    #4f46e5
   ) !important;
-  border: 1px solid rgba(55, 255, 215, 0.5);
+  border: 1px solid rgba(37, 99, 235, 0.5);
   color: #ffffff !important;
-  box-shadow: 0 0 18px rgba(0, 212, 255, 0.18);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.18);
 }
 
 /* Selected date hover */
 .attendance-calendar .react-calendar__tile--active:hover {
   background: linear-gradient(
     135deg,
-    #00d4ff,
-    #2563eb
+    #2563eb,
+    #4f46e5
   ) !important;
   color: #ffffff !important;
 }
@@ -241,7 +181,7 @@ line-height:1.8;
 /* Dates from previous/next month */
 .attendance-calendar
   .react-calendar__month-view__days__day--neighboringMonth {
-  color: #334155 !important;
+  color: #cbd5e1 !important;
 }
 
 /* Weekend */
@@ -253,7 +193,7 @@ line-height:1.8;
 /* Disabled future dates */
 .attendance-calendar .react-calendar__tile:disabled {
   background: transparent;
-  color: #334155;
+  color: #cbd5e1;
   cursor: not-allowed;
 }
 
@@ -267,12 +207,12 @@ line-height:1.8;
 .attendance-calendar .react-calendar__year-view .react-calendar__tile,
 .attendance-calendar .react-calendar__decade-view .react-calendar__tile,
 .attendance-calendar .react-calendar__century-view .react-calendar__tile {
-  color: #cbd5e1;
+  color: #475569;
 }
 
 .attendance-calendar .react-calendar__year-view .react-calendar__tile:hover,
 .attendance-calendar .react-calendar__decade-view .react-calendar__tile:hover,
 .attendance-calendar .react-calendar__century-view .react-calendar__tile:hover {
-  background: rgba(0, 212, 255, 0.08);
-  color: #37FFD7;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
 }

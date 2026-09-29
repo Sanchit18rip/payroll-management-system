@@ -1,57 +1,28 @@
 .btn {
-
   border: none;
-
   border-radius: 14px;
-
   padding: 12px 22px;
-
   cursor: pointer;
-
   transition: .3s;
-
   font-weight: 600;
-
   color: white;
-
 }
 
 .btn-primary {
-
-  background: linear-gradient(
-      135deg,
-      #2563eb,
-      #3b82f6
-  );
-
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
 }
 
 .btn-primary:hover {
-
   transform: translateY(-3px);
-
-  box-shadow:
-  0 10px 30px rgba(59,130,246,.4);
-
+  box-shadow: 0 10px 30px rgba(59,130,246,.4);
 }
 
-.btn-secondary{
-
-background:rgba(255,255,255,.06);
-
-border:1px solid rgba(255,255,255,.08);
-
-}
-
-/* Light theme overrides */
-[data-theme="light"] .btn {
-  color: #ffffff;
-}
-[data-theme="light"] .btn-secondary {
+.btn-secondary {
   background: rgba(0,0,0,0.04);
   border: 1px solid rgba(0,0,0,0.1);
   color: #0f172a;
 }
-[data-theme="light"] .btn-secondary:hover {
+
+.btn-secondary:hover {
   background: rgba(0,0,0,0.07);
 }

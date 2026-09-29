@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { apiFetch, API_BASE } from '../../api'
 import { supabase } from '../../supabaseClient'
 
@@ -6,7 +6,30 @@ import { supabase } from '../../supabaseClient'
  * Shared hook for employee data.
  * fetches employee profile + dashboard data once,
  * then provides helper functions for specific API calls.
+ *
+ * A short in-memory cache (45s) lets page navigation reuse data that was
+ * already fetched moments ago, so sidebar clicks open instantly instead of
+ * showing a spinner for 20-30s. Data is refreshed in the background and the
+ * auto-refresh interval keeps everything current.
  */
+
+const CACHE_TTL_MS = 45 * 1000
+const cache = new Map() // employeeId -> { ts, data }
+
+function getCached(id) {
+  const entry = cache.get(id)
+  if (!entry) return null
+  if (Date.now() - entry.ts > CACHE_TTL_MS) {
+    cache.delete(id)
+    return null
+  }
+  return entry.data
+}
+
+function setCached(id, data) {
+  cache.set(id, { ts: Date.now(), data })
+}
+
 export default function useEmployeeData() {
   const [loading, setLoading] = useState(true)
   const [errorMsg, setErrorMsg] = useState('')
@@ -35,8 +58,10 @@ export default function useEmployeeData() {
       setLeaves(data.leaves)
       setPerformance(data.performance)
       setIncrements(data.increments || [])
+      setCached(employeeId, data)
     } catch (err) {
       console.error('Dashboard load error:', err)
+      throw err
     }
   }, [])
 
@@ -48,13 +73,23 @@ export default function useEmployeeData() {
         const data = await res.json()
         setWorkLogSummary(data)
       }
-    } catch (err) { console.log(err) }
+    } catch (err) { console.error(err) }
+  }, [])
+
+  const applyDashboard = useCallback((data) => {
+    setEmployee(data.employee)
+    setPayableSalary(data.payableSalary ?? 0)
+    setAttendance(data.attendance)
+    setAttendanceSummary(data.attendanceSummary)
+    setLeaveBalance(data.leaveBalance || { available_leaves: 0, total_leaves_earned: 0 })
+    setLeaves(data.leaves)
+    setPerformance(data.performance)
+    setIncrements(data.increments || [])
   }, [])
 
   // Initial load
   useEffect(() => {
     const init = async () => {
-      setLoading(true)
       const { data: { user } } = await supabase.auth.getUser()
       if (!user?.email) {
         setErrorMsg('You need to be logged in to view this page.')
@@ -69,21 +104,32 @@ export default function useEmployeeData() {
           return
         }
         const empData = await empRes.json()
-        await loadDashboard(empData.id)
-        await loadWorkLogSummary(empData.id)
+        const cached = getCached(empData.id)
+
+        if (cached) {
+          // Paint instantly from cache, then refresh in the background.
+          applyDashboard(cached)
+          setLoading(false)
+          Promise.all([loadDashboard(empData.id), loadWorkLogSummary(empData.id)])
+            .catch(() => {})
+          return
+        }
+
+        // Parallel dashboard + worklog load (was sequential before).
+        await Promise.all([loadDashboard(empData.id), loadWorkLogSummary(empData.id)])
       } catch (err) {
-        console.log(err)
+        console.error(err)
         setErrorMsg('Something went wrong while loading your data.')
       }
       setLoading(false)
     }
     init()
-  }, [loadDashboard, loadWorkLogSummary])
+  }, [applyDashboard, loadDashboard, loadWorkLogSummary])
 
   // Auto-refresh
   useEffect(() => {
     if (!employee?.id) return
-    const interval = setInterval(() => loadDashboard(employee.id), 10000)
+    const interval = setInterval(() => loadDashboard(employee.id).catch(() => {}), 10000)
     return () => clearInterval(interval)
   }, [employee?.id, loadDashboard])
 

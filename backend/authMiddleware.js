@@ -68,7 +68,7 @@ let tokenPayload;
 
     if (error || !user) {
 
-  console.log("Supabase Auth Error:", error);
+  console.error("Supabase Auth Error:", error);
 
   return res.status(401).json({
     message: "Invalid or expired session",
@@ -119,60 +119,45 @@ let tokenPayload;
     }
 
     // --------------------------------------------------
-    // Skip OTP check for HR users.
+    // Approval gate for employee users.
+    //
+    // Email + password login is enough — no OTP or email
+    // verification is required. Employees can only access
+    // the system once HR has approved their registration.
     // --------------------------------------------------
 
     if (req.userRole !== "hr") {
 
       try {
 
-        const tableCheck = await db.query(`
-          SELECT EXISTS (
-            SELECT FROM information_schema.tables
-            WHERE table_name = 'login_challenges'
-          ) AS exists
-        `);
-
-        if (!tableCheck.rows[0].exists) {
-          return next();
-        }
-
-        const challengeResult = await db.query(
-          `SELECT otp_verified, expires_at
-           FROM login_challenges
-           WHERE user_id = $1
-           ORDER BY created_at DESC
+        const approvalResult = await db.query(
+          `SELECT approval_status
+           FROM employee_profiles
+           WHERE id = $1
            LIMIT 1`,
           [user.id]
         );
 
-        const challenge = challengeResult.rows[0];
+        const approvalStatus =
+          approvalResult.rows[0]?.approval_status;
 
-        if (!challenge) {
+        if (approvalStatus === "pending") {
           return res.status(403).json({
-            message: "Email OTP verification required"
+            message: "Your registration is pending HR approval"
           });
         }
 
-        // If OTP is verified, allow access regardless of expiry
-        if (challenge.otp_verified) {
-          return next();
-        }
-
-        // OTP not yet verified — check if challenge expired
-        if (new Date(challenge.expires_at) < new Date()) {
+        if (approvalStatus === "rejected") {
           return res.status(403).json({
-            message: "OTP expired. Please log in again."
+            message: "Your registration was rejected. Please contact HR"
           });
         }
 
-        return res.status(403).json({
-          message: "Email OTP verification required"
-        });
-
-      } catch (chErr) {
-        console.error("OTP check failed, skipping:", chErr.message);
-        return next();
+      } catch (approvalErr) {
+        console.error(
+          "Approval check failed, allowing access:",
+          approvalErr.message
+        );
       }
 
     }
@@ -280,7 +265,7 @@ export const requireSession = async (req, res, next) => {
 
   catch (err) {
 
-    console.log(
+    console.error(
       "Session authentication error:",
       err.message
     );
